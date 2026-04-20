@@ -22,9 +22,9 @@ export function Footer() {
               La meilleure expérience de livraison de repas à Brazzaville. Vos plats préférés, livrés rapidement.
             </p>
             <div className="flex flex-col gap-2 mt-4 text-sm">
-              <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-500 flex-shrink-0" />Brazzaville, Congo</span>
-              <span className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary-500 flex-shrink-0" />+242 06 XXX XX XX</span>
-              <span className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary-500 flex-shrink-0" />contact@liliafood.com</span>
+              <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-500 shrink-0" />Brazzaville, Congo</span>
+              <span className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary-500 shrink-0" />+242 06 745 46 10</span>
+              <span className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary-500 shrink-0" />contact@liliafood.com</span>
             </div>
           </div>
 
@@ -56,7 +56,7 @@ export function Footer() {
 
         <div className="border-t border-zinc-800 dark:border-dark-border mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs">
           <p>© {new Date().getFullYear()} Lilia Food. Tous droits réservés.</p>
-          <p>Fait avec ❤️ à Brazzaville</p>
+          <p>Fait avec ❤️ à Brazzaville. Par DreesisLab</p>
         </div>
       </div>
     </footer>

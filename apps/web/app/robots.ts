@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/panier', '/commandes', '/profil', '/api/'],
       },
     ],
-    sitemap: 'https://lilia-food.vercel.app/sitemap.xml',
+    sitemap: 'https://lilia-food-web.vercel.app/sitemap.xml',
   };
 }

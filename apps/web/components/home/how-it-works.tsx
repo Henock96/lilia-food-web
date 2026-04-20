@@ -22,7 +22,7 @@ const steps = [
   {
     icon: Truck,
     title: 'Recevez votre repas',
-    description: 'Payez par MTN MoMo ou à la livraison. Suivez votre commande en temps réel.',
+    description: 'Payez par MTN MoMo. Suivez votre commande en temps réel.',
     color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
     step: '03',
   },

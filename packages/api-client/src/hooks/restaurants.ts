@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Restaurant, Review, ReviewStats } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -45,5 +45,19 @@ export function useRestaurantReviewStats(restaurantId: string) {
     queryFn: () => apiClient<ReviewStats>(`/reviews/restaurant/${restaurantId}/stats`),
     enabled: !!restaurantId,
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useToggleRestaurantOpen(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (restaurantId: string) =>
+      apiClient<Restaurant>(`/restaurants/${restaurantId}/toggle-open`, {
+        method: 'PATCH',
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+    },
   });
 }

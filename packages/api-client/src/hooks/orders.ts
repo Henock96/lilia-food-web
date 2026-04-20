@@ -66,3 +66,31 @@ export function useCancelOrder(token: string | null) {
     },
   });
 }
+
+export function useRestaurantOrders(token: string | null) {
+  return useQuery({
+    queryKey: [...orderKeys.all, 'restaurant'] as const,
+    queryFn: async () => {
+      const res = await apiClient<Order[] | { data: Order[] }>('/orders/restaurant', { token });
+      return Array.isArray(res) ? res : (res as { data: Order[] }).data ?? [];
+    },
+    enabled: !!token,
+    staleTime: 20 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
+export function useUpdateOrderStatus(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
+      apiClient<Order>(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+  });
+}

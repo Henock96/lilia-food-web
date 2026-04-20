@@ -192,7 +192,7 @@ export default function PanierPage() {
                       <img
                         src={item.product.imageUrl}
                         alt={item.product.nom}
-                        className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                        className="w-16 h-16 rounded-xl object-cover shrink-0"
                       />
                     )}
                     <div className="flex-1 min-w-0">
@@ -300,7 +300,7 @@ export default function PanierPage() {
                           )}
                         >
                           <div className={cn(
-                            'w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center',
+                            'w-4 h-4 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center',
                             selectedAdresseId === adresse.id ? 'border-primary-500' : 'border-zinc-300',
                           )}>
                             {selectedAdresseId === adresse.id && (
@@ -472,7 +472,7 @@ export default function PanierPage() {
                   </div>
                 )}
                 <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
-                  <span>Service (10%)</span>
+                  <span>Frais de service </span>
                   <span>{formatCurrency(serviceFee)}</span>
                 </div>
                 {discount > 0 && (
@@ -491,7 +491,7 @@ export default function PanierPage() {
               {/* Validation hint */}
               {isDelivery && !selectedAdresseId && (
                 <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-3">
-                  <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
                   Sélectionnez une adresse de livraison
                 </p>
               )}

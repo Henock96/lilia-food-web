@@ -102,7 +102,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       animate={{ scale: isCurrent ? 1.1 : 1, opacity: 1 }}
                       transition={{ duration: 0.3 }}
                       className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
+                        'w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all',
                         isCompleted
                           ? isCurrent
                             ? 'bg-primary-500 text-white shadow-lg shadow-primary-200'
@@ -148,7 +148,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
       {isCancelled && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 mb-4">
-          <XCircle className="w-5 h-5 text-rose-500 flex-shrink-0" />
+          <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
           <div>
             <p className="font-medium text-rose-800 text-sm">Commande annulée</p>
             <p className="text-xs text-rose-600 mt-0.5">Cette commande a été annulée</p>
@@ -168,7 +168,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   <p className="text-xs text-zinc-400 dark:text-zinc-500">{item.variantLabel}</p>
                 )}
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0 text-sm">
+              <div className="flex items-center gap-3 shrink-0 text-sm">
                 <span className="text-zinc-400 dark:text-zinc-500">×{item.quantite}</span>
                 <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(item.prix * item.quantite)}</span>
               </div>
@@ -186,7 +186,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <span>{formatCurrency(order.deliveryFee)}</span>
           </div>
           <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
-            <span>Service</span>
+            <span>Frais de service</span>
             <span>{formatCurrency(order.serviceFee)}</span>
           </div>
           {order.discountAmount > 0 && (
