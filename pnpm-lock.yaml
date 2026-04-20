@@ -27,6 +27,70 @@ importers:
         specifier: ^2.3.3
         version: 2.9.6
 
+  apps/admin:
+    dependencies:
+      '@lilia/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@lilia/motion':
+        specifier: workspace:*
+        version: link:../../packages/motion
+      '@lilia/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      '@lilia/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
+      '@tanstack/react-query':
+        specifier: ^5.62.0
+        version: 5.99.2(react@19.2.5)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.62.0
+        version: 5.99.2(@tanstack/react-query@5.99.2(react@19.2.5))(react@19.2.5)
+      firebase:
+        specifier: ^11.0.0
+        version: 11.10.0
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      lucide-react:
+        specifier: ^0.460.0
+        version: 0.460.0(react@19.2.5)
+      next:
+        specifier: ^16.0.0
+        version: 16.2.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.5(react@19.2.5)
+      sonner:
+        specifier: ^1.7.0
+        version: 1.7.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      zustand:
+        specifier: ^5.0.0
+        version: 5.0.12(@types/react@19.2.14)(react@19.2.5)
+    devDependencies:
+      '@lilia/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@tailwindcss/postcss':
+        specifier: ^4.0.0
+        version: 4.2.2
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.2.2
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/web:
     dependencies:
       '@lilia/api-client':
