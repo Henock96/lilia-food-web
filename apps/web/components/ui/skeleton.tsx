@@ -44,7 +44,7 @@ export function OrderCardSkeleton() {
 export function ProductCardSkeleton() {
   return (
     <div className="bg-white dark:bg-dark-card rounded-xl overflow-hidden border border-zinc-100 dark:border-dark-border flex gap-3 p-3">
-      <Skeleton className="w-24 h-24 rounded-xl flex-shrink-0" />
+      <Skeleton className="w-24 h-24 rounded-xl shrink-0" />
       <div className="flex flex-col gap-2 flex-1">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-full" />
