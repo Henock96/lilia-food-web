@@ -28,6 +28,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'lilia-auth',
       partialize: (state) => ({ user: state.user }),
+      skipHydration: true,
     },
   ),
 );

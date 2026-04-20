@@ -42,6 +42,11 @@ async function syncWithRetry(
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setToken, setLoading } = useAuthStore();
 
+  // Hydrate Zustand persist from localStorage (skipHydration: true prevents SSR access)
+  useEffect(() => {
+    void useAuthStore.persist.rehydrate();
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {

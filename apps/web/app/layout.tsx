@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { Providers } from '@/components/providers';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
@@ -48,20 +49,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr" suppressHydrationWarning>
       <body>
-        <Providers>
-          {children}
-          <ScrollToTop />
-          <Toaster
-            position="top-center"
-            richColors
-            toastOptions={{
-              style: { fontFamily: 'var(--font-sans)' },
-              classNames: {
-                toast: 'dark:!bg-dark-card dark:!border-dark-border dark:!text-zinc-100',
-              },
-            }}
-          />
-        </Providers>
+        <Suspense>
+          <Providers>
+            {children}
+            <ScrollToTop />
+            <Toaster
+              position="top-center"
+              richColors
+              toastOptions={{
+                style: { fontFamily: 'var(--font-sans)' },
+                classNames: {
+                  toast: 'dark:!bg-dark-card dark:!border-dark-border dark:!text-zinc-100',
+                },
+              }}
+            />
+          </Providers>
+        </Suspense>
       </body>
     </html>
   );
