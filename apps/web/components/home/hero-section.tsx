@@ -18,15 +18,15 @@ export function HeroSection() {
 
   return (
     <section
-      className="relative min-h-screen flex items-center overflow-hidden bg-linear-to-br from-orange-50 via-white to-amber-50/30 dark:from-dark-bg dark:via-dark-surface dark:to-dark-card pt-16"
+      className="relative min-h-screen flex items-start overflow-hidden bg-linear-to-br from-orange-50 via-white to-amber-50/30 dark:from-dark-bg dark:via-dark-surface dark:to-dark-card pt-16"
       aria-label="Section d'accueil"
     >
       {/* Blobs décoratifs */}
       <div className="absolute top-20 right-0 w-150 h-150 bg-primary-100/30 dark:bg-primary-900/10 rounded-full -translate-y-1/4 translate-x-1/4 pointer-events-none" aria-hidden />
       <div className="absolute bottom-0 left-0 w-100 h-100 bg-amber-100/20 dark:bg-amber-900/10 rounded-full translate-y-1/4 -translate-x-1/4 pointer-events-none" aria-hidden />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 w-full">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-24 w-full">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           {/* Content */}
           <div className="flex flex-col gap-6">
             {/* Badge */}
@@ -127,7 +127,7 @@ export function HeroSection() {
             transition={{ delay: 0.3, duration: 0.6, ease }}
             className="relative hidden lg:block"
           >
-            <div className="relative w-full aspect-square max-w-lg mx-auto">
+            <div className="relative w-full aspect-square max-w-md mx-auto">
               <div className="absolute inset-0 bg-linear-to-br from-primary-400 to-accent-500 rounded-[3rem] rotate-6 opacity-10 dark:opacity-5" aria-hidden />
               <div className="relative bg-white dark:bg-dark-card rounded-4xl overflow-hidden shadow-2xl border border-zinc-100 dark:border-dark-border">
                 <img
