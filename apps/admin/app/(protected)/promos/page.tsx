@@ -218,7 +218,7 @@ function CreateModal({ onClose, onSave, isSaving }: {
 function StatsModal({ promoId, onClose }: { promoId: string; onClose: () => void }) {
   const { token } = useAuthStore();
   const { data: raw, isLoading } = usePromoStats(promoId, token);
-  const stats = (raw as { data?: StatsData })?.data ?? (raw as StatsData | undefined);
+  const stats = raw as StatsData | undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

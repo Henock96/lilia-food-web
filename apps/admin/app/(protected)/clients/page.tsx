@@ -56,7 +56,7 @@ const STATUS_LABELS: Record<string, string> = {
 function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const { token } = useAuthStore();
   const { data: raw, isLoading } = useClientDetail(clientId, token);
-  const detail = (raw as unknown as { data?: DetailData })?.data;
+  const detail = raw as unknown as DetailData | undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
