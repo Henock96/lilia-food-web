@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -59,7 +60,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group" aria-label="Lilia Food — Accueil">
             <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-              <ChefHat className="w-4 h-4 text-white" />
+                <Image src="/logo.jpg" alt="Logo Lilia Food" width={200} height={200} className="w-24 h-24 object-contain" />
             </div>
             <span className="font-display text-xl font-bold text-zinc-900 dark:text-zinc-100" style={{ fontFamily: 'var(--font-display)' }}>
               Lilia Food

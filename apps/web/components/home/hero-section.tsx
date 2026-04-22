@@ -18,12 +18,12 @@ export function HeroSection() {
 
   return (
     <section
-      className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50/30 dark:from-dark-bg dark:via-dark-surface dark:to-dark-card pt-16"
+      className="relative min-h-screen flex items-center overflow-hidden bg-linear-to-br from-orange-50 via-white to-amber-50/30 dark:from-dark-bg dark:via-dark-surface dark:to-dark-card pt-16"
       aria-label="Section d'accueil"
     >
       {/* Blobs décoratifs */}
-      <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-primary-100/30 dark:bg-primary-900/10 rounded-full -translate-y-1/4 translate-x-1/4 pointer-events-none" aria-hidden />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-amber-100/20 dark:bg-amber-900/10 rounded-full translate-y-1/4 -translate-x-1/4 pointer-events-none" aria-hidden />
+      <div className="absolute top-20 right-0 w-150 h-150 bg-primary-100/30 dark:bg-primary-900/10 rounded-full -translate-y-1/4 translate-x-1/4 pointer-events-none" aria-hidden />
+      <div className="absolute bottom-0 left-0 w-100 h-100 bg-amber-100/20 dark:bg-amber-900/10 rounded-full translate-y-1/4 -translate-x-1/4 pointer-events-none" aria-hidden />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 w-full">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -49,12 +49,11 @@ export function HeroSection() {
               transition={{ delay: 0.12, duration: 0.5, ease }}
               className="text-4xl sm:text-5xl lg:text-6xl font-bold text-zinc-900 dark:text-zinc-50 leading-tight"
             >
-              La cuisine que{' '}
+              T’as faim ?{' '}
               <span className="text-primary-500" style={{ fontFamily: 'var(--font-display)' }}>
-                tu aimes,
+                On livre.
               </span>
-              <br />
-              livrée chez toi
+              
             </motion.h1>
 
             {/* Description */}
@@ -64,8 +63,7 @@ export function HeroSection() {
               transition={{ delay: 0.18, duration: 0.4, ease }}
               className="text-lg text-zinc-600 dark:text-zinc-300 leading-relaxed max-w-md"
             >
-              Commandez depuis les meilleurs restaurants de Brazzaville. Paiement MTN&nbsp;MoMo,
-              livraison rapide, suivi en temps réel.
+              Commande tes plats préférés en quelques clics et fais-toi livrer rapidement, où que tu sois.
             </motion.p>
 
             {/* CTA */}
@@ -130,10 +128,10 @@ export function HeroSection() {
             className="relative hidden lg:block"
           >
             <div className="relative w-full aspect-square max-w-lg mx-auto">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-accent-500 rounded-[3rem] rotate-6 opacity-10 dark:opacity-5" aria-hidden />
-              <div className="relative bg-white dark:bg-dark-card rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-100 dark:border-dark-border">
+              <div className="absolute inset-0 bg-linear-to-br from-primary-400 to-accent-500 rounded-[3rem] rotate-6 opacity-10 dark:opacity-5" aria-hidden />
+              <div className="relative bg-white dark:bg-dark-card rounded-4xl overflow-hidden shadow-2xl border border-zinc-100 dark:border-dark-border">
                 <img
-                  src="https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&auto=format&fit=crop&q=80"
+                  src="https://images.unsplash.com/photo-1665332561290-cc6757172890?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                   alt="Plats savoureux Lilia Food"
                   className="w-full h-full object-cover"
                   loading="eager"

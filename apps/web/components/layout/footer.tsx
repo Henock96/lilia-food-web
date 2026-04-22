@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { ChefHat, MapPin, Phone, Mail } from 'lucide-react';
 
@@ -12,7 +13,7 @@ export function Footer() {
           <div className="md:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4" aria-label="Lilia Food">
               <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                <ChefHat className="w-4 h-4 text-white" />
+                <Image src="/logo.jpg" alt="Logo Lilia Food" width={200} height={200} className="w-24 h-24 object-contain" />
               </div>
               <span className="font-bold text-xl text-white" style={{ fontFamily: 'var(--font-display)' }}>
                 Lilia Food

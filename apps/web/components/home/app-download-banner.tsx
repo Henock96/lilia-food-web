@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Smartphone, Star, Download } from 'lucide-react';
 
@@ -7,7 +8,7 @@ export function AppDownloadBanner() {
   const prefersReduced = useReducedMotion();
 
   return (
-    <section className="py-20 bg-gradient-to-br from-zinc-900 to-zinc-800 overflow-hidden">
+    <section className="py-20 bg-linear-to-br from-zinc-900 to-zinc-800 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <motion.div
@@ -45,10 +46,12 @@ export function AppDownloadBanner() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <button className="flex items-center justify-center gap-2 px-5 py-3 bg-white text-zinc-900 font-semibold rounded-2xl hover:bg-zinc-100 transition-colors">
-                <Download className="w-4 h-4" />
-                Google Play
-              </button>
+              <a href="https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app" target="_blank" rel="noopener noreferrer">
+                <button className="flex items-center justify-center gap-2 px-5 py-3 bg-white text-zinc-900 font-semibold rounded-2xl hover:bg-zinc-100 transition-colors">
+                  <Download className="w-4 h-4" />
+                  Google Play
+                </button>
+              </a>
               <button className="flex items-center justify-center gap-2 px-5 py-3 bg-white/10 text-white font-semibold rounded-2xl border border-white/20 hover:bg-white/20 transition-colors">
                 <Download className="w-4 h-4" />
                 App Store
@@ -65,7 +68,7 @@ export function AppDownloadBanner() {
           >
             <div className="relative">
               <div className="w-48 h-96 bg-white/5 rounded-[2.5rem] border-2 border-white/20 flex items-center justify-center">
-                <Smartphone className="w-16 h-16 text-white/20" />
+                <Image src="/logo.jpg" alt="Logo Lilia Food" width={200} height={200} className="w-24 h-24 object-contain" />
               </div>
               <div className="absolute -top-4 -right-4 w-20 h-20 bg-primary-500/20 rounded-full blur-2xl" />
               <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-amber-500/20 rounded-full blur-2xl" />
