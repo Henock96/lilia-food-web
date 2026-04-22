@@ -34,7 +34,10 @@ export function useDashboardOverview(token: string | null) {
 export function useDashboardOrderStats(token: string | null) {
   return useQuery({
     queryKey: dashboardKeys.orders(),
-    queryFn: () => apiClient<DashboardOrderStats[]>('/dashboard/orders', { token }),
+    queryFn: async () => {
+      const res = await apiClient<DashboardOrderStats[] | { data: DashboardOrderStats[] }>('/dashboard/orders', { token });
+      return Array.isArray(res) ? res : (res as { data: DashboardOrderStats[] }).data ?? [];
+    },
     enabled: !!token,
     staleTime: 60 * 1000,
   });
@@ -43,7 +46,10 @@ export function useDashboardOrderStats(token: string | null) {
 export function useTopProducts(token: string | null) {
   return useQuery({
     queryKey: dashboardKeys.topProducts(),
-    queryFn: () => apiClient<TopProduct[]>('/dashboard/top-products', { token }),
+    queryFn: async () => {
+      const res = await apiClient<TopProduct[] | { data: TopProduct[] }>('/dashboard/top-products', { token });
+      return Array.isArray(res) ? res : (res as { data: TopProduct[] }).data ?? [];
+    },
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
@@ -67,10 +73,22 @@ export function useClientStats(token: string | null) {
   });
 }
 
+export function useClientDetail(clientId: string | null, token: string | null) {
+  return useQuery({
+    queryKey: [...dashboardKeys.clients(), clientId] as const,
+    queryFn: () => apiClient<unknown>(`/dashboard/clients/${clientId}`, { token }),
+    enabled: !!clientId && !!token,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function usePeakHours(token: string | null) {
   return useQuery({
     queryKey: dashboardKeys.peakHours(),
-    queryFn: () => apiClient<PeakHourData[]>('/dashboard/peak-hours', { token }),
+    queryFn: async () => {
+      const res = await apiClient<PeakHourData[] | { data: PeakHourData[] }>('/dashboard/peak-hours', { token });
+      return Array.isArray(res) ? res : (res as { data: PeakHourData[] }).data ?? [];
+    },
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });

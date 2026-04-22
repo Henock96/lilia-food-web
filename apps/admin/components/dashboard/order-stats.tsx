@@ -17,7 +17,8 @@ interface OrderStatsProps {
 }
 
 export function OrderStats({ data }: OrderStatsProps) {
-  const total = data.reduce((s, d) => s + d.count, 0);
+  const rows = Array.isArray(data) ? data : ((data as unknown as { data?: DashboardOrderStats[] }).data ?? []);
+  const total = rows.reduce((s, d) => s + d.count, 0);
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border p-5 shadow-card">
@@ -25,7 +26,7 @@ export function OrderStats({ data }: OrderStatsProps) {
 
       {/* Donut-like bar */}
       <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mb-5">
-        {data.map((d) => {
+        {rows.map((d) => {
           const cfg = statusConfig[d.status];
           if (!cfg || d.count === 0) return null;
           const pct = (d.count / total) * 100;
@@ -40,7 +41,7 @@ export function OrderStats({ data }: OrderStatsProps) {
       </div>
 
       <div className="space-y-2">
-        {data.map((d) => {
+        {rows.map((d) => {
           const cfg = statusConfig[d.status];
           if (!cfg) return null;
           return (
@@ -51,7 +52,7 @@ export function OrderStats({ data }: OrderStatsProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{d.count}</span>
-                <span className="text-zinc-400 text-xs w-8 text-right tabular-nums">{d.percentage.toFixed(0)}%</span>
+                <span className="text-zinc-400 text-xs w-8 text-right tabular-nums">{(d.percentage ?? 0).toFixed(0)}%</span>
               </div>
             </div>
           );

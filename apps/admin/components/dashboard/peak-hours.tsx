@@ -7,7 +7,7 @@ interface PeakHoursProps {
 }
 
 export function PeakHours({ data }: PeakHoursProps) {
-  const max = Math.max(...data.map((d) => d.orders), 1);
+  const max = Math.max(...data.map((d) => (d as unknown as { count?: number }).count ?? d.orders ?? 0), 1);
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border p-5 shadow-card">
@@ -15,7 +15,7 @@ export function PeakHours({ data }: PeakHoursProps) {
       <div className="flex items-end gap-1 h-20">
         {Array.from({ length: 24 }, (_, h) => {
           const entry = data.find((d) => d.hour === h);
-          const count = entry?.orders ?? 0;
+          const count = (entry as unknown as { count?: number })?.count ?? entry?.orders ?? 0;
           const pct = (count / max) * 100;
           const isPeak = pct >= 70;
           return (
@@ -28,7 +28,7 @@ export function PeakHours({ data }: PeakHoursProps) {
               {count > 0 && (
                 <div className="absolute bottom-full mb-1 hidden group-hover:block z-10 pointer-events-none">
                   <div className="bg-zinc-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                    {h}h: {count} cmd
+                    {h}h — {count} cmd
                   </div>
                 </div>
               )}

@@ -43,7 +43,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
         </div>
         <div className="text-right">
           <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
-            {data.reduce((s, d) => s + d.revenue, 0).toLocaleString('fr-FR')} FCFA
+            {data.reduce((s, d) => s + (d.revenue ?? 0), 0).toLocaleString('fr-FR')} FCFA
           </p>
           <p className="text-xs text-zinc-400">{data.reduce((s, d) => s + d.orders, 0)} commandes</p>
         </div>

@@ -5,8 +5,9 @@ import { useRestaurantOrders, useUpdateOrderStatus } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, OrderStatus } from '@lilia/types';
-import { RefreshCw, ChevronDown } from 'lucide-react';
+import { RefreshCw, ChevronDown, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportToCsv } from '@/lib/export-csv';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   EN_ATTENTE:     'En attente',
@@ -70,7 +71,7 @@ function OrderCard({ order, onStatusUpdate }: { order: Order; onStatusUpdate: (i
         <div>
           <p className="text-xs text-zinc-500">{order.items.length} article{order.items.length > 1 ? 's' : ''}</p>
           <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
-            {order.total.toLocaleString('fr-FR')} FCFA
+            {(order.total ?? 0).toLocaleString('fr-FR')} FCFA
           </p>
         </div>
 
@@ -104,7 +105,7 @@ function OrderCard({ order, onStatusUpdate }: { order: Order; onStatusUpdate: (i
                 {item.variantLabel ? ` (${item.variantLabel})` : ''}
               </span>
               <span className="text-zinc-700 dark:text-zinc-300 tabular-nums">
-                {item.prix.toLocaleString('fr-FR')} FCFA
+                {(item.prix ?? 0).toLocaleString('fr-FR')} FCFA
               </span>
             </div>
           ))}
@@ -126,6 +127,19 @@ export default function CommandesPage() {
 
   const { data: orders, isLoading, refetch, isFetching } = useRestaurantOrders(token);
   const { mutate: updateStatus } = useUpdateOrderStatus(token);
+
+  function handleExport() {
+    const rows = (orders ?? []).map((o: Order) => ({
+      ID:         o.id.slice(-8).toUpperCase(),
+      Date:       new Date(o.createdAt).toLocaleString('fr-FR'),
+      Statut:     STATUS_LABELS[o.status] ?? o.status,
+      Articles:   o.items.length,
+      Total_FCFA: o.total ?? 0,
+      Livraison:  o.isDelivery ? 'Oui' : 'Non',
+      Adresse:    o.deliveryAddress ?? '',
+    }));
+    exportToCsv(`commandes_${new Date().toISOString().slice(0,10)}.csv`, rows);
+  }
 
   function handleStatusUpdate(orderId: string, status: OrderStatus) {
     updateStatus(
@@ -174,14 +188,23 @@ export default function CommandesPage() {
             );
           })}
         </div>
-        <button
-          onClick={() => void refetch()}
-          disabled={isFetching}
-          className="ml-auto text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-          title="Actualiser"
-        >
-          <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={!orders?.length}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40"
+          >
+            <Download size={13} /> CSV
+          </button>
+          <button
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+            title="Actualiser"
+          >
+            <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {/* List */}

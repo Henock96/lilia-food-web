@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
+import { useDashboardOverview } from '@lilia/api-client';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -12,14 +13,18 @@ import {
   Users,
   LogOut,
   X,
+  Package,
+  Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/commandes', label: 'Commandes', icon: ShoppingBag },
-  { href: '/restaurants', label: 'Restaurants', icon: Store },
-  { href: '/clients', label: 'Clients', icon: Users },
+  { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false },
+  { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: true  },
+  { href: '/produits',    label: 'Produits',     icon: Package,         badge: false },
+  { href: '/restaurants', label: 'Restaurants', icon: Store,           badge: false },
+  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false },
+  { href: '/promos',      label: 'Promos',       icon: Tag,             badge: false },
 ];
 
 interface SidebarProps {
@@ -27,14 +32,18 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+interface OverviewData { orders: { pending: number } }
+
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut: clearStore, user } = useAuthStore();
+  const { signOut: clearStore, user, token } = useAuthStore();
+  const { data: rawOverview } = useDashboardOverview(token);
+  const pending = (rawOverview as unknown as OverviewData | undefined)?.orders?.pending ?? 0;
 
   async function handleSignOut() {
     try {
-      await signOut(auth);
+      await signOut(getFirebaseAuth());
       clearStore();
       document.cookie = 'firebase-token=; path=/; max-age=0';
       router.replace('/connexion');
@@ -106,8 +115,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
+            const showBadge = badge && pending > 0;
             return (
               <Link
                 key={href}
@@ -122,7 +132,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 `}
               >
                 <Icon size={16} className={active ? 'text-primary-400' : ''} />
-                {label}
+                <span className="flex-1">{label}</span>
+                {showBadge && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                    {pending > 99 ? '99+' : pending}
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -10,15 +10,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0]!;
+// Lazy init — safe for SSR/build without env vars
+export function getFirebaseApp(): FirebaseApp {
+  return getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
 }
 
-auth = getAuth(app);
-
-export { app, auth };
+export function getFirebaseAuth(): Auth {
+  return getAuth(getFirebaseApp());
+}

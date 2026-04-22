@@ -37,7 +37,7 @@ export function TopProducts({ data }: TopProductsProps) {
               </div>
             </div>
             <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums shrink-0">
-              {p.totalRevenue.toLocaleString('fr-FR')} <span className="text-zinc-400 font-normal">FCFA</span>
+              {(p.totalRevenue ?? 0).toLocaleString('fr-FR')} <span className="text-zinc-400 font-normal">FCFA</span>
             </p>
           </div>
         ))}
