@@ -16,7 +16,7 @@ export type OrderLifecycleStatus =
   | 'READY'
   | 'COMPLETED'
   | 'CANCELLED';
-export type PaymentMethod = 'CASH_ON_DELIVERY' | 'MTN_MOMO';
+export type PaymentMethod = 'CASH_ON_DELIVERY' | 'MTN_MOMO' | 'AIRTEL_MONEY';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type DeliveryStatus = 'EN_ATTENTE' | 'ASSIGNER' | 'EN_TRANSIT' | 'LIVRER' | 'ECHEC';
 export type DriverStatus = 'AVAILABLE' | 'ON_DELIVERY' | 'OFFLINE';

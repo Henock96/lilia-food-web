@@ -39,7 +39,7 @@ export default function PanierPage() {
   const [promoCode, setPromoCode] = useState('');
   const [promoResult, setPromoResult] = useState<PromoValidationResult | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'MTN_MOMO' | 'CASH_ON_DELIVERY'>('MTN_MOMO');
+  const [paymentMethod, setPaymentMethod] = useState<'MTN_MOMO' | 'AIRTEL_MONEY'>('MTN_MOMO');
   const [notes, setNotes] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [isDelivery, setIsDelivery] = useState(true);
@@ -90,9 +90,13 @@ export default function PanierPage() {
     0,
   );
   const deliveryFee = isDelivery ? 1000 : 0;
+  const effectiveDeliveryFee = (promoResult?.valid && promoResult.newDeliveryFee !== undefined)
+    ? promoResult.newDeliveryFee
+    : deliveryFee;
   const serviceFee = Math.round(subTotal * 0.1);
   const discount = promoResult?.discountAmount ?? 0;
-  const total = subTotal + deliveryFee + serviceFee - discount;
+  const deliveryDiscount = deliveryFee - effectiveDeliveryFee;
+  const total = subTotal + effectiveDeliveryFee + serviceFee - discount;
 
   async function handleValidatePromo() {
     if (!promoCode.trim() || !cart?.items[0]) return;
@@ -110,8 +114,8 @@ export default function PanierPage() {
       } else {
         toast.error(result.error ?? 'Code invalide');
       }
-    } catch {
-      toast.error('Code promo invalide');
+    } catch (err: unknown) {
+      toast.error((err as { message?: string }).message || 'Code promo invalide');
     } finally {
       setPromoLoading(false);
     }
@@ -463,7 +467,10 @@ export default function PanierPage() {
             <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Mode de paiement</p>
               <div className="flex flex-col gap-2">
-                {(['MTN_MOMO', 'CASH_ON_DELIVERY'] as const).map((method) => (
+                {([
+                  { method: 'MTN_MOMO', label: 'MTN Mobile Money', color: 'bg-yellow-400', number: process.env.NEXT_PUBLIC_MTN_NUMBER },
+                  { method: 'AIRTEL_MONEY', label: 'Airtel Money', color: 'bg-red-500', number: process.env.NEXT_PUBLIC_AIRTEL_NUMBER },
+                ] as const).map(({ method, label, color, number }) => (
                   <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}
@@ -474,12 +481,34 @@ export default function PanierPage() {
                         : 'border-zinc-200 text-zinc-600 hover:border-zinc-300',
                     )}
                   >
-                    <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center', paymentMethod === method ? 'border-primary-500' : 'border-zinc-300')}>
+                    <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', paymentMethod === method ? 'border-primary-500' : 'border-zinc-300')}>
                       {paymentMethod === method && <div className="w-2 h-2 bg-primary-500 rounded-full" />}
                     </div>
-                    {method === 'MTN_MOMO' ? '📱 MTN Mobile Money' : '💵 Cash à la livraison'}
+                    <div className="flex items-center gap-2">
+                      <span className={cn('w-2 h-2 rounded-full shrink-0', color)} />
+                      <span>{label}</span>
+                    </div>
+                    {number && paymentMethod === method && (
+                      <span className="ml-auto text-xs font-mono text-zinc-500">{number}</span>
+                    )}
                   </button>
                 ))}
+              </div>
+
+              {/* Instructions de paiement */}
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1">
+                  Instructions de paiement
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                  Envoyez le montant total au numéro{' '}
+                  <span className="font-bold font-mono">
+                    {paymentMethod === 'MTN_MOMO'
+                      ? process.env.NEXT_PUBLIC_MTN_NUMBER
+                      : process.env.NEXT_PUBLIC_AIRTEL_NUMBER}
+                  </span>{' '}
+                  via {paymentMethod === 'MTN_MOMO' ? 'MTN Mobile Money' : 'Airtel Money'} après avoir passé la commande. Un agent confirmera votre paiement.
+                </p>
               </div>
             </div>
 
@@ -493,11 +522,18 @@ export default function PanierPage() {
                 {isDelivery && (
                   <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
                     <span>Livraison</span>
-                    <span>{formatCurrency(deliveryFee)}</span>
+                    {deliveryDiscount > 0 ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="line-through text-zinc-400">{formatCurrency(deliveryFee)}</span>
+                        <span className="text-emerald-600 font-medium">Gratuit</span>
+                      </span>
+                    ) : (
+                      <span>{formatCurrency(deliveryFee)}</span>
+                    )}
                   </div>
                 )}
                 <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
-                  <span>Frais de service </span>
+                  <span>Frais de service</span>
                   <span>{formatCurrency(serviceFee)}</span>
                 </div>
                 {discount > 0 && (
