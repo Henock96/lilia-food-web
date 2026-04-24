@@ -181,17 +181,23 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <span>Sous-total</span>
             <span>{formatCurrency(order.subTotal)}</span>
           </div>
-          <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
-            <span>Livraison</span>
-            <span>{formatCurrency(order.deliveryFee)}</span>
-          </div>
+          {order.isDelivery && (
+            <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
+              <span>Livraison</span>
+              {order.deliveryFee === 0 && order.promoCodeId ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Gratuit</span>
+              ) : (
+                <span>{formatCurrency(order.deliveryFee)}</span>
+              )}
+            </div>
+          )}
           <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
             <span>Frais de service</span>
             <span>{formatCurrency(order.serviceFee)}</span>
           </div>
           {order.discountAmount > 0 && (
             <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-              <span>Réduction</span>
+              <span>Réduction code promo</span>
               <span>-{formatCurrency(order.discountAmount)}</span>
             </div>
           )}
