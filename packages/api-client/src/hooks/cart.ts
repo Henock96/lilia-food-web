@@ -13,9 +13,7 @@ export function useCart(token: string | null) {
   return useQuery({
     queryKey: cartKeys.detail(),
     queryFn: async () => {
-      const raw = await apiClient<Cart>('/cart', { token });
-      // Garantir que items est toujours un tableau même si le cache était corrompu
-      const cart = (raw && typeof raw === 'object' && 'items' in raw) ? raw : { ...raw, items: [] };
+      const cart = await apiClient<Cart>('/cart', { token });
       return { ...cart, items: Array.isArray(cart.items) ? cart.items : [] };
     },
     enabled: !!token,
