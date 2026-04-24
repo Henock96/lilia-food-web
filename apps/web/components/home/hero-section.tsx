@@ -127,7 +127,7 @@ export function HeroSection() {
             transition={{ delay: 0.3, duration: 0.6, ease }}
             className="relative hidden lg:block"
           >
-            <div className="relative w-full aspect-square max-w-md mx-auto">
+            <div className="relative w-full aspect-square max-w-lg mx-auto">
               <div className="absolute inset-0 bg-linear-to-br from-primary-400 to-accent-500 rounded-[3rem] rotate-6 opacity-10 dark:opacity-5" aria-hidden />
               <div className="relative bg-white dark:bg-dark-card rounded-4xl overflow-hidden shadow-2xl border border-zinc-100 dark:border-dark-border">
                 <img

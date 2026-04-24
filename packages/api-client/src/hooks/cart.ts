@@ -13,8 +13,10 @@ export function useCart(token: string | null) {
   return useQuery({
     queryKey: cartKeys.detail(),
     queryFn: async () => {
-      const cart = await apiClient<Cart>('/cart', { token });
-      return { ...cart, items: cart.items ?? [] };
+      const raw = await apiClient<Cart>('/cart', { token });
+      // Garantir que items est toujours un tableau même si le cache était corrompu
+      const cart = (raw && typeof raw === 'object' && 'items' in raw) ? raw : { ...raw, items: [] };
+      return { ...cart, items: Array.isArray(cart.items) ? cart.items : [] };
     },
     enabled: !!token,
     staleTime: 30 * 1000,
@@ -30,8 +32,8 @@ export function useAddToCart(token: string | null) {
         body: JSON.stringify(dto),
         token,
       }),
-    onSuccess: (newCart) => {
-      queryClient.setQueryData(cartKeys.detail(), newCart);
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
     },
   });
 }
@@ -45,8 +47,8 @@ export function useUpdateCartItem(token: string | null) {
         body: JSON.stringify({ quantite }),
         token,
       }),
-    onSuccess: (newCart) => {
-      queryClient.setQueryData(cartKeys.detail(), newCart);
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
     },
   });
 }
@@ -59,8 +61,8 @@ export function useRemoveCartItem(token: string | null) {
         method: 'DELETE',
         token,
       }),
-    onSuccess: (newCart) => {
-      queryClient.setQueryData(cartKeys.detail(), newCart);
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
     },
   });
 }

@@ -47,9 +47,11 @@ export default function PanierPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // Pre-fill phone from profile
+  const profilePhone = profile?.phone ?? null;
   useEffect(() => {
-    if (profile?.phone && !contactPhone) setContactPhone(profile.phone);
-  }, [profile?.phone]);
+    if (profilePhone) setContactPhone((prev) => prev || profilePhone);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profilePhone]);
 
   // Auto-select default address
   useEffect(() => {
@@ -57,7 +59,8 @@ export default function PanierPage() {
       const def = adresses.find((a) => a.isDefault) ?? adresses[0];
       if (def) setSelectedAdresseId(def.id);
     }
-  }, [adresses]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adresses.length]);
 
   // New address form
   const [showAddressForm, setShowAddressForm] = useState(false);
