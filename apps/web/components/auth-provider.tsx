@@ -40,7 +40,7 @@ async function syncWithRetry(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setToken, setLoading } = useAuthStore();
+  const { setUser, setToken, setLoading, setFirebaseProfile } = useAuthStore();
 
   // Hydrate Zustand persist from localStorage (skipHydration: true prevents SSR access)
   useEffect(() => {
@@ -53,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const token = await firebaseUser.getIdToken();
           setToken(token);
+          setFirebaseProfile(firebaseUser.displayName, firebaseUser.photoURL);
           document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
 
           const user = await syncWithRetry(
@@ -63,21 +64,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
           setUser(user);
         } catch {
-          // Sync impossible même après ~37s de retries (backend down ?)
-          // On garde le token pour que les requêtes authentifiées fonctionnent
-          // mais user reste null → l'app affiche l'état "non connecté"
-          setUser(null);
+          // Sync impossible — ne pas effacer user (peut être dans localStorage)
         }
       } else {
         setUser(null);
         setToken(null);
+        setFirebaseProfile(null, null);
         document.cookie = 'firebase-token=; path=/; max-age=0';
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [setUser, setToken, setLoading]);
+  }, [setUser, setToken, setLoading, setFirebaseProfile]);
 
   return <>{children}</>;
 }

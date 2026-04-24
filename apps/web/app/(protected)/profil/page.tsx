@@ -16,6 +16,7 @@ import {
   useProfile, useUpdateProfile,
   useMyOrders,
   useAdresses, useCreateAdresse, useSetDefaultAdresse, useDeleteAdresse,
+  useQuartiers,
 } from '@lilia/api-client';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, getInitials, cn } from '@lilia/utils';
 import { pageVariants, cardVariants } from '@lilia/motion';
@@ -32,6 +33,7 @@ export default function ProfilPage() {
   const createAdresse = useCreateAdresse(token);
   const setDefault = useSetDefaultAdresse(token);
   const deleteAdresse = useDeleteAdresse(token);
+  const { data: quartiers = [] } = useQuartiers();
 
   const user = profile ?? storeUser;
 
@@ -43,7 +45,7 @@ export default function ProfilPage() {
   // New address
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newRue, setNewRue] = useState('');
-  const [newVille, setNewVille] = useState('Brazzaville');
+  const [newQuartierId, setNewQuartierId] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
 
   // Sign out
@@ -73,9 +75,10 @@ export default function ProfilPage() {
     if (!newRue.trim()) return;
     setSavingAddress(true);
     try {
-      await createAdresse.mutateAsync({ rue: newRue.trim(), ville: newVille.trim(), country: 'Congo' });
+      await createAdresse.mutateAsync({ rue: newRue.trim(), ville: 'Brazzaville', country: 'Congo', quartierId: newQuartierId || undefined });
       setShowAddressForm(false);
       setNewRue('');
+      setNewQuartierId('');
       toast.success('Adresse enregistrée');
     } catch {
       toast.error('Impossible d\'enregistrer l\'adresse');
@@ -98,7 +101,15 @@ export default function ProfilPage() {
     }
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
+        <div className="skeleton h-40 rounded-3xl mb-6" />
+        <div className="skeleton h-32 rounded-2xl mb-4" />
+        <div className="skeleton h-48 rounded-2xl" />
+      </div>
+    );
+  }
 
   // Stats from orders
   const totalOrders = orders.length;
@@ -289,23 +300,26 @@ export default function ProfilPage() {
               className="px-4 py-3 bg-zinc-50 dark:bg-dark-surface border-b border-zinc-100 dark:border-dark-border overflow-hidden"
             >
               <div className="flex flex-col gap-2">
+                <select
+                  value={newQuartierId}
+                  onChange={(e) => setNewQuartierId(e.target.value)}
+                  className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                >
+                  <option value="">Quartier (optionnel)</option>
+                  {quartiers.map((q) => (
+                    <option key={q.id} value={q.id}>{q.nom}</option>
+                  ))}
+                </select>
                 <input
                   type="text"
                   value={newRue}
                   onChange={(e) => setNewRue(e.target.value)}
-                  placeholder="Rue / Quartier (ex: Moungali, Rue Mfilou)"
-                  className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
-                />
-                <input
-                  type="text"
-                  value={newVille}
-                  onChange={(e) => setNewVille(e.target.value)}
-                  placeholder="Ville"
+                  placeholder="Rue / Précision (ex: Rue Mfilou, face pharmacie)"
                   className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
                 />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowAddressForm(false)}
+                    onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); }}
                     className="flex-1 py-2 text-sm text-zinc-500 border border-zinc-200 rounded-xl bg-white hover:bg-zinc-50 transition-colors"
                   >
                     Annuler

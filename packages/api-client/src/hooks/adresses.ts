@@ -1,13 +1,21 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Adresse, CreateAdresseDto } from '@lilia/types';
+import type { Adresse, CreateAdresseDto, Quartier } from '@lilia/types';
 import { apiClient } from '../client';
 
 export const adresseKeys = {
   all: ['adresses'] as const,
   list: () => [...adresseKeys.all, 'list'] as const,
 };
+
+export function useQuartiers() {
+  return useQuery({
+    queryKey: ['quartiers'],
+    queryFn: () => apiClient<Quartier[]>('/quartiers'),
+    staleTime: 60 * 60 * 1000,
+  });
+}
 
 export function useAdresses(token: string | null) {
   return useQuery({

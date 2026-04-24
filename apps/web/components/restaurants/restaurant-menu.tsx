@@ -7,7 +7,7 @@ import type { Restaurant, Product, ProductVariant } from '@lilia/types';
 import { formatCurrency, cn } from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
-import { useAddToCart } from '@lilia/api-client';
+import { useAddToCart, useClearCart } from '@lilia/api-client';
 import { toast } from 'sonner';
 
 interface RestaurantMenuProps {
@@ -97,6 +97,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   const { token } = useAuthStore();
   const { openCart } = useCartStore();
   const addToCart = useAddToCart(token);
+  const clearCart = useClearCart(token);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(product.variants[0]!);
   const [added, setAdded] = useState(false);
 
@@ -115,8 +116,28 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
       toast.success(`${product.nom} ajouté au panier`);
-    } catch {
-      toast.error('Impossible d\'ajouter au panier');
+    } catch (err: unknown) {
+      const msg = (err as { message?: string }).message ?? '';
+      if (msg.toLowerCase().includes('restaurant') || msg.toLowerCase().includes('vider')) {
+        toast.error('Votre panier contient des plats d\'un autre restaurant.', {
+          action: {
+            label: 'Vider et ajouter',
+            onClick: async () => {
+              try {
+                await clearCart.mutateAsync();
+                await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+                setAdded(true);
+                setTimeout(() => setAdded(false), 2000);
+                toast.success(`${product.nom} ajouté au panier`);
+              } catch {
+                toast.error('Erreur lors de l\'ajout');
+              }
+            },
+          },
+        });
+      } else {
+        toast.error(msg || 'Impossible d\'ajouter au panier');
+      }
     }
   }
 

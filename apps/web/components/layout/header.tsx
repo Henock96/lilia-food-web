@@ -19,7 +19,7 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname();
-  const { user, token } = useAuthStore();
+  const { user, token, firebaseDisplayName, firebasePhotoUrl } = useAuthStore();
   const { itemCount, setItemCount, toggleCart } = useCartStore();
   const { resolved, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
@@ -133,22 +133,22 @@ export function Header() {
             </button>
 
             {/* Profil / Connexion */}
-            {user ? (
+            {token ? (
               <Link
                 href="/profil"
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-dark-card rounded-full transition-colors"
                 aria-label="Mon profil"
               >
-                {user.imageUrl ? (
-                  <img src={user.imageUrl} alt={user.nom ?? ''} className="w-7 h-7 rounded-full object-cover ring-2 ring-primary-200 dark:ring-primary-700" />
+                {(user?.imageUrl ?? firebasePhotoUrl) ? (
+                  <img src={user?.imageUrl ?? firebasePhotoUrl!} alt={user?.nom ?? firebaseDisplayName ?? ''} className="w-7 h-7 rounded-full object-cover ring-2 ring-primary-200 dark:ring-primary-700" />
                 ) : (
                   <div className="w-7 h-7 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center ring-2 ring-primary-200 dark:ring-primary-700">
                     <span className="text-xs font-bold text-primary-600 dark:text-primary-400">
-                      {user.nom?.[0]?.toUpperCase() ?? 'U'}
+                      {(user?.nom ?? firebaseDisplayName)?.[0]?.toUpperCase() ?? '·'}
                     </span>
                   </div>
                 )}
-                <span className="hidden sm:block">{user.nom ?? 'Profil'}</span>
+                <span className="hidden sm:block">{user?.nom ?? firebaseDisplayName ?? 'Profil'}</span>
               </Link>
             ) : (
               <Link
