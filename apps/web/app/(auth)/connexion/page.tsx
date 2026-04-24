@@ -4,8 +4,8 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
@@ -20,6 +20,9 @@ function ConnexionForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,6 +59,27 @@ function ConnexionForm() {
       toast.error('Connexion Google échouée');
     } finally {
       setGoogleLoading(false);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetEmail) return;
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast.success('Email de réinitialisation envoyé !');
+      setShowReset(false);
+      setResetEmail('');
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/user-not-found') {
+        toast.error('Aucun compte associé à cet email');
+      } else {
+        toast.error('Erreur lors de l\'envoi. Réessayez.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -98,7 +122,16 @@ function ConnexionForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Mot de passe</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Mot de passe</label>
+            <button
+              type="button"
+              onClick={() => { setResetEmail(email); setShowReset(true); }}
+              className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
           <div className="relative">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
@@ -141,6 +174,53 @@ function ConnexionForm() {
           S'inscrire
         </Link>
       </p>
+
+      {showReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowReset(false)} />
+          <div className="relative bg-white dark:bg-dark-card rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Réinitialiser le mot de passe</h2>
+              <button type="button" onClick={() => setShowReset(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+            </p>
+            <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="votre@email.com"
+                  required
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-3 border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReset(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetLoading || !resetEmail}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors disabled:opacity-60"
+                >
+                  {resetLoading ? 'Envoi…' : 'Envoyer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
