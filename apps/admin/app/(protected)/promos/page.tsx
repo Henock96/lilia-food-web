@@ -71,8 +71,12 @@ function CreateModal({ onClose, onSave, isSaving }: {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.code.trim() || !form.discountValue) {
-      toast.error('Code et valeur de remise requis');
+    if (!form.code.trim()) {
+      toast.error('Le code promo est requis');
+      return;
+    }
+    if (form.discountType !== 'FREE_DELIVERY' && !form.discountValue) {
+      toast.error('La valeur de remise est requise');
       return;
     }
     onSave(form);
@@ -273,7 +277,7 @@ export default function PromosPage() {
       code:           form.code.trim(),
       description:    form.description.trim() || undefined,
       discountType:   form.discountType,
-      discountValue:  parseFloat(form.discountValue) || 0,
+      discountValue:  form.discountType === 'FREE_DELIVERY' ? 0 : parseFloat(form.discountValue),
       minOrderAmount: parseFloat(form.minOrderAmount) || 0,
       maxUsagePerUser: parseInt(form.maxUsagePerUser) || 1,
       firstOrderOnly: form.firstOrderOnly,
@@ -284,7 +288,7 @@ export default function PromosPage() {
 
     createPromo(payload, {
       onSuccess: () => { toast.success('Code promo créé'); setShowCreate(false); },
-      onError:   () => toast.error('Erreur lors de la création'),
+      onError: (err) => toast.error((err as { message?: string }).message || 'Erreur lors de la création'),
     });
   }
 
