@@ -51,3 +51,12 @@ export function useTogglePromo(token: string | null) {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: promoKeys.all }),
   });
 }
+
+export function useDeletePromo(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient<void>(`/promo/${id}`, { method: 'DELETE', token }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: promoKeys.all }),
+  });
+}

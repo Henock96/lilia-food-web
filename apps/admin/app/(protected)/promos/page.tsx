@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { usePromos, useCreatePromo, useTogglePromo, usePromoStats } from '@lilia/api-client';
+import { usePromos, useCreatePromo, useTogglePromo, usePromoStats, useDeletePromo } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import type { PromoCode } from '@lilia/types';
-import { Plus, X, ToggleLeft, ToggleRight, BarChart2, Tag, Percent, Truck } from 'lucide-react';
+import { Plus, X, ToggleLeft, ToggleRight, BarChart2, Tag, Percent, Truck, Trash2 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -271,6 +271,7 @@ export default function PromosPage() {
   const { data: promos = [], isLoading } = usePromos(token);
   const { mutate: createPromo, isPending: creating } = useCreatePromo(token);
   const { mutate: togglePromo, isPending: toggling } = useTogglePromo(token);
+  const { mutate: deletePromo, isPending: deleting } = useDeletePromo(token);
 
   function handleCreate(form: PromoForm) {
     const payload: Record<string, unknown> = {
@@ -296,6 +297,14 @@ export default function PromosPage() {
     togglePromo(id, {
       onSuccess: () => toast.success(current ? 'Code désactivé' : 'Code activé'),
       onError:   () => toast.error('Erreur lors de la mise à jour'),
+    });
+  }
+
+  function handleDelete(id: string, code: string) {
+    if (!confirm(`Supprimer le code "${code}" ? Cette action est irréversible.`)) return;
+    deletePromo(id, {
+      onSuccess: () => toast.success('Code promo supprimé'),
+      onError:   (err) => toast.error((err as { message?: string }).message || 'Erreur lors de la suppression'),
     });
   }
 
@@ -393,6 +402,14 @@ export default function PromosPage() {
                         ? <ToggleRight size={22} className="text-emerald-500" />
                         : <ToggleLeft size={22} />
                       }
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p.id, p.code)}
+                      disabled={deleting}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-40"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

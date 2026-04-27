@@ -93,7 +93,7 @@ export default function PanierPage() {
   const effectiveDeliveryFee = (promoResult?.valid && promoResult.newDeliveryFee !== undefined)
     ? promoResult.newDeliveryFee
     : deliveryFee;
-  const serviceFee = Math.round(subTotal * 0.1);
+  const serviceFee = Math.round(subTotal * 0.08);
   const discount = promoResult?.discountAmount ?? 0;
   const deliveryDiscount = deliveryFee - effectiveDeliveryFee;
   const total = subTotal + effectiveDeliveryFee + serviceFee - discount;
