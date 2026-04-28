@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Package, ChevronRight } from 'lucide-react';
+import { Package, ChevronRight, RotateCcw } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { useMyOrders } from '@lilia/api-client';
+import { useMyOrders, useReorder } from '@lilia/api-client';
+import { toast } from 'sonner';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { OrderCardSkeleton } from '@/components/ui/skeleton';
@@ -12,6 +14,19 @@ import { OrderCardSkeleton } from '@/components/ui/skeleton';
 export default function CommandesPage() {
   const { token } = useAuthStore();
   const { data: orders, isLoading, isError } = useMyOrders(token);
+  const reorder = useReorder(token);
+  const router = useRouter();
+
+  async function handleReorder(e: React.MouseEvent, orderId: string) {
+    e.preventDefault();
+    try {
+      await reorder.mutateAsync(orderId);
+      toast.success('Articles ajoutés au panier !');
+      router.push('/panier');
+    } catch {
+      toast.error('Impossible de recommander cette commande');
+    }
+  }
 
   return (
     <motion.div
@@ -76,10 +91,22 @@ export default function CommandesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span>{order.items.length} article{order.items.length > 1 ? 's' : ''}</span>
-                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(order.total)}</span>
-                  <span>{order.isDelivery ? 'Livraison' : 'Retrait'}</span>
+                <div className="flex items-center justify-between gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div className="flex items-center gap-4">
+                    <span>{order.items.length} article{order.items.length > 1 ? 's' : ''}</span>
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(order.total)}</span>
+                    <span>{order.isDelivery ? 'Livraison' : 'Retrait'}</span>
+                  </div>
+                  {(order.status === 'LIVRER' || order.status === 'ANNULER') && (
+                    <button
+                      onClick={(e) => handleReorder(e, order.id)}
+                      disabled={reorder.isPending}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-xl text-xs font-medium transition-colors shrink-0"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Recommander
+                    </button>
+                  )}
                 </div>
               </Link>
             </motion.div>

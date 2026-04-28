@@ -10,21 +10,21 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { pageVariants } from '@lilia/motion';
 import { API_URL } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
 import { toast } from 'sonner';
 
-async function syncUser(token: string, telephone: string): Promise<void> {
+async function syncUser(token: string, telephone: string, referralCode?: string): Promise<void> {
   const res = await fetch(`${API_URL}/users/sync`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ telephone }),
+    body: JSON.stringify({ telephone, ...(referralCode ? { referralCode } : {}) }),
   });
   if (!res.ok) throw new Error(`Sync échoué (${res.status})`);
 }
@@ -62,6 +62,7 @@ export default function InscriptionPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [step, setStep] = useState<Step>('idle');
@@ -109,7 +110,7 @@ export default function InscriptionPage() {
       // Si ça échoue, l'onAuthStateChanged dans auth-provider retentera.
       setStep('sync');
       try {
-        await syncUser(token, telephone);
+        await syncUser(token, telephone, referralCode.trim().toUpperCase() || undefined);
       } catch {
         // Non-bloquant : auth-provider retentera via onAuthStateChanged
       }
@@ -343,6 +344,31 @@ export default function InscriptionPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+          </div>
+
+          {/* ── Code de parrainage ── */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              Code de parrainage{' '}
+              <span className="text-zinc-400 dark:text-zinc-500 font-normal">(optionnel)</span>
+            </label>
+            <div className="relative">
+              <Gift className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                placeholder="Ex: ABC12345"
+                maxLength={12}
+                autoComplete="off"
+                className="w-full pl-10 pr-4 py-3 border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+              />
+            </div>
+            {referralCode && (
+              <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                <Gift className="w-3 h-3" /> +200 points offerts à l&apos;activation
+              </p>
+            )}
           </div>
 
           {/* ── Submit ── */}

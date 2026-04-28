@@ -1,11 +1,12 @@
 'use client';
 
 import { use, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { useOrder, useCancelOrder } from '@lilia/api-client';
+import { useOrder, useCancelOrder, useReorder } from '@lilia/api-client';
 import type { OrderStatus } from '@lilia/types';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
@@ -27,6 +28,8 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { token } = useAuthStore();
   const { data: order, isLoading } = useOrder(id, token);
   const cancelOrder = useCancelOrder(token);
+  const reorder = useReorder(token);
+  const router = useRouter();
 
   async function handleCancel() {
     if (!confirm('Annuler cette commande ?')) return;
@@ -35,6 +38,16 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       toast.success('Commande annulée');
     } catch {
       toast.error('Impossible d\'annuler la commande');
+    }
+  }
+
+  async function handleReorder() {
+    try {
+      await reorder.mutateAsync(id);
+      toast.success('Articles ajoutés au panier !');
+      router.push('/panier');
+    } catch {
+      toast.error('Impossible de recommander cette commande');
     }
   }
 
@@ -214,6 +227,18 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">Adresse de livraison</p>
           <p className="text-zinc-500 dark:text-zinc-400">{order.deliveryAddress}</p>
         </div>
+      )}
+
+      {/* Reorder */}
+      {(order.status === 'LIVRER' || order.status === 'ANNULER') && (
+        <button
+          onClick={handleReorder}
+          disabled={reorder.isPending}
+          className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white font-medium text-sm rounded-2xl transition-colors flex items-center justify-center gap-2 mb-3"
+        >
+          <RotateCcw className="w-4 h-4" />
+          {reorder.isPending ? 'Ajout au panier...' : 'Recommander'}
+        </button>
       )}
 
       {/* Cancel */}

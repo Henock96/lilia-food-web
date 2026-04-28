@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import {
   User, Mail, Phone, LogOut, Edit2, ChevronRight,
   Package, MapPin, Plus, Trash2, Check, X, Star,
-  ShoppingBag, Clock, Shield, Camera,
+  ShoppingBag, Clock, Shield, Camera, Gift, Copy, Zap, TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { auth } from '@/lib/firebase';
@@ -17,6 +17,7 @@ import {
   useMyOrders,
   useAdresses, useCreateAdresse, useSetDefaultAdresse, useDeleteAdresse,
   useQuartiers,
+  useReferralStats, useLoyaltyTransactions,
 } from '@lilia/api-client';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, getInitials, cn } from '@lilia/utils';
 import { pageVariants, cardVariants } from '@lilia/motion';
@@ -34,6 +35,8 @@ export default function ProfilPage() {
   const setDefault = useSetDefaultAdresse(token);
   const deleteAdresse = useDeleteAdresse(token);
   const { data: quartiers = [] } = useQuartiers();
+  const { data: referralStats } = useReferralStats(token);
+  const { data: loyaltyTxs = [] } = useLoyaltyTransactions(token);
 
   const user = profile ?? storeUser;
 
@@ -50,6 +53,15 @@ export default function ProfilPage() {
 
   // Sign out
   const [signOutLoading, setSignOutLoading] = useState(false);
+
+  // Loyalty
+  const [showLoyalty, setShowLoyalty] = useState(false);
+
+  function copyReferralCode() {
+    if (!referralStats?.referralCode) return;
+    navigator.clipboard.writeText(referralStats.referralCode);
+    toast.success('Code copié !');
+  }
 
   function openEdit() {
     setEditNom(user?.nom ?? '');
@@ -399,6 +411,115 @@ export default function ProfilPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* ── Points de fidélité ──────────────────────────── */}
+      <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-5 mb-4 text-white">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            <span className="font-bold text-base">Points de fidélité</span>
+          </div>
+          <button
+            onClick={() => setShowLoyalty((v) => !v)}
+            className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition-colors font-medium"
+          >
+            {showLoyalty ? 'Masquer' : 'Historique'}
+          </button>
+        </div>
+
+        <div className="flex items-end gap-2 mb-3">
+          <span className="text-4xl font-bold leading-none">{(referralStats?.loyaltyPoints ?? user?.loyaltyPoints ?? 0)}</span>
+          <span className="text-orange-200 text-sm mb-1">points</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-white/15 rounded-xl p-2.5 text-center">
+            <p className="text-orange-100">Valeur</p>
+            <p className="font-bold text-sm">{((referralStats?.loyaltyPoints ?? 0) * 5).toLocaleString('fr-FR')} FCFA</p>
+          </div>
+          <div className="bg-white/15 rounded-xl p-2.5 text-center">
+            <p className="text-orange-100">Comment gagner</p>
+            <p className="font-bold text-sm">1 pt / 100 FCFA</p>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {showLoyalty && loyaltyTxs.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 overflow-hidden"
+            >
+              <div className="bg-white/10 rounded-xl divide-y divide-white/10">
+                {loyaltyTxs.slice(0, 5).map((tx) => (
+                  <div key={tx.id} className="flex items-center justify-between px-3 py-2.5 text-xs">
+                    <span className="text-orange-100 truncate flex-1 mr-2">{tx.reason}</span>
+                    <span className={`font-bold shrink-0 ${tx.points > 0 ? 'text-white' : 'text-orange-300'}`}>
+                      {tx.points > 0 ? '+' : ''}{tx.points} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+          {showLoyalty && loyaltyTxs.length === 0 && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mt-3 text-center text-xs text-orange-200"
+            >
+              Aucune transaction pour l&apos;instant
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Parrainage ──────────────────────────────────── */}
+      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center">
+            <Gift className="w-4 h-4 text-emerald-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">Programme de parrainage</p>
+            <p className="text-xs text-zinc-400">Invitez vos amis et gagnez des points</p>
+          </div>
+        </div>
+
+        {referralStats?.referralCode && (
+          <div className="bg-zinc-50 dark:bg-dark-surface rounded-xl p-3 flex items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="text-xs text-zinc-400 mb-0.5">Votre code</p>
+              <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-widest">{referralStats.referralCode}</p>
+            </div>
+            <button
+              onClick={copyReferralCode}
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium rounded-xl transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Copier
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-zinc-50 dark:bg-dark-surface rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{referralStats?.totalReferrals ?? 0}</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Amis parrainés</p>
+          </div>
+          <div className="bg-zinc-50 dark:bg-dark-surface rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-emerald-600">{referralStats?.rewardedReferrals ?? 0}</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Récompenses reçues</p>
+          </div>
+        </div>
+
+        <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-3 text-xs text-emerald-700 dark:text-emerald-400 space-y-1">
+          <div className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 shrink-0" /> Votre ami commande → vous gagnez <strong>+500 pts</strong> (2 500 FCFA)</div>
+          <div className="flex items-center gap-1.5"><Gift className="w-3.5 h-3.5 shrink-0" /> Votre ami reçoit <strong>+200 pts</strong> bonus à l&apos;inscription</div>
+        </div>
       </div>
 
       {/* ── Commandes récentes ───────────────────────────── */}

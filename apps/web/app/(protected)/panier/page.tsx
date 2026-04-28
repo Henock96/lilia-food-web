@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Trash2, Plus, Minus, ArrowRight, Tag,
-  MapPin, Phone, ChevronDown, Check, Store, Bike, Plus as PlusIcon,
+  MapPin, Phone, ChevronDown, Check, Store, Bike, Plus as PlusIcon, Zap,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import {
@@ -17,6 +17,7 @@ import {
   useCreateAdresse,
   useProfile,
   useQuartiers,
+  useReferralStats,
   apiClient,
 } from '@lilia/api-client';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
@@ -35,7 +36,9 @@ export default function PanierPage() {
   const createAdresse = useCreateAdresse(token);
   const { data: profile } = useProfile(token);
   const { data: quartiers = [] } = useQuartiers();
+  const { data: referralStats } = useReferralStats(token);
 
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoResult, setPromoResult] = useState<PromoValidationResult | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
@@ -96,7 +99,9 @@ export default function PanierPage() {
   const serviceFee = Math.round(subTotal * 0.08);
   const discount = promoResult?.discountAmount ?? 0;
   const deliveryDiscount = deliveryFee - effectiveDeliveryFee;
-  const total = subTotal + effectiveDeliveryFee + serviceFee - discount;
+  const loyaltyPoints = referralStats?.loyaltyPoints ?? 0;
+  const loyaltyDiscount = useLoyaltyPoints && loyaltyPoints >= 100 ? loyaltyPoints * 5 : 0;
+  const total = Math.max(0, subTotal + effectiveDeliveryFee + serviceFee - discount - loyaltyDiscount);
 
   async function handleValidatePromo() {
     if (!promoCode.trim() || !cart?.items[0]) return;
@@ -157,6 +162,7 @@ export default function PanierPage() {
         notes: notes || undefined,
         contactPhone: contactPhone.trim() || undefined,
         promoCode: promoResult?.valid ? promoCode : undefined,
+        useLoyaltyPoints: useLoyaltyPoints && loyaltyPoints >= 100,
       });
       toast.success('Commande passée avec succès !');
       router.push(`/commandes/${result.id}`);
@@ -512,6 +518,31 @@ export default function PanierPage() {
               </div>
             </div>
 
+            {/* Points fidélité toggle */}
+            {loyaltyPoints >= 100 && (
+              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                      {loyaltyPoints} points disponibles
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      = {formatCurrency(loyaltyPoints * 5)} de réduction
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setUseLoyaltyPoints((v) => !v)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${useLoyaltyPoints ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-600'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${useLoyaltyPoints ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+            )}
+
             {/* Total */}
             <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
               <div className="flex flex-col gap-2 text-sm">
@@ -540,6 +571,12 @@ export default function PanierPage() {
                   <div className="flex justify-between text-emerald-600 font-medium">
                     <span>Code promo</span>
                     <span>-{formatCurrency(discount)}</span>
+                  </div>
+                )}
+                {loyaltyDiscount > 0 && (
+                  <div className="flex justify-between text-amber-600 font-medium">
+                    <span>Points fidélité ({loyaltyPoints} pts)</span>
+                    <span>-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
                 )}
                 <div className="h-px bg-zinc-100 dark:bg-dark-border my-1" />

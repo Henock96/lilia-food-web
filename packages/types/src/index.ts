@@ -44,8 +44,26 @@ export interface User {
   driverStatus: DriverStatus | null;
   lastLogin: string | null;
   statusUser: StatusUser;
+  referralCode: string | null;
+  loyaltyPoints: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  userId: string;
+  points: number;
+  reason: string;
+  orderId: string | null;
+  createdAt: string;
+}
+
+export interface ReferralStats {
+  referralCode: string | null;
+  totalReferrals: number;
+  rewardedReferrals: number;
+  loyaltyPoints: number;
 }
 
 export interface Restaurant {
@@ -398,6 +416,7 @@ export interface CreateOrderDto {
   notes?: string;
   contactPhone?: string;
   promoCode?: string;
+  useLoyaltyPoints?: boolean;
 }
 
 export interface CreateAdresseDto {

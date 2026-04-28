@@ -80,6 +80,20 @@ export function useRestaurantOrders(token: string | null) {
   });
 }
 
+export function useReorder(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) =>
+      apiClient<unknown>(`/orders/${orderId}/reorder`, {
+        method: 'POST',
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['cart'] });
+    },
+  });
+}
+
 export function useUpdateOrderStatus(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
