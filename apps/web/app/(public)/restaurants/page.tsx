@@ -34,7 +34,9 @@ export default async function RestaurantsPage() {
         </div>
 
         {/* Filters + Grid */}
-        <RestaurantsFilters restaurants={restaurants} />
+        <Suspense fallback={<RestaurantCardSkeleton />}>
+          <RestaurantsFilters restaurants={restaurants} />
+        </Suspense>
       </div>
     </div>
   );

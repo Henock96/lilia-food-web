@@ -408,6 +408,14 @@ export interface ClientStats {
   }>;
 }
 
+export interface Favorite {
+  id: string;
+  userId: string;
+  restaurantId: string;
+  restaurant?: Restaurant;
+  createdAt: string;
+}
+
 // --- DTOs ---
 export interface CreateOrderDto {
   paymentMethod: PaymentMethod;

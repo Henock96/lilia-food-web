@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Search, X } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
 import { RestaurantGrid } from './restaurant-grid';
 
@@ -10,15 +11,36 @@ interface RestaurantsFiltersProps {
 }
 
 export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [showOpenOnly, setShowOpenOnly] = useState(false);
 
+  // Sync URL → state when navigating back/forward
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '');
+  }, [searchParams]);
+
+  function updateSearch(value: string) {
+    setSearch(value);
+    const params = new URLSearchParams(searchParams.toString());
+    if (value.trim()) {
+      params.set('q', value.trim());
+    } else {
+      params.delete('q');
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
     return restaurants.filter((r) => {
       const matchesSearch =
-        !search ||
-        r.nom.toLowerCase().includes(search.toLowerCase()) ||
-        r.specialties?.some((s) => s.name.toLowerCase().includes(search.toLowerCase()));
+        !q ||
+        r.nom.toLowerCase().includes(q) ||
+        r.adresse?.toLowerCase().includes(q) ||
+        r.specialties?.some((s) => s.name.toLowerCase().includes(q));
       const matchesOpen = !showOpenOnly || r.isOpen;
       return matchesSearch && matchesOpen;
     });
@@ -33,13 +55,13 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateSearch(e.target.value)}
             placeholder="Rechercher un restaurant ou une cuisine..."
             className="w-full pl-10 pr-10 py-3 bg-white dark:bg-dark-surface border border-zinc-200 dark:border-dark-border rounded-2xl text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
           />
           {search && (
             <button
-              onClick={() => setSearch('')}
+              onClick={() => updateSearch('')}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
             >
               <X className="w-4 h-4" />

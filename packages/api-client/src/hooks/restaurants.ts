@@ -48,6 +48,14 @@ export function useRestaurantReviewStats(restaurantId: string) {
   });
 }
 
+export function usePopularRestaurants() {
+  return useQuery({
+    queryKey: [...restaurantKeys.all, 'popular'] as const,
+    queryFn: () => apiClient<Restaurant[]>('/restaurants/popular'),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useToggleRestaurantOpen(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, ChefHat, Sun, Moon } from 'lucide-react';
+import { ShoppingCart, Menu, X, ChefHat, Sun, Moon, Heart } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useCart } from '@lilia/api-client';
@@ -15,6 +15,7 @@ import { cn } from '@lilia/utils';
 const navLinks = [
   { href: '/restaurants', label: 'Restaurants' },
   { href: '/commandes', label: 'Mes commandes' },
+  { href: '/favoris', label: 'Favoris' },
 ];
 
 export function Header() {
@@ -58,7 +59,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group" aria-label="Lilia Food — Accueil">
+          <Link href="/" className="flex items-center gap-2 group" aria-label="Lilia Food â€” Accueil">
             <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                 <Image src="/logo.jpg" alt="Logo Lilia Food" width={200} height={200} className="w-24 h-24 object-contain" />
             </div>
@@ -144,7 +145,7 @@ export function Header() {
                 ) : (
                   <div className="w-7 h-7 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center ring-2 ring-primary-200 dark:ring-primary-700">
                     <span className="text-xs font-bold text-primary-600 dark:text-primary-400">
-                      {(user?.nom ?? firebaseDisplayName)?.[0]?.toUpperCase() ?? '·'}
+                      {(user?.nom ?? firebaseDisplayName)?.[0]?.toUpperCase() ?? 'Â·'}
                     </span>
                   </div>
                 )}

@@ -1,12 +1,15 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Star, Clock, Bike, MapPin } from 'lucide-react';
+import { Star, Clock, Bike, MapPin, Heart } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
 import { cardVariants, buttonTap } from '@lilia/motion';
 import { formatCurrency, formatDeliveryTime, cn } from '@lilia/utils';
+import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/api-client';
+import { useAuthStore } from '@/store/auth';
+import { toast } from 'sonner';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -14,6 +17,34 @@ interface RestaurantCardProps {
 
 export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const reduced = useReducedMotion();
+  const { token } = useAuthStore();
+  const { data: favorites } = useFavorites(token);
+  const { data: popularList } = usePopularRestaurants();
+  const toggleFavorite = useToggleFavorite(token);
+
+  const isFavorite = favorites?.some((f) => f.id === restaurant.id) ?? false;
+  const isPopular = popularList?.some((r) => r.id === restaurant.id) ?? false;
+  const isFastDelivery = restaurant.estimatedDeliveryTimeMax <= 30;
+  const isNew = restaurant.createdAt
+    ? (Date.now() - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= 7
+    : false;
+
+  function handleFavorite(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!token) {
+      toast.error('Connectez-vous pour ajouter aux favoris');
+      return;
+    }
+    toggleFavorite.mutate(
+      { restaurantId: restaurant.id, isFavorite },
+      {
+        onSuccess: () =>
+          toast.success(isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris'),
+        onError: () => toast.error('Erreur, veuillez réessayer'),
+      },
+    );
+  }
 
   return (
     <motion.div
@@ -54,8 +85,43 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             </span>
           </div>
 
-          {/* Spécialités */}
-          {restaurant.specialties && restaurant.specialties.length > 0 && (
+          {/* Bouton favori */}
+          <button
+            onClick={handleFavorite}
+            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-white/90 dark:bg-dark-card/90 rounded-full shadow-sm hover:scale-110 transition-transform"
+            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          >
+            <Heart
+              className={cn(
+                'w-4 h-4 transition-colors',
+                isFavorite ? 'fill-red-500 text-red-500' : 'text-zinc-400',
+              )}
+            />
+          </button>
+
+          {/* Badges visuels bas-gauche */}
+          {(isNew || isFastDelivery || isPopular) && (
+            <div className="absolute bottom-3 left-3 flex gap-1 flex-wrap">
+              {isNew && (
+                <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">
+                  Nouveau
+                </span>
+              )}
+              {isFastDelivery && (
+                <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
+                  ⚡ Rapide
+                </span>
+              )}
+              {isPopular && (
+                <span className="px-2 py-0.5 bg-rose-500 text-white text-xs font-bold rounded-full">
+                  🔥 Populaire
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Spécialités — masquées si badges présents pour éviter le chevauchement */}
+          {!isNew && !isFastDelivery && !isPopular && restaurant.specialties && restaurant.specialties.length > 0 && (
             <div className="absolute bottom-3 left-3 flex flex-wrap gap-1">
               {restaurant.specialties.slice(0, 2).map((s) => (
                 <span key={s.id} className="px-2 py-0.5 bg-black/50 text-white text-xs rounded-full backdrop-blur-sm">

@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useReducedMotion, motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Search, ArrowRight, Star, Clock, Bike } from 'lucide-react';
 import { buttonTap } from '@lilia/motion';
 
@@ -15,6 +17,14 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function HeroSection() {
   const reduced = useReducedMotion();
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const params = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+    router.push(`/restaurants${params}`);
+  }
 
   return (
     <section
@@ -66,31 +76,48 @@ export function HeroSection() {
               Commande tes plats préférés en quelques clics et fais-toi livrer rapidement, où que tu sois.
             </motion.p>
 
-            {/* CTA */}
-            <motion.div
+            {/* Search bar */}
+            <motion.form
+              onSubmit={handleSearch}
               initial={reduced ? {} : { opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.24, duration: 0.4, ease }}
-              className="flex flex-col sm:flex-row gap-3"
+              className="flex gap-2 w-full max-w-md"
+              role="search"
+              aria-label="Rechercher un restaurant"
             >
-              <motion.div whileTap={reduced ? {} : buttonTap}>
-                <Link
-                  href="/restaurants"
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-primary-200 dark:shadow-primary-900/50 hover:-translate-y-0.5 active:translate-y-0"
-                >
-                  <Search className="w-4 h-4" aria-hidden />
-                  Voir les restaurants
-                  <ArrowRight className="w-4 h-4" aria-hidden />
-                </Link>
-              </motion.div>
-              <motion.div whileTap={reduced ? {} : buttonTap}>
-                <Link
-                  href="/inscription"
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white dark:bg-dark-card hover:bg-zinc-50 dark:hover:bg-dark-border text-zinc-800 dark:text-zinc-200 font-semibold rounded-2xl border border-zinc-200 dark:border-dark-border transition-all hover:-translate-y-0.5"
-                >
-                  Créer un compte
-                </Link>
-              </motion.div>
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" aria-hidden />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Sushi, burger, pizza…"
+                  className="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-dark-card border border-zinc-200 dark:border-dark-border rounded-2xl text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 shadow-sm transition-all"
+                />
+              </div>
+              <motion.button
+                type="submit"
+                whileTap={reduced ? {} : buttonTap}
+                className="flex items-center gap-2 px-5 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-primary-200 dark:shadow-primary-900/50 whitespace-nowrap"
+              >
+                Chercher
+                <ArrowRight className="w-4 h-4" aria-hidden />
+              </motion.button>
+            </motion.form>
+
+            {/* Lien secondaire */}
+            <motion.div
+              initial={reduced ? {} : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.35 }}
+            >
+              <Link
+                href="/inscription"
+                className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors underline underline-offset-4"
+              >
+                Créer un compte gratuitement
+              </Link>
             </motion.div>
 
             {/* Stats */}
