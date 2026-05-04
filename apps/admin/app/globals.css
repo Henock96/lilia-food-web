@@ -1,43 +1,105 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+/* Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary-50: #fff7ed;
-  --color-primary-100: #ffedd5;
-  --color-primary-200: #fed7aa;
-  --color-primary-300: #fdba74;
-  --color-primary-400: #fb923c;
-  --color-primary-500: #f97316;
-  --color-primary-600: #ea6c0a;
-  --color-primary-700: #c2570a;
-  --color-primary-800: #9a3412;
-  --color-primary-900: #7c2d12;
+  /* ── Orange brand Lilia ── */
+  --color-primary-50:  #FFF4EF;
+  --color-primary-100: #FFE4D3;
+  --color-primary-200: #FFC5A1;
+  --color-primary-300: #FF9E6A;
+  --color-primary-400: #F47430;
+  --color-primary-500: #E8541F;
+  --color-primary-600: #C8421A;
+  --color-primary-700: #9E3012;
+  --color-primary-800: #742009;
 
-  --color-accent-400: #fbbf24;
-  --color-accent-500: #f59e0b;
+  /* ── Cream ── */
+  --color-cream-50:  #FFFDF9;
+  --color-cream-100: #FAF5EE;
+  --color-cream-200: #F3E8D8;
 
-  --color-success: #10b981;
-  --color-danger: #f43f5e;
-  --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  /* ── Charcoal ── */
+  --color-charcoal-50:  #F6F4F2;
+  --color-charcoal-100: #E9E4DF;
+  --color-charcoal-200: #CEC7BF;
+  --color-charcoal-300: #ABA39A;
+  --color-charcoal-400: #7A726A;
+  --color-charcoal-500: #4D4540;
+  --color-charcoal-600: #352E2A;
+  --color-charcoal-700: #1C1815;
+  --color-charcoal-800: #0F0D0B;
 
-  --color-dark-bg:      #0a0a0a;
-  --color-dark-surface: #111111;
-  --color-dark-card:    #1a1a1a;
-  --color-dark-border:  #2a2a2a;
+  /* ── Sémantiques feedback ── */
+  --color-success: #27A660;
+  --color-warning: #D4970A;
+  --color-danger:  #D63F28;
+  --color-info:    #2B4A6B;
 
+  /* ── Dark mode surfaces ── */
+  --color-dark-bg:      #0F0D0B;
+  --color-dark-surface: #1C1815;
+  --color-dark-card:    #252018;
+  --color-dark-border:  #352E2A;
+
+  /* ── Typographie ── */
   --font-sans: "Inter", "system-ui", sans-serif;
   --font-mono: "Fira Code", monospace;
 
+  /* ── Animations ── */
   --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
-  --shadow-card-hover: 0 8px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.08);
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 3px rgba(28,24,21,.06), 0 1px 2px rgba(28,24,21,.04);
+  --shadow-md: 0 4px 16px rgba(28,24,21,.08), 0 2px 6px rgba(28,24,21,.05);
+  --shadow-lg: 0 8px 32px rgba(28,24,21,.12), 0 4px 12px rgba(28,24,21,.06);
+
+  --shadow-card:       var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
 }
 
+/* ── Semantic CSS vars (light) ─────────────────────── */
+:root {
+  --bg-primary:     #FAF5EE;
+  --bg-secondary:   #FFFFFF;
+  --bg-elevated:    #FFFFFF;
+  --bg-muted:       #F3E8D8;
+  --text-primary:   #1C1815;
+  --text-secondary: #4D4540;
+  --text-muted:     #7A726A;
+  --action-primary: #E8541F;
+  --action-hover:   #C8421A;
+  --border:         #E9E4DF;
+  --border-focus:   #E8541F;
+  --success:        #27A660;
+  --warning:        #D4970A;
+  --danger:         #D63F28;
+  --info:           #2B4A6B;
+}
+
+/* ── Semantic CSS vars (dark) ──────────────────────── */
+.dark {
+  --bg-primary:     #0F0D0B;
+  --bg-secondary:   #1C1815;
+  --bg-elevated:    #252018;
+  --bg-muted:       #2A2318;
+  --text-primary:   #F6F4F2;
+  --text-secondary: #CEC7BF;
+  --text-muted:     #7A726A;
+  --action-primary: #F47430;
+  --action-hover:   #FF9E6A;
+  --border:         #352E2A;
+  --border-focus:   #F47430;
+  --success:        #4DC280;
+  --warning:        #F5C44A;
+  --danger:         #F4826E;
+  --info:           #6A9ABF;
+}
+
+/* ── Base ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
@@ -48,35 +110,32 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background-color: #f4f4f5;
-  color: #18181b;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   line-height: 1.6;
   min-height: 100dvh;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s, color 0.25s;
 }
 
-.dark body {
-  background-color: var(--color-dark-bg);
-  color: #e4e4e7;
-}
-
+/* ── Skeleton ─────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #e4e4e7 25%, #f4f4f5 50%, #e4e4e7 75%);
+  background: linear-gradient(90deg, #e8ddd0 25%, #f5ede4 50%, #e8ddd0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s infinite;
   border-radius: 0.5rem;
 }
 
 .dark .skeleton {
-  background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+  background: linear-gradient(90deg, #2a2418 25%, #352e1e 50%, #2a2418 75%);
   background-size: 200% 100%;
 }
 
+/* ── Animations ───────────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -84,17 +143,22 @@ body {
 
 .reveal { animation: fadeInUp 0.4s var(--ease-out-expo) both; }
 
-:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
+/* ── Focus ring ───────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--action-primary);
+  outline-offset: 2px;
+}
 
+/* ── Scrollbar ────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
-.dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+::-webkit-scrollbar-thumb { background: #CEC7BF; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #ABA39A; }
+.dark ::-webkit-scrollbar-thumb { background: #352E2A; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #4D4540; }
 
+/* ── Utilities ────────────────────────────────────── */
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
-
 .btn-tap { transition: transform 0.1s ease, opacity 0.1s ease; }
 .btn-tap:active { transform: scale(0.97); }

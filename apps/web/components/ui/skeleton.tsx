@@ -10,7 +10,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function RestaurantCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl overflow-hidden border border-zinc-100 dark:border-dark-border">
+    <div className="bg-white dark:bg-dark-card rounded-xl overflow-hidden border border-charcoal-100 dark:border-dark-border">
       <Skeleton className="w-full h-48 rounded-none" />
       <div className="p-4 flex flex-col gap-3">
         <Skeleton className="h-5 w-3/4" />
@@ -27,7 +27,7 @@ export function RestaurantCardSkeleton() {
 
 export function OrderCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl p-5 border border-zinc-100 dark:border-dark-border flex flex-col gap-3">
+    <div className="bg-white dark:bg-dark-card rounded-xl p-4 border border-charcoal-100 dark:border-dark-border flex flex-col gap-3">
       <div className="flex justify-between items-start">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-6 w-24 rounded-full" />
@@ -43,7 +43,7 @@ export function OrderCardSkeleton() {
 
 export function ProductCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-dark-card rounded-xl overflow-hidden border border-zinc-100 dark:border-dark-border flex gap-3 p-3">
+    <div className="bg-white dark:bg-dark-card rounded-xl overflow-hidden border border-charcoal-100 dark:border-dark-border flex gap-3 p-3">
       <Skeleton className="w-24 h-24 rounded-xl shrink-0" />
       <div className="flex flex-col gap-2 flex-1">
         <Skeleton className="h-4 w-3/4" />
@@ -61,10 +61,10 @@ export function ProductCardSkeleton() {
 export function ProfileSkeleton() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-4">
-      <Skeleton className="h-40 rounded-3xl" />
-      <Skeleton className="h-32 rounded-2xl" />
-      <Skeleton className="h-48 rounded-2xl" />
-      <Skeleton className="h-24 rounded-2xl" />
+      <Skeleton className="h-40 rounded-2xl" />
+      <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-48 rounded-xl" />
+      <Skeleton className="h-24 rounded-xl" />
     </div>
   );
 }
