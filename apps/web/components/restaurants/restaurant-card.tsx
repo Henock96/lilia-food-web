@@ -54,11 +54,11 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
     >
       <Link
         href={`/restaurants/${restaurant.id}`}
-        className="group block bg-white dark:bg-dark-card rounded-2xl overflow-hidden border border-zinc-100 dark:border-dark-border hover:border-zinc-200 dark:hover:border-zinc-600 hover:shadow-lg dark:hover:shadow-black/30 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-primary-500"
+        className="group block bg-white dark:bg-dark-card rounded-2xl overflow-hidden border border-charcoal-100 dark:border-dark-border hover:border-charcoal-200 dark:hover:border-charcoal-600 hover:shadow-md dark:hover:shadow-black/30 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-primary-500"
         aria-label={`${restaurant.nom} — ${restaurant.isOpen ? 'Ouvert' : 'Fermé'}`}
       >
         {/* Image */}
-        <div className="relative h-48 overflow-hidden bg-zinc-100 dark:bg-dark-surface">
+        <div className="relative h-48 overflow-hidden bg-charcoal-50 dark:bg-dark-surface">
           {restaurant.imageUrl ? (
             <Image
               src={restaurant.imageUrl}
@@ -79,7 +79,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           <div className="absolute top-3 left-3">
             <span className={cn(
               'px-2.5 py-1 text-xs font-semibold rounded-full',
-              restaurant.isOpen ? 'bg-emerald-500 text-white' : 'bg-zinc-800/80 text-white',
+              restaurant.isOpen ? 'bg-[#27A660] text-white' : 'bg-charcoal-700/80 text-white',
             )}>
               {restaurant.isOpen ? 'Ouvert' : 'Fermé'}
             </span>
@@ -94,7 +94,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             <Heart
               className={cn(
                 'w-4 h-4 transition-colors',
-                isFavorite ? 'fill-red-500 text-red-500' : 'text-zinc-400',
+                isFavorite ? 'fill-primary-500 text-primary-500' : 'text-charcoal-400',
               )}
             />
           </button>
@@ -108,7 +108,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
                 </span>
               )}
               {isFastDelivery && (
-                <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
+                <span className="px-2 py-0.5 bg-primary-500 text-white text-xs font-bold rounded-full">
                   ⚡ Rapide
                 </span>
               )}
@@ -135,25 +135,25 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
         {/* Content */}
         <div className="p-4">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-base leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-1">
+            <h3 className="font-bold text-charcoal-700 dark:text-charcoal-50 text-base leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-1">
               {restaurant.nom}
             </h3>
             {restaurant.averageRating && (
               <div className="flex items-center gap-1 flex-shrink-0" aria-label={`Note: ${restaurant.averageRating.toFixed(1)}`}>
                 <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" aria-hidden />
-                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                <span className="text-sm font-semibold text-charcoal-600 dark:text-charcoal-300">
                   {restaurant.averageRating.toFixed(1)}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400 text-xs mb-3">
+          <div className="flex items-center gap-1 text-charcoal-400 dark:text-charcoal-400 text-xs mb-3">
             <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden />
             <span className="line-clamp-1">{restaurant.adresse}</span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center gap-4 text-xs text-charcoal-400 dark:text-charcoal-400">
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" aria-hidden />
               {formatDeliveryTime(restaurant.estimatedDeliveryTimeMin, restaurant.estimatedDeliveryTimeMax)}
@@ -163,7 +163,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
               {restaurant.fixedDeliveryFee === 0 ? 'Livraison gratuite' : formatCurrency(restaurant.fixedDeliveryFee)}
             </span>
             {restaurant.minimumOrderAmount > 0 && (
-              <span className="text-zinc-400 dark:text-zinc-500">
+              <span className="text-charcoal-400 dark:text-charcoal-500">
                 Min. {formatCurrency(restaurant.minimumOrderAmount)}
               </span>
             )}
