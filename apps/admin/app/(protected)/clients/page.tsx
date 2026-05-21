@@ -61,9 +61,10 @@ function formatTxnDate(iso: string): string {
 }
 
 function LoyaltySection({ clientId, token }: { clientId: string; token: string | null }) {
-  const { data, isLoading } = useClientLoyalty(clientId, token);
+  const { data, isLoading, isError } = useClientLoyalty(clientId, token);
 
   if (isLoading) return <Skeleton className="h-40 rounded-xl" />;
+  if (isError) return <p className="text-xs text-red-500">Impossible de charger les données de fidélité.</p>;
   if (!data) return null;
 
   return (
@@ -105,9 +106,10 @@ function LoyaltySection({ clientId, token }: { clientId: string; token: string |
 }
 
 function ReferralSection({ clientId, token }: { clientId: string; token: string | null }) {
-  const { data, isLoading } = useClientReferral(clientId, token);
+  const { data, isLoading, isError } = useClientReferral(clientId, token);
 
   if (isLoading) return <Skeleton className="h-32 rounded-xl" />;
+  if (isError) return <p className="text-xs text-red-500">Impossible de charger les données de parrainage.</p>;
   if (!data) return null;
 
   return (
@@ -308,7 +310,7 @@ function AllClientsSection({
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, isLoading, isPlaceholderData } = useAdminClients(token, page, debounced);
+  const { data, isLoading, isError, isPlaceholderData } = useAdminClients(token, page, debounced);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
   return (
@@ -330,6 +332,10 @@ function AllClientsSection({
       {isLoading ? (
         <div className="p-4 space-y-3">
           {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-xl" />)}
+        </div>
+      ) : isError ? (
+        <div className="px-5 py-12 text-center">
+          <p className="text-sm text-red-500">Impossible de charger la liste des clients.</p>
         </div>
       ) : !data?.data.length ? (
         <div className="px-5 py-12 text-center">

@@ -66,7 +66,12 @@ export interface ReferralStats {
   loyaltyPoints: number;
 }
 
-/** Réponse paginée générique du backend : { data, total, page, limit }. */
+/**
+ * Enveloppe paginée des endpoints `/admin/*` : `{ data, total, page, limit }`.
+ * Distincte de `PaginatedResponse<T>` : ces endpoints ne renvoient PAS de
+ * champ `totalPages` — il se dérive côté client via `Math.ceil(total / limit)`.
+ * Ne pas fusionner les deux types tant que le backend n'expose pas `totalPages`.
+ */
 export interface Paginated<T> {
   data: T[];
   total: number;
