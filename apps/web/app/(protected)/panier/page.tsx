@@ -31,7 +31,11 @@ export default function PanierPage() {
   const { data: cart, isLoading } = useCart(token);
   const updateItem = useUpdateCartItem(token);
   const removeItem = useRemoveCartItem(token);
-  const createOrder = useCreateOrder(token);
+  // Clé d'idempotence générée une fois pour cette session de checkout.
+  // Si le réseau coupe et que l'utilisateur relance la commande, la même clé
+  // est renvoyée → le backend retourne la commande déjà créée (pas de doublon).
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const createOrder = useCreateOrder(token, idempotencyKey);
   const { data: adresses = [] } = useAdresses(token);
   const createAdresse = useCreateAdresse(token);
   const { data: profile } = useProfile(token);
