@@ -104,6 +104,50 @@ function LoyaltySection({ clientId, token }: { clientId: string; token: string |
   );
 }
 
+function ReferralSection({ clientId, token }: { clientId: string; token: string | null }) {
+  const { data, isLoading } = useClientReferral(clientId, token);
+
+  if (isLoading) return <Skeleton className="h-32 rounded-xl" />;
+  if (!data) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Parrainage</p>
+      <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Gift size={14} className="text-primary-500 shrink-0" />
+          {data.referralCode ? (
+            <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {data.referralCode}
+            </span>
+          ) : (
+            <span className="text-xs text-zinc-400">Aucun code de parrainage</span>
+          )}
+        </div>
+        {data.referredByCode && (
+          <p className="text-xs text-zinc-500">
+            Parrainé via le code <span className="font-mono text-zinc-700 dark:text-zinc-300">{data.referredByCode}</span>
+          </p>
+        )}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{data.totalReferrals}</p>
+            <p className="text-xs text-zinc-400">Filleuls</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{data.convertedReferrals}</p>
+            <p className="text-xs text-zinc-400">Convertis</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{data.referralBonusEarned}</p>
+            <p className="text-xs text-zinc-400">Pts gagnés</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const { token } = useAuthStore();
   const { data: raw, isLoading } = useClientDetail(clientId, token);
@@ -190,6 +234,9 @@ function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: (
 
             {/* Fidélité */}
             <LoyaltySection clientId={clientId} token={token} />
+
+            {/* Parrainage */}
+            <ReferralSection clientId={clientId} token={token} />
 
             {/* Addresses */}
             {detail.client.adresses.length > 0 && (
