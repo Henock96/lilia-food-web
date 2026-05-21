@@ -37,7 +37,16 @@ export function useOrder(id: string, token: string | null) {
   });
 }
 
-export function useCreateOrder(token: string | null) {
+/**
+ * Hook de création de commande.
+ *
+ * `idempotencyKey` (UUID v4) doit être stable pour toute la session de
+ * checkout — le composant le génère une fois via `useState(() => crypto.randomUUID())`.
+ * Si l'utilisateur relance le checkout après un échec réseau (4G faible à
+ * Brazzaville), la même clé est renvoyée : le backend détecte le doublon et
+ * retourne la réponse mise en cache au lieu de créer une 2ᵉ commande.
+ */
+export function useCreateOrder(token: string | null, idempotencyKey: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateOrderDto) =>
@@ -45,6 +54,7 @@ export function useCreateOrder(token: string | null) {
         method: 'POST',
         body: JSON.stringify(dto),
         token,
+        headers: { 'Idempotency-Key': idempotencyKey },
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.mine() });
