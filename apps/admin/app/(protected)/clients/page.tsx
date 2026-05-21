@@ -1,13 +1,14 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
-import { useClientStats, useClientDetail } from '@lilia/api-client';
+import { useState, useEffect } from 'react';
+import { useClientStats, useClientDetail, useClientLoyalty, useClientReferral, useAdminClients } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users, UserPlus, Repeat, TrendingUp, TrendingDown,
   Phone, Mail, MapPin, ChevronRight, X, ShoppingBag, Clock, Download,
+  Star, Gift, Search, ChevronLeft,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
 
@@ -52,6 +53,56 @@ const STATUS_LABELS: Record<string, string> = {
   EN_ATTENTE: 'En attente', PAYER: 'Payé', EN_PREPARATION: 'En préparation',
   PRET: 'Prêt', EN_ROUTE: 'En route', LIVRER: 'Livré', ANNULER: 'Annulé',
 };
+
+function formatTxnDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function LoyaltySection({ clientId, token }: { clientId: string; token: string | null }) {
+  const { data, isLoading } = useClientLoyalty(clientId, token);
+
+  if (isLoading) return <Skeleton className="h-40 rounded-xl" />;
+  if (!data) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Fidélité</p>
+      <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-4 mb-3">
+        <div className="flex items-center gap-2">
+          <Star size={16} className="text-amber-500" />
+          <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+            {data.balance.toLocaleString('fr-FR')}
+          </span>
+          <span className="text-sm text-zinc-500">points</span>
+        </div>
+        <p className="text-xs text-zinc-400 mt-1">
+          ≈ {(data.balance * 5).toLocaleString('fr-FR')} FCFA de réduction disponible
+        </p>
+      </div>
+      {data.transactions.length === 0 ? (
+        <p className="text-xs text-zinc-400">Aucune transaction de fidélité</p>
+      ) : (
+        <div className="space-y-1.5">
+          {data.transactions.map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
+              <div className="min-w-0">
+                <p className="text-zinc-600 dark:text-zinc-300 truncate">{t.reason}</p>
+                <p className="text-zinc-400">{formatTxnDate(t.createdAt)}</p>
+              </div>
+              <span className={`font-semibold tabular-nums shrink-0 ${
+                t.points >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+              }`}>
+                {t.points >= 0 ? '+' : ''}{t.points}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const { token } = useAuthStore();
@@ -136,6 +187,9 @@ function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: (
                 Dernière commande le {new Date(detail.stats.lastOrderAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
               </div>
             )}
+
+            {/* Fidélité */}
+            <LoyaltySection clientId={clientId} token={token} />
 
             {/* Addresses */}
             {detail.client.adresses.length > 0 && (
