@@ -14,6 +14,7 @@
     "@lilia/motion": "workspace:*",
     "@lilia/types": "workspace:*",
     "@lilia/utils": "workspace:*",
+    "@sentry/nextjs": "^10.53.1",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-query-devtools": "^5.62.0",
     "firebase": "^11.0.0",

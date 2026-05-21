@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
+import * as Sentry from '@sentry/nextjs';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 
@@ -11,11 +12,19 @@ import { useAuthStore } from '@/store/auth';
  * pour éviter une race condition (double sync concurrent).
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setToken, setLoading, signOut } = useAuthStore();
+  const { user, setToken, setLoading, signOut } = useAuthStore();
 
   useEffect(() => {
     void useAuthStore.persist.rehydrate();
   }, []);
+
+  // Contexte Sentry : suit l'utilisateur du store (login depuis la page connexion,
+  // logout depuis la sidebar ou l'expiration de session Firebase).
+  useEffect(() => {
+    Sentry.setUser(
+      user ? { id: user.id, email: user.email, role: user.role } : null,
+    );
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
