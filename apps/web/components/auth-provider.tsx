@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
+import * as Sentry from '@sentry/nextjs';
 import { apiClient, API_URL } from '@lilia/api-client';
 import type { User } from '@lilia/types';
 
@@ -40,12 +41,19 @@ async function syncWithRetry(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setToken, setLoading, setFirebaseProfile } = useAuthStore();
+  const { user, setUser, setToken, setLoading, setFirebaseProfile } = useAuthStore();
 
   // Hydrate Zustand persist from localStorage (skipHydration: true prevents SSR access)
   useEffect(() => {
     void useAuthStore.persist.rehydrate();
   }, []);
+
+  // Contexte Sentry : suit l'utilisateur du store (login/logout depuis n'importe où).
+  useEffect(() => {
+    Sentry.setUser(
+      user ? { id: user.id, email: user.email, role: user.role } : null,
+    );
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
