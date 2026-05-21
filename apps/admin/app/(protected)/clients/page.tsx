@@ -1,13 +1,14 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
-import { useClientStats, useClientDetail } from '@lilia/api-client';
+import { useState, useEffect } from 'react';
+import { useClientStats, useClientDetail, useClientLoyalty, useClientReferral, useAdminClients } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users, UserPlus, Repeat, TrendingUp, TrendingDown,
   Phone, Mail, MapPin, ChevronRight, X, ShoppingBag, Clock, Download,
+  Star, Gift, Search, ChevronLeft,
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
 
@@ -52,6 +53,102 @@ const STATUS_LABELS: Record<string, string> = {
   EN_ATTENTE: 'En attente', PAYER: 'Payé', EN_PREPARATION: 'En préparation',
   PRET: 'Prêt', EN_ROUTE: 'En route', LIVRER: 'Livré', ANNULER: 'Annulé',
 };
+
+function formatTxnDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function LoyaltySection({ clientId, token }: { clientId: string; token: string | null }) {
+  const { data, isLoading, isError } = useClientLoyalty(clientId, token);
+
+  if (isLoading) return <Skeleton className="h-40 rounded-xl" />;
+  if (isError) return <p className="text-xs text-red-500">Impossible de charger les données de fidélité.</p>;
+  if (!data) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Fidélité</p>
+      <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-4 mb-3">
+        <div className="flex items-center gap-2">
+          <Star size={16} className="text-amber-500" />
+          <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+            {data.balance.toLocaleString('fr-FR')}
+          </span>
+          <span className="text-sm text-zinc-500">points</span>
+        </div>
+        <p className="text-xs text-zinc-400 mt-1">
+          ≈ {(data.balance * 5).toLocaleString('fr-FR')} FCFA de réduction disponible
+        </p>
+      </div>
+      {data.transactions.length === 0 ? (
+        <p className="text-xs text-zinc-400">Aucune transaction de fidélité</p>
+      ) : (
+        <div className="space-y-1.5">
+          {data.transactions.map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
+              <div className="min-w-0">
+                <p className="text-zinc-600 dark:text-zinc-300 truncate">{t.reason}</p>
+                <p className="text-zinc-400">{formatTxnDate(t.createdAt)}</p>
+              </div>
+              <span className={`font-semibold tabular-nums shrink-0 ${
+                t.points >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+              }`}>
+                {t.points >= 0 ? '+' : ''}{t.points}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReferralSection({ clientId, token }: { clientId: string; token: string | null }) {
+  const { data, isLoading, isError } = useClientReferral(clientId, token);
+
+  if (isLoading) return <Skeleton className="h-32 rounded-xl" />;
+  if (isError) return <p className="text-xs text-red-500">Impossible de charger les données de parrainage.</p>;
+  if (!data) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Parrainage</p>
+      <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Gift size={14} className="text-primary-500 shrink-0" />
+          {data.referralCode ? (
+            <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {data.referralCode}
+            </span>
+          ) : (
+            <span className="text-xs text-zinc-400">Aucun code de parrainage</span>
+          )}
+        </div>
+        {data.referredByCode && (
+          <p className="text-xs text-zinc-500">
+            Parrainé via le code <span className="font-mono text-zinc-700 dark:text-zinc-300">{data.referredByCode}</span>
+          </p>
+        )}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{data.totalReferrals}</p>
+            <p className="text-xs text-zinc-400">Filleuls</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{data.convertedReferrals}</p>
+            <p className="text-xs text-zinc-400">Convertis</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{data.referralBonusEarned}</p>
+            <p className="text-xs text-zinc-400">Pts gagnés</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const { token } = useAuthStore();
@@ -137,6 +234,12 @@ function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: (
               </div>
             )}
 
+            {/* Fidélité */}
+            <LoyaltySection clientId={clientId} token={token} />
+
+            {/* Parrainage */}
+            <ReferralSection clientId={clientId} token={token} />
+
             {/* Addresses */}
             {detail.client.adresses.length > 0 && (
               <div>
@@ -183,6 +286,137 @@ function ClientDetailPanel({ clientId, onClose }: { clientId: string; onClose: (
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AllClientsSection({
+  token,
+  onSelect,
+}: {
+  token: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [page, setPage] = useState(1);
+
+  // Debounce de la recherche (350ms) + retour page 1 à chaque nouvelle recherche
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebounced(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading, isError, isPlaceholderData } = useAdminClients(token, page, debounced);
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+
+  return (
+    <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-zinc-100 dark:border-dark-border flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 shrink-0">Tous les clients</h3>
+        <div className="relative flex-1 max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Nom, téléphone, email…"
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="p-4 space-y-3">
+          {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-xl" />)}
+        </div>
+      ) : isError ? (
+        <div className="px-5 py-12 text-center">
+          <p className="text-sm text-red-500">Impossible de charger la liste des clients.</p>
+        </div>
+      ) : !data?.data.length ? (
+        <div className="px-5 py-12 text-center">
+          <p className="text-sm text-zinc-400">
+            {debounced ? 'Aucun client ne correspond à cette recherche' : 'Aucun client'}
+          </p>
+        </div>
+      ) : (
+        <div className={`divide-y divide-zinc-100 dark:divide-dark-border ${isPlaceholderData ? 'opacity-60' : ''}`}>
+          {data.data.map((c) => {
+            const name = c.nom || c.email || '—';
+            return (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className="flex items-center gap-4 px-5 py-3 w-full text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
+                  {c.imageUrl ? (
+                    <Image src={c.imageUrl} alt={name} width={36} height={36} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-semibold text-zinc-500">{name.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{c.nom || '—'}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    {c.email && (
+                      <span className="flex items-center gap-1 text-xs text-zinc-400 truncate">
+                        <Mail size={10} />{c.email}
+                      </span>
+                    )}
+                    {c.phone && (
+                      <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
+                        <Phone size={10} />{c.phone}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="flex items-center justify-end gap-1">
+                    <Star size={10} className="text-amber-500" />
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                      {c.loyaltyPoints.toLocaleString('fr-FR')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-end gap-1 mt-0.5">
+                    <ShoppingBag size={10} className="text-zinc-400" />
+                    <span className="text-xs text-zinc-400">{c._count.orders} cmd</span>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-300 dark:text-zinc-600 shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {data && data.total > data.limit && (
+        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 dark:border-dark-border">
+          <span className="text-xs text-zinc-400 tabular-nums">
+            {data.total} client{data.total > 1 ? 's' : ''} · page {page}/{totalPages}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => setPage((p) => (p < totalPages ? p + 1 : p))}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -329,6 +563,9 @@ export default function ClientsPage() {
           </div>
         )}
       </div>
+
+      {/* Tous les clients */}
+      <AllClientsSection token={token} onSelect={setSelectedClientId} />
 
       {/* Detail panel */}
       {selectedClientId && (

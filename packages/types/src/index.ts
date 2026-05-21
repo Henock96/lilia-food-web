@@ -66,6 +66,48 @@ export interface ReferralStats {
   loyaltyPoints: number;
 }
 
+/**
+ * Enveloppe paginée des endpoints `/admin/*` : `{ data, total, page, limit }`.
+ * Distincte de `PaginatedResponse<T>` : ces endpoints ne renvoient PAS de
+ * champ `totalPages` — il se dérive côté client via `Math.ceil(total / limit)`.
+ * Ne pas fusionner les deux types tant que le backend n'expose pas `totalPages`.
+ */
+export interface Paginated<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+/** Un client dans la liste admin paginée (GET /admin/clients). */
+export interface AdminClientListItem {
+  id: string;
+  email: string | null;
+  nom: string | null;
+  phone: string | null;
+  imageUrl: string | null;
+  role: string;
+  createdAt: string;
+  lastLogin: string | null;
+  loyaltyPoints: number;
+  _count: { orders: number };
+}
+
+/** Solde + historique de fidélité d'un client (GET /admin/clients/:id/loyalty). */
+export interface AdminClientLoyalty {
+  balance: number;
+  transactions: LoyaltyTransaction[];
+}
+
+/** Stats de parrainage d'un client (GET /admin/clients/:id/referral). */
+export interface AdminClientReferral {
+  referralCode: string | null;
+  referredByCode: string | null;
+  totalReferrals: number;
+  convertedReferrals: number;
+  referralBonusEarned: number;
+}
+
 export interface Restaurant {
   id: string;
   nom: string;
