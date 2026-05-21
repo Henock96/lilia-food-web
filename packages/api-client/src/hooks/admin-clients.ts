@@ -13,9 +13,9 @@ export const adminClientKeys = {
   all: ['admin', 'clients'] as const,
   list: (page: number, search: string) =>
     [...adminClientKeys.all, 'list', page, search] as const,
-  loyalty: (clientId: string) =>
+  loyalty: (clientId: string | null) =>
     [...adminClientKeys.all, clientId, 'loyalty'] as const,
-  referral: (clientId: string) =>
+  referral: (clientId: string | null) =>
     [...adminClientKeys.all, clientId, 'referral'] as const,
 };
 
@@ -44,7 +44,7 @@ export function useAdminClients(
 /** Solde + historique de fidélité d'un client (GET /admin/clients/:id/loyalty). */
 export function useClientLoyalty(clientId: string | null, token: string | null) {
   return useQuery({
-    queryKey: adminClientKeys.loyalty(clientId ?? ''),
+    queryKey: adminClientKeys.loyalty(clientId),
     queryFn: () =>
       apiClient<AdminClientLoyalty>(`/admin/clients/${clientId}/loyalty`, { token }),
     enabled: !!clientId && !!token,
@@ -55,7 +55,7 @@ export function useClientLoyalty(clientId: string | null, token: string | null) 
 /** Stats de parrainage d'un client (GET /admin/clients/:id/referral). */
 export function useClientReferral(clientId: string | null, token: string | null) {
   return useQuery({
-    queryKey: adminClientKeys.referral(clientId ?? ''),
+    queryKey: adminClientKeys.referral(clientId),
     queryFn: () =>
       apiClient<AdminClientReferral>(`/admin/clients/${clientId}/referral`, { token }),
     enabled: !!clientId && !!token,
