@@ -39,3 +39,30 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
   const json = (await response.json()) as { data?: T } & T;
   return (json.data ?? json) as T;
 }
+
+/**
+ * Variante de `apiClient` qui retourne le JSON **brut**, sans déballer
+ * l'enveloppe `{ data }`. À utiliser pour les réponses paginées
+ * `{ data, total, page, limit }` dont on doit garder les métadonnées.
+ */
+export async function apiClientRaw<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  const { token, ...fetchOptions } = options;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(fetchOptions.headers as Record<string, string>),
+  };
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...fetchOptions,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new ApiError(response.status, (error as { message?: string }).message ?? `HTTP ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}

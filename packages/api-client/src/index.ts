@@ -1,4 +1,4 @@
-export { apiClient, ApiError, API_URL } from './client';
+export { apiClient, apiClientRaw, ApiError, API_URL } from './client';
 export * from './hooks/restaurants';
 export * from './hooks/orders';
 export * from './hooks/cart';
