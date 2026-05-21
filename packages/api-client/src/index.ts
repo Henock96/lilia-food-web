@@ -9,3 +9,4 @@ export * from './hooks/products';
 export * from './hooks/promo';
 
 export * from './hooks/favorites';
+export * from './hooks/admin-clients';
