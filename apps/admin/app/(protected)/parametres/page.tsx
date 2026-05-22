@@ -86,14 +86,24 @@ export default function ParametresPage() {
 
   function handleSave() {
     if (!form) return;
+    // Un champ vidé ou non numérique bloque l'enregistrement — évite de
+    // pousser silencieusement 0 (Number('') === 0).
+    const invalid = NUMBER_FIELDS.some((f) => {
+      const raw = form[f.key].trim();
+      return raw === '' || !Number.isFinite(Number(raw));
+    });
+    if (invalid) {
+      toast.error('Tous les champs numériques doivent être renseignés');
+      return;
+    }
     update.mutate(
       {
-        serviceFeePercent: Number(form.serviceFeePercent) || 0,
-        loyaltyPointsPer100Xaf: Number(form.loyaltyPointsPer100Xaf) || 0,
-        loyaltyPointValueXaf: Number(form.loyaltyPointValueXaf) || 0,
-        loyaltyMinRedemption: Number(form.loyaltyMinRedemption) || 0,
-        referrerBonusPoints: Number(form.referrerBonusPoints) || 0,
-        referredBonusPoints: Number(form.referredBonusPoints) || 0,
+        serviceFeePercent: Number(form.serviceFeePercent),
+        loyaltyPointsPer100Xaf: Number(form.loyaltyPointsPer100Xaf),
+        loyaltyPointValueXaf: Number(form.loyaltyPointValueXaf),
+        loyaltyMinRedemption: Number(form.loyaltyMinRedemption),
+        referrerBonusPoints: Number(form.referrerBonusPoints),
+        referredBonusPoints: Number(form.referredBonusPoints),
         maintenanceMode: form.maintenanceMode,
         maintenanceMessage: form.maintenanceMessage,
       },
