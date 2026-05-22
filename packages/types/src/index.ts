@@ -496,3 +496,46 @@ export interface UpdateProfileDto {
   phone?: string;
   imageUrl?: string;
 }
+
+/** Un paiement dans la liste admin (GET /admin/payments). */
+export interface AdminPayment {
+  id: string;
+  amount: number;
+  currency: string;
+  phoneNumber: string;
+  status: PaymentStatus;
+  provider: string;
+  createdAt: string;
+  order: {
+    id: string;
+    total: number;
+    status: string;
+    user: { id: string; nom: string | null; phone: string | null } | null;
+  } | null;
+}
+
+/** Un livreur dans la liste admin (GET /admin/deliverers). */
+export interface AdminDeliverer {
+  id: string;
+  email: string | null;
+  nom: string | null;
+  phone: string | null;
+  imageUrl: string | null;
+  createdAt: string;
+  deliveries: { id: string; status: string; createdAt: string }[];
+  _count: { deliveries: number };
+}
+
+/** Configuration plateforme (GET/PATCH /admin/platform-settings). */
+export interface PlatformSettings {
+  id: string;
+  serviceFeePercent: number;
+  loyaltyPointsPer100Xaf: number;
+  loyaltyPointValueXaf: number;
+  loyaltyMinRedemption: number;
+  referrerBonusPoints: number;
+  referredBonusPoints: number;
+  maintenanceMode: boolean;
+  maintenanceMessage: string | null;
+  updatedAt: string;
+}

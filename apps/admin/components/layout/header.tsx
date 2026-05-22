@@ -9,6 +9,10 @@ const pageTitles: Record<string, string> = {
   '/commandes': 'Commandes',
   '/restaurants': 'Restaurants',
   '/clients': 'Clients',
+  '/paiements': 'Paiements',
+  '/livreurs': 'Livreurs',
+  '/zones': 'Zones',
+  '/parametres': 'Paramètres',
 };
 
 interface HeaderProps {

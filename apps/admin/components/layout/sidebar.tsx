@@ -15,6 +15,10 @@ import {
   X,
   Package,
   Tag,
+  CreditCard,
+  Bike,
+  MapPin,
+  Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,6 +29,10 @@ const navItems = [
   { href: '/restaurants', label: 'Restaurants', icon: Store,           badge: false },
   { href: '/clients',     label: 'Clients',     icon: Users,           badge: false },
   { href: '/promos',      label: 'Promos',       icon: Tag,             badge: false },
+  { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false },
+  { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false },
+  { href: '/zones',       label: 'Zones',        icon: MapPin,          badge: false },
+  { href: '/parametres',  label: 'Paramètres',  icon: Settings,        badge: false },
 ];
 
 interface SidebarProps {
