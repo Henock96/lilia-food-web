@@ -85,6 +85,7 @@ export default function LivreursPage() {
             </span>
             <div className="flex items-center gap-1">
               <button
+                aria-label="Page précédente"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="p-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
@@ -92,6 +93,7 @@ export default function LivreursPage() {
                 <ChevronLeft size={14} />
               </button>
               <button
+                aria-label="Page suivante"
                 onClick={() => setPage((p) => (p < totalPages ? p + 1 : p))}
                 disabled={page >= totalPages}
                 className="p-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"

@@ -97,7 +97,7 @@ export default function PaiementsPage() {
                 {p.status === 'PENDING' && (
                   <button
                     onClick={() => handleConfirm(p.id)}
-                    disabled={confirm.isPending}
+                    disabled={confirm.isPending && confirm.variables === p.id}
                     className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 shrink-0"
                   >
                     <Check size={13} /> Confirmer
@@ -115,6 +115,7 @@ export default function PaiementsPage() {
             </span>
             <div className="flex items-center gap-1">
               <button
+                aria-label="Page précédente"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="p-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
@@ -122,6 +123,7 @@ export default function PaiementsPage() {
                 <ChevronLeft size={14} />
               </button>
               <button
+                aria-label="Page suivante"
                 onClick={() => setPage((p) => (p < totalPages ? p + 1 : p))}
                 disabled={page >= totalPages}
                 className="p-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"

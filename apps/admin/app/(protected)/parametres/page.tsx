@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePlatformSettings, useUpdatePlatformSettings } from '@lilia/api-client';
 import type { PlatformSettings } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
@@ -27,17 +27,54 @@ const NUMBER_FIELDS: { key: NumberFieldKey; label: string; suffix: string; secti
 ];
 const SECTIONS = ['Frais de service', 'Fidélité', 'Parrainage'];
 
+/**
+ * État local du formulaire. Les champs numériques sont stockés en **chaîne**
+ * pendant l'édition (saisie libre, on peut vider un champ), et parsés en
+ * nombre seulement à l'enregistrement.
+ */
+interface FormState {
+  serviceFeePercent: string;
+  loyaltyPointsPer100Xaf: string;
+  loyaltyPointValueXaf: string;
+  loyaltyMinRedemption: string;
+  referrerBonusPoints: string;
+  referredBonusPoints: string;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+}
+
+function toFormState(s: PlatformSettings): FormState {
+  return {
+    serviceFeePercent: String(s.serviceFeePercent),
+    loyaltyPointsPer100Xaf: String(s.loyaltyPointsPer100Xaf),
+    loyaltyPointValueXaf: String(s.loyaltyPointValueXaf),
+    loyaltyMinRedemption: String(s.loyaltyMinRedemption),
+    referrerBonusPoints: String(s.referrerBonusPoints),
+    referredBonusPoints: String(s.referredBonusPoints),
+    maintenanceMode: s.maintenanceMode,
+    maintenanceMessage: s.maintenanceMessage ?? '',
+  };
+}
+
 export default function ParametresPage() {
   const { token } = useAuthStore();
   const { data, isLoading, isError } = usePlatformSettings(token);
   const update = useUpdatePlatformSettings(token);
-  const [form, setForm] = useState<PlatformSettings | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
+  // Le formulaire n'est hydraté qu'une seule fois — un refetch en arrière-plan
+  // ne doit pas écraser les modifications en cours de l'admin.
+  const initialised = useRef(false);
 
-  // Initialise le formulaire local quand les données arrivent
   useEffect(() => {
-    if (data) setForm(data);
+    if (data && !initialised.current) {
+      setForm(toFormState(data));
+      initialised.current = true;
+    }
   }, [data]);
 
+  if (isError) {
+    return <p className="text-sm text-red-500">Impossible de charger la configuration.</p>;
+  }
   if (isLoading || !form) {
     return (
       <div className="max-w-2xl space-y-4">
@@ -46,25 +83,17 @@ export default function ParametresPage() {
       </div>
     );
   }
-  if (isError) {
-    return <p className="text-sm text-red-500">Impossible de charger la configuration.</p>;
-  }
-
-  function setNumber(key: NumberFieldKey, raw: string) {
-    const n = Number(raw);
-    setForm((f) => (f ? { ...f, [key]: Number.isFinite(n) ? n : 0 } : f));
-  }
 
   function handleSave() {
     if (!form) return;
     update.mutate(
       {
-        serviceFeePercent: form.serviceFeePercent,
-        loyaltyPointsPer100Xaf: form.loyaltyPointsPer100Xaf,
-        loyaltyPointValueXaf: form.loyaltyPointValueXaf,
-        loyaltyMinRedemption: form.loyaltyMinRedemption,
-        referrerBonusPoints: form.referrerBonusPoints,
-        referredBonusPoints: form.referredBonusPoints,
+        serviceFeePercent: Number(form.serviceFeePercent) || 0,
+        loyaltyPointsPer100Xaf: Number(form.loyaltyPointsPer100Xaf) || 0,
+        loyaltyPointValueXaf: Number(form.loyaltyPointValueXaf) || 0,
+        loyaltyMinRedemption: Number(form.loyaltyMinRedemption) || 0,
+        referrerBonusPoints: Number(form.referrerBonusPoints) || 0,
+        referredBonusPoints: Number(form.referredBonusPoints) || 0,
         maintenanceMode: form.maintenanceMode,
         maintenanceMessage: form.maintenanceMessage,
       },
@@ -88,8 +117,8 @@ export default function ParametresPage() {
                   <input
                     type="number"
                     min={0}
-                    value={String(form[f.key])}
-                    onChange={(e) => setNumber(f.key, e.target.value)}
+                    value={form[f.key]}
+                    onChange={(e) => setForm((prev) => (prev ? { ...prev, [f.key]: e.target.value } : prev))}
                     className="w-24 px-2.5 py-1.5 text-sm text-right rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-500 tabular-nums"
                   />
                   <span className="text-xs text-zinc-400 w-8">{f.suffix}</span>
@@ -109,7 +138,7 @@ export default function ParametresPage() {
             <input
               type="checkbox"
               checked={form.maintenanceMode}
-              onChange={(e) => setForm((f) => (f ? { ...f, maintenanceMode: e.target.checked } : f))}
+              onChange={(e) => setForm((prev) => (prev ? { ...prev, maintenanceMode: e.target.checked } : prev))}
               className="w-4 h-4 accent-primary-500"
             />
           </label>
@@ -117,8 +146,8 @@ export default function ParametresPage() {
             <label className="text-sm text-zinc-600 dark:text-zinc-300 block mb-1">Message affiché au client</label>
             <input
               type="text"
-              value={form.maintenanceMessage ?? ''}
-              onChange={(e) => setForm((f) => (f ? { ...f, maintenanceMessage: e.target.value } : f))}
+              value={form.maintenanceMessage}
+              onChange={(e) => setForm((prev) => (prev ? { ...prev, maintenanceMessage: e.target.value } : prev))}
               placeholder="La plateforme est en maintenance…"
               className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
