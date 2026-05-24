@@ -12,3 +12,4 @@ export * from './hooks/promo';
 export * from './hooks/favorites';
 export * from './hooks/admin-clients';
 export * from './hooks/admin-operations';
+export * from './hooks/incidents';
