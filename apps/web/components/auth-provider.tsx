@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onIdTokenChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import * as Sentry from '@sentry/nextjs';
@@ -56,7 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // `onIdTokenChanged` fire à la connexion, déconnexion ET à chaque refresh
+    // automatique du token Firebase (~1h). `onAuthStateChanged` ne fire pas au
+    // refresh → le cookie expirait après 1h et le middleware redirigeait vers
+    // /connexion alors que la session Firebase était encore valide (LIL-97).
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
           const token = await firebaseUser.getIdToken();
@@ -64,13 +68,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setFirebaseProfile(firebaseUser.displayName, firebaseUser.photoURL);
           document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
 
-          const user = await syncWithRetry(
-            token,
-            firebaseUser.email,
-            firebaseUser.displayName,
-            firebaseUser.photoURL,
-          );
-          setUser(user);
+          // Sync backend uniquement quand on n'a pas encore de user en store
+          // (évite un POST /users/sync à chaque refresh de token).
+          if (!useAuthStore.getState().user) {
+            const user = await syncWithRetry(
+              token,
+              firebaseUser.email,
+              firebaseUser.displayName,
+              firebaseUser.photoURL,
+            );
+            setUser(user);
+          }
         } catch {
           // Sync impossible — ne pas effacer user (peut être dans localStorage)
         }

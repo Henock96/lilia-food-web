@@ -123,3 +123,20 @@ export function getInitials(name: string | null | undefined): string {
     .toUpperCase()
     .slice(0, 2);
 }
+
+/**
+ * Valide un numéro de téléphone congolais (Brazzaville).
+ *
+ * Accepte les formats :
+ *   - `+242 06 XXX XX XX` / `+242 05 XXX XX XX` (MTN/Airtel/préfixe Congo)
+ *   - `+24206XXXXXXX`, `06XXXXXXX`, `06 XX XX XX XX`
+ *
+ * On normalise en retirant espaces/tirets/points avant de matcher :
+ * un opérateur valide commence par `05`, `06` (MTN) ou `04` (Airtel),
+ * puis 7 chiffres. Le préfixe `+242` ou `00242` est optionnel.
+ */
+export function isValidCongoPhone(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+  const cleaned = phone.replace(/[\s.\-()]/g, '');
+  return /^(?:\+?242|00242)?0[456]\d{7}$/.test(cleaned);
+}

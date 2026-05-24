@@ -13,6 +13,7 @@ import {
   useUpdateCartItem,
   useRemoveCartItem,
   useCreateOrder,
+  useCreatePayment,
   useAdresses,
   useCreateAdresse,
   useProfile,
@@ -21,7 +22,7 @@ import {
   apiClient,
 } from '@lilia/api-client';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
-import { formatCurrency, cn } from '@lilia/utils';
+import { formatCurrency, cn, isValidCongoPhone } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { toast } from 'sonner';
 
@@ -36,6 +37,7 @@ export default function PanierPage() {
   // est renvoyée → le backend retourne la commande déjà créée (pas de doublon).
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const createOrder = useCreateOrder(token, idempotencyKey);
+  const createPayment = useCreatePayment(token);
   const { data: adresses = [] } = useAdresses(token);
   const createAdresse = useCreateAdresse(token);
   const { data: profile } = useProfile(token);
@@ -49,6 +51,9 @@ export default function PanierPage() {
   const [paymentMethod, setPaymentMethod] = useState<'MTN_MOMO' | 'AIRTEL_MONEY'>('MTN_MOMO');
   const [notes, setNotes] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const phoneIsValid = isValidCongoPhone(contactPhone);
+  const phoneError = phoneTouched && !phoneIsValid;
   const [isDelivery, setIsDelivery] = useState(true);
   const [selectedAdresseId, setSelectedAdresseId] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -157,18 +162,44 @@ export default function PanierPage() {
       toast.error('Veuillez sélectionner une adresse de livraison');
       return;
     }
+    if (!phoneIsValid) {
+      setPhoneTouched(true);
+      toast.error('Veuillez saisir un numéro de téléphone valide');
+      return;
+    }
     setCheckoutLoading(true);
+    const trimmedPhone = contactPhone.trim();
     try {
       const result = await createOrder.mutateAsync({
         paymentMethod,
         isDelivery,
         adresseId: isDelivery ? (selectedAdresseId ?? undefined) : undefined,
         notes: notes || undefined,
-        contactPhone: contactPhone.trim() || undefined,
+        contactPhone: trimmedPhone,
         promoCode: promoResult?.valid ? promoCode : undefined,
         useLoyaltyPoints: useLoyaltyPoints && loyaltyPoints >= 100,
       });
-      toast.success('Commande passée avec succès !');
+
+      // Création du Payment PENDING — sans ça l'admin ne voit rien dans
+      // "Paiements en attente" et le flow MTN/Airtel manual reste bloqué.
+      // Si cet appel échoue, la commande existe quand même : on prévient
+      // l'utilisateur mais on continue vers le détail (LIL-98).
+      try {
+        await createPayment.mutateAsync({
+          orderId: result.id,
+          phoneNumber: trimmedPhone,
+          payerMessage: `Commande ${result.id.slice(-6).toUpperCase()}`,
+        });
+        toast.success('Commande passée avec succès !');
+      } catch (paymentErr: unknown) {
+        const msg = (paymentErr as { message?: string }).message;
+        toast.error(
+          msg
+            ? `Commande créée mais paiement non initié : ${msg}`
+            : 'Commande créée mais paiement non initié — contactez le support',
+        );
+      }
+
       router.push(`/commandes/${result.id}`);
     } catch (err: unknown) {
       const msg = (err as { message?: string }).message;
@@ -415,18 +446,37 @@ export default function PanierPage() {
               )}
             </AnimatePresence>
 
-            {/* Contact phone */}
+            {/* Contact phone — obligatoire pour le paiement manuel MTN/Airtel */}
             <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />Numéro de contact (optionnel)</span>
+                <span className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" />
+                  Numéro de contact <span className="text-rose-500">*</span>
+                </span>
               </label>
               <input
                 type="tel"
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
+                onBlur={() => setPhoneTouched(true)}
                 placeholder="+242 06 XXX XX XX"
-                className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                aria-invalid={phoneError}
+                className={cn(
+                  'w-full text-sm border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 transition-all',
+                  phoneError
+                    ? 'border-rose-300 dark:border-rose-500/50 focus:ring-rose-500/20 focus:border-rose-400'
+                    : 'border-zinc-200 dark:border-dark-border focus:ring-primary-500/20 focus:border-primary-400',
+                )}
               />
+              {phoneError ? (
+                <p className="text-xs text-rose-600 mt-1.5">
+                  Format invalide — utilisez +242 06 XX XX XX XX (MTN/Airtel Congo)
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400 mt-1.5">
+                  Le livreur et l'agent paiement vous joindront sur ce numéro
+                </p>
+              )}
             </div>
 
             {/* Notes */}
@@ -597,10 +647,16 @@ export default function PanierPage() {
                   Sélectionnez une adresse de livraison
                 </p>
               )}
+              {!phoneIsValid && (
+                <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-3">
+                  <Phone className="w-3.5 h-3.5 shrink-0" />
+                  Renseignez un numéro de contact valide
+                </p>
+              )}
 
               <button
                 onClick={handleCheckout}
-                disabled={checkoutLoading || isEmpty || (isDelivery && !selectedAdresseId)}
+                disabled={checkoutLoading || isEmpty || !phoneIsValid || (isDelivery && !selectedAdresseId)}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-primary-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (
