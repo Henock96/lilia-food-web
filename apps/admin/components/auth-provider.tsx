@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onIdTokenChanged } from 'firebase/auth';
 import * as Sentry from '@sentry/nextjs';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
@@ -27,7 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
+    // `onIdTokenChanged` fire aussi au refresh auto Firebase (~1h) — sans ça,
+    // le cookie expirait et le middleware éjectait l'admin actif (LIL-97).
+    const unsubscribe = onIdTokenChanged(getFirebaseAuth(), async (firebaseUser) => {
       if (firebaseUser) {
         try {
           const token = await firebaseUser.getIdToken();

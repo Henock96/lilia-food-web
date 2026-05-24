@@ -5,7 +5,8 @@ import { useRestaurantOrders, useUpdateOrderStatus } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, OrderStatus } from '@lilia/types';
-import { RefreshCw, ChevronDown, Download } from 'lucide-react';
+import Link from 'next/link';
+import { RefreshCw, ChevronDown, Download, AlertCircle, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
 
@@ -29,19 +30,42 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   ANNULER:        'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
 };
 
+// State machine backend : EN_ATTENTE → PAYER → EN_PREPARATION → PRET → EN_ROUTE → LIVRER.
+// La transition `EN_ATTENTE → PAYER` est réservée à ADMIN (confirmation manuelle du
+// virement MoMo/Airtel) — on l'affiche, mais on guarde via `canAdvanceStatus` plus bas
+// pour ne pas la proposer à un RESTAURATEUR.
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  EN_ATTENTE:     'EN_PREPARATION',
+  EN_ATTENTE:     'PAYER',
   PAYER:          'EN_PREPARATION',
   EN_PREPARATION: 'PRET',
   PRET:           'EN_ROUTE',
   EN_ROUTE:       'LIVRER',
 };
 
+/**
+ * RESTAURATEUR ne doit jamais déclencher `EN_ATTENTE → PAYER` (réservé à ADMIN).
+ * On masque le bouton côté UI ; le backend refuserait de toute façon.
+ */
+function canAdvanceStatus(currentStatus: OrderStatus, role: string | undefined): boolean {
+  if (currentStatus !== 'EN_ATTENTE') return true;
+  return role === 'ADMIN';
+}
+
 const ALL_STATUSES: OrderStatus[] = ['EN_ATTENTE', 'PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE', 'LIVRER', 'ANNULER'];
 
-function OrderCard({ order, onStatusUpdate }: { order: Order; onStatusUpdate: (id: string, status: OrderStatus) => void }) {
+function OrderCard({
+  order,
+  role,
+  onStatusUpdate,
+}: {
+  order: Order;
+  role: string | undefined;
+  onStatusUpdate: (id: string, status: OrderStatus) => void;
+}) {
   const [open, setOpen] = useState(false);
   const nextStatus = NEXT_STATUS[order.status];
+  const canAdvance = canAdvanceStatus(order.status, role);
+  const waitingForPayment = order.status === 'EN_ATTENTE' && !canAdvance;
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card">
@@ -84,7 +108,7 @@ function OrderCard({ order, onStatusUpdate }: { order: Order; onStatusUpdate: (i
               Annuler
             </button>
           )}
-          {nextStatus && (
+          {nextStatus && canAdvance && (
             <button
               onClick={() => onStatusUpdate(order.id, nextStatus)}
               className="text-xs px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"
@@ -94,6 +118,21 @@ function OrderCard({ order, onStatusUpdate }: { order: Order; onStatusUpdate: (i
           )}
         </div>
       </div>
+
+      {/* Bannière paiement en attente — affichée au RESTAURATEUR qui ne peut pas
+          confirmer le paiement lui-même. Renvoie vers l'écran "Paiements". */}
+      {waitingForPayment && (
+        <Link
+          href="/paiements"
+          className="mx-4 mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/15 transition-colors group"
+        >
+          <AlertCircle size={14} className="shrink-0" />
+          <span className="text-xs font-medium">
+            Paiement non confirmé — un admin doit valider le virement
+          </span>
+          <ArrowRight size={12} className="ml-auto opacity-50 group-hover:opacity-100 transition-opacity" />
+        </Link>
+      )}
 
       {/* Details */}
       {open && (
@@ -122,7 +161,8 @@ function OrderCard({ order, onStatusUpdate }: { order: Order; onStatusUpdate: (i
 }
 
 export default function CommandesPage() {
-  const { token } = useAuthStore();
+  const { token, user } = useAuthStore();
+  const role = user?.role;
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'ALL'>('ALL');
 
   const { data: orders, isLoading, refetch, isFetching } = useRestaurantOrders(token);
@@ -219,7 +259,7 @@ export default function CommandesPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((order) => (
-            <OrderCard key={order.id} order={order} onStatusUpdate={handleStatusUpdate} />
+            <OrderCard key={order.id} order={order} role={role} onStatusUpdate={handleStatusUpdate} />
           ))}
         </div>
       )}

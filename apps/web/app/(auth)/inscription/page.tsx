@@ -105,6 +105,10 @@ export default function InscriptionPage() {
       // Token avec le displayName mis à jour
       const token = await user.getIdToken(true);
 
+      // Pose le cookie immédiatement (avant le router.push final) pour que le
+      // middleware voie l'utilisateur connecté à la prochaine navigation (LIL-97).
+      document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+
       // ── Étape 2 : sync en DB (priorité absolue) ───────────────────────────
       // On essaie de créer le user en DB avec téléphone et nom.
       // Si ça échoue, l'onAuthStateChanged dans auth-provider retentera.
@@ -159,7 +163,10 @@ export default function InscriptionPage() {
     setGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      // Pose le cookie avant la redirection (sinon race avec le middleware — LIL-97).
+      const token = await cred.user.getIdToken();
+      document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
       toast.success('Bienvenue sur Lilia Food 🎉');
       router.push('/restaurants');
     } catch {

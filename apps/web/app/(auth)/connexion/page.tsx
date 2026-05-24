@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, type UserCredential } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { pageVariants } from '@lilia/motion';
@@ -29,7 +29,8 @@ function ConnexionForm() {
     if (!email || !password) return;
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      await primeAuthCookie(cred);
       toast.success('Connexion réussie !');
       router.push(redirectTo);
     } catch (err: unknown) {
@@ -52,7 +53,8 @@ function ConnexionForm() {
     setGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      await primeAuthCookie(cred);
       toast.success('Connexion réussie !');
       router.push(redirectTo);
     } catch {
@@ -60,6 +62,18 @@ function ConnexionForm() {
     } finally {
       setGoogleLoading(false);
     }
+  }
+
+  /**
+   * Pose le cookie `firebase-token` AVANT le `router.push` pour éviter une
+   * race condition avec le middleware (`proxy.ts`).
+   * `onIdTokenChanged` dans `AuthProvider` fire de manière asynchrone et
+   * peut arriver après `router.push` — le middleware ne verrait pas le
+   * cookie et redirigerait vers /connexion (LIL-97).
+   */
+  async function primeAuthCookie(cred: UserCredential) {
+    const token = await cred.user.getIdToken();
+    document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
   }
 
   async function handleResetPassword(e: React.FormEvent) {
