@@ -526,6 +526,50 @@ export interface AdminDeliverer {
   _count: { deliveries: number };
 }
 
+/** Type d'incident (aligne backend Prisma `IncidentType` — 11 valeurs). */
+export type IncidentType =
+  | 'ORDER_CANCELLED'
+  | 'ORDER_DELAYED'
+  | 'PAYMENT_FAILED'
+  | 'DRIVER_NO_SHOW'
+  | 'DRIVER_ACCIDENT'
+  | 'CUSTOMER_COMPLAINT'
+  | 'RESTAURANT_CLOSED'
+  | 'STOCK_ISSUE'
+  | 'WRONG_DELIVERY'
+  | 'REFUND_REQUEST'
+  | 'OTHER';
+
+export type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type IncidentStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+/** Incident operationnel (GET /incidents). */
+export interface Incident {
+  id: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  title: string;
+  description: string;
+  resolution: string | null;
+  orderId: string | null;
+  riderId: string | null;
+  restaurantId: string | null;
+  reportedBy: string | null;
+  resolvedBy: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+/** Reponse paginee `/incidents` — pas de `meta`, juste `{ data, total }`. */
+export interface PaginatedIncidents {
+  data: Incident[];
+  total: number;
+}
+
 /** Configuration plateforme (GET/PATCH /admin/platform-settings). */
 export interface PlatformSettings {
   id: string;
