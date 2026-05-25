@@ -510,8 +510,20 @@ export interface AdminPayment {
     id: string;
     total: number;
     status: string;
+    /**
+     * Méthode choisie par le client au checkout — utile pour distinguer
+     * MTN MoMo vs Airtel Money quand `provider === 'MANUAL'`.
+     */
+    paymentMethod: PaymentMethod;
     user: { id: string; nom: string | null; phone: string | null } | null;
   } | null;
+}
+
+/** KPI agrégés paiements (GET /admin/payments/stats). */
+export interface PaymentsStats {
+  pending: { count: number; totalXaf: number };
+  monthSuccess: { count: number; totalXaf: number };
+  last7DaysSuccess: { count: number; totalXaf: number };
 }
 
 /** Un livreur dans la liste admin (GET /admin/deliverers). */

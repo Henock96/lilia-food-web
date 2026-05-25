@@ -5,6 +5,7 @@ import type {
   Paginated,
   AdminPayment,
   AdminDeliverer,
+  PaymentsStats,
   Quartier,
   PlatformSettings,
 } from '@lilia/types';
@@ -12,22 +13,37 @@ import { apiClient, apiClientRaw } from '../client';
 
 export const adminOpsKeys = {
   payments: (page: number, status: string) => ['admin', 'payments', page, status] as const,
+  paymentsStats: ['admin', 'payments', 'stats'] as const,
   deliverers: (page: number) => ['admin', 'deliverers', page] as const,
   quartiers: ['admin', 'quartiers'] as const,
   platformSettings: ['admin', 'platform-settings'] as const,
 };
 
-/** Paiements paginés, filtrables par statut (GET /admin/payments). */
+/**
+ * Paiements paginés (GET /admin/payments).
+ * Passer une chaîne vide pour `status` → vue "Tous statuts" côté backend.
+ */
 export function useAdminPayments(token: string | null, page: number, status: string) {
   return useQuery({
     queryKey: adminOpsKeys.payments(page, status),
     queryFn: () => {
-      const params = new URLSearchParams({ page: String(page), limit: '20', status });
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (status) params.set('status', status);
       return apiClientRaw<Paginated<AdminPayment>>(`/admin/payments?${params.toString()}`, { token });
     },
     enabled: !!token,
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
+  });
+}
+
+/** KPI paiements (GET /admin/payments/stats). */
+export function usePaymentsStats(token: string | null) {
+  return useQuery({
+    queryKey: adminOpsKeys.paymentsStats,
+    queryFn: () => apiClient<PaymentsStats>('/admin/payments/stats', { token }),
+    enabled: !!token,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -39,6 +55,7 @@ export function useConfirmPayment(token: string | null) {
       apiClient<unknown>(`/payments/${paymentId}/confirm`, { method: 'POST', token }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'payments'] });
+      void queryClient.invalidateQueries({ queryKey: adminOpsKeys.paymentsStats });
     },
   });
 }
