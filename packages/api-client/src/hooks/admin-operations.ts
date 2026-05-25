@@ -5,6 +5,9 @@ import type {
   Paginated,
   AdminPayment,
   AdminDeliverer,
+  DelivererStats,
+  DeliveryStatus,
+  PaginatedDelivererMissions,
   PaymentsStats,
   Quartier,
   PlatformSettings,
@@ -15,6 +18,9 @@ export const adminOpsKeys = {
   payments: (page: number, status: string) => ['admin', 'payments', page, status] as const,
   paymentsStats: ['admin', 'payments', 'stats'] as const,
   deliverers: (page: number) => ['admin', 'deliverers', page] as const,
+  delivererStats: (id: string) => ['admin', 'deliverers', id, 'stats'] as const,
+  delivererMissions: (id: string, page: number, status: DeliveryStatus | '') =>
+    ['admin', 'deliverers', id, 'missions', page, status] as const,
   quartiers: ['admin', 'quartiers'] as const,
   platformSettings: ['admin', 'platform-settings'] as const,
 };
@@ -71,6 +77,51 @@ export function useAdminDeliverers(token: string | null, page: number) {
     enabled: !!token,
     placeholderData: keepPreviousData,
     staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Stats agrégées d'un livreur (GET /admin/deliverers/:id/stats).
+ * Backend renvoie `{ data: DelivererStats }` — `apiClient` unwrap.
+ */
+export function useDelivererStats(token: string | null, id: string) {
+  return useQuery({
+    queryKey: adminOpsKeys.delivererStats(id),
+    queryFn: () => apiClient<DelivererStats>(`/admin/deliverers/${id}/stats`, { token }),
+    enabled: !!token && !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Historique paginé des missions d'un livreur, filtrable par statut
+ * (GET /admin/deliverers/:id/missions).
+ *
+ * `status` vide → tous statuts. Backend renvoie `{ data, meta }` —
+ * `apiClientRaw` préserve les 2 niveaux sans déballer.
+ */
+export function useDelivererMissions(
+  token: string | null,
+  id: string,
+  options: { status?: DeliveryStatus | ''; page: number; limit?: number } = { page: 1 },
+) {
+  const { status = '', page, limit = 20 } = options;
+  return useQuery({
+    queryKey: adminOpsKeys.delivererMissions(id, page, status),
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (status) params.set('status', status);
+      return apiClientRaw<PaginatedDelivererMissions>(
+        `/admin/deliverers/${id}/missions?${params.toString()}`,
+        { token },
+      );
+    },
+    enabled: !!token && !!id,
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
   });
 }
 
