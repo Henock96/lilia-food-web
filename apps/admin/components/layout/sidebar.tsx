@@ -6,6 +6,7 @@ import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { useDashboardOverview } from '@lilia/api-client';
+import { useIsAdmin, useIsRestaurateur } from '@/lib/use-role';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -23,18 +24,39 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const navItems = [
-  { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false },
-  { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: true  },
-  { href: '/produits',    label: 'Produits',     icon: Package,         badge: false },
-  { href: '/restaurants', label: 'Restaurants', icon: Store,           badge: false },
-  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false },
-  { href: '/promos',      label: 'Promos',       icon: Tag,             badge: false },
-  { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false },
-  { href: '/incidents',   label: 'Incidents',   icon: AlertTriangle,   badge: false },
-  { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false },
-  { href: '/zones',       label: 'Zones',        icon: MapPin,          badge: false },
-  { href: '/parametres',  label: 'Paramètres',  icon: Settings,        badge: false },
+/**
+ * Mapping nav items role-aware (LIL-102).
+ *
+ * - `adminOnly`: visible uniquement par ADMIN
+ * - `restaurateurLabel`: si défini, remplace le `label` quand l'utilisateur
+ *   est RESTAURATEUR (ex: "Restaurants" → "Mon Restaurant")
+ *
+ * RESTAURATEUR voit : Dashboard, Commandes, Produits, Mon Restaurant,
+ * Clients (de son resto), Promos. Les sections globales (Paiements,
+ * Incidents, Livreurs, Zones, Paramètres plateforme) sont admin-only.
+ */
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  restaurateurLabel?: string;
+  icon: typeof LayoutDashboard;
+  badge: boolean;
+  adminOnly: boolean;
+}[] = [
+  { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false, adminOnly: false },
+  { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: true,  adminOnly: false },
+  { href: '/produits',    label: 'Produits',    icon: Package,         badge: false, adminOnly: false },
+  { href: '/restaurants', label: 'Restaurants', restaurateurLabel: 'Mon Restaurant', icon: Store, badge: false, adminOnly: false },
+  // Clients : endpoint /admin/clients réservé ADMIN. La vue scoped resto
+  // (GET /restaurants/:id/clients) viendra dans un follow-up de LIL-102.
+  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: true  },
+  // Promos : endpoints /promo CRUD sont @Roles('ADMIN') côté backend.
+  { href: '/promos',      label: 'Promos',      icon: Tag,             badge: false, adminOnly: true  },
+  { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
+  { href: '/incidents',   label: 'Incidents',   icon: AlertTriangle,   badge: false, adminOnly: true  },
+  { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false, adminOnly: true  },
+  { href: '/zones',       label: 'Zones',       icon: MapPin,          badge: false, adminOnly: true  },
+  { href: '/parametres',  label: 'Paramètres',  icon: Settings,        badge: false, adminOnly: true  },
 ];
 
 interface SidebarProps {
@@ -50,6 +72,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { signOut: clearStore, user, token } = useAuthStore();
   const { data: rawOverview } = useDashboardOverview(token);
   const pending = (rawOverview as unknown as OverviewData | undefined)?.orders?.pending ?? 0;
+  const isAdmin = useIsAdmin();
+  const isRestaurateur = useIsRestaurateur();
+
+  // Filtre les items globaux pour les RESTAURATEUR + ajuste les labels.
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.adminOnly || isAdmin,
+  ).map((item) => ({
+    ...item,
+    label: isRestaurateur && item.restaurateurLabel ? item.restaurateurLabel : item.label,
+  }));
 
   async function handleSignOut() {
     try {
@@ -125,7 +157,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon, badge }) => {
+          {visibleNavItems.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
             const showBadge = badge && pending > 0;
             return (

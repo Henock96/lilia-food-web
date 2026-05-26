@@ -1,15 +1,40 @@
 'use client';
 
 import Image from 'next/image';
-import { useRestaurants, useToggleRestaurantOpen } from '@lilia/api-client';
+import { useRestaurants, useToggleRestaurantOpen, useMyRestaurant } from '@lilia/api-client';
+import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
+import { useIsAdmin } from '@/lib/use-role';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Phone, Clock, ToggleLeft, ToggleRight, Star } from 'lucide-react';
+import { MapPin, Phone, Clock, ToggleLeft, ToggleRight, Star, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+/**
+ * Page Restaurants (LIL-102 role-aware) :
+ * - ADMIN : grille de TOUS les restaurants de la plateforme
+ * - RESTAURATEUR : son seul restaurant (`GET /restaurants/mine`)
+ *
+ * Le toggle ouvert/fermé est exposé dans les deux cas — le backend filtre
+ * via `@Roles('ADMIN','RESTAURATEUR')` + vérification ownership sur l'id.
+ */
 export default function RestaurantsPage() {
   const { token } = useAuthStore();
-  const { data: restaurants, isLoading } = useRestaurants();
+  const isAdmin = useIsAdmin();
+
+  // ADMIN : fetch global. RESTAURATEUR : fetch "mine" — `enabled` désactive
+  // l'autre branche pour éviter un appel inutile + un 403.
+  const adminQuery = useRestaurants();
+  const mineQuery = useMyRestaurant(isAdmin ? null : token);
+
+  const restaurants: Restaurant[] = isAdmin
+    ? adminQuery.data ?? []
+    : mineQuery.data
+    ? [mineQuery.data as Restaurant]
+    : [];
+
+  const isLoading = isAdmin ? adminQuery.isLoading : mineQuery.isLoading;
+  const isError = !isAdmin && mineQuery.isError;
+
   const { mutate: toggleOpen, isPending } = useToggleRestaurantOpen(token);
 
   function handleToggle(id: string, currentState: boolean) {
@@ -19,21 +44,41 @@ export default function RestaurantsPage() {
     });
   }
 
+  // Cas RESTAURATEUR sans restaurant attribué — guide vers le support
+  if (isError) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center">
+        <AlertCircle size={40} className="mx-auto text-amber-500 mb-3" />
+        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+          Aucun restaurant attribué
+        </h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Votre compte restaurateur n'est associé à aucun restaurant.
+          Contactez un administrateur Lilia pour finaliser votre activation.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {restaurants?.length ?? 0} restaurant{(restaurants?.length ?? 0) > 1 ? 's' : ''}
+          {isAdmin
+            ? `${restaurants.length} restaurant${restaurants.length > 1 ? 's' : ''}`
+            : 'Mon restaurant'}
         </p>
       </div>
 
       {isLoading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-52 rounded-2xl" />)}
+          {Array.from({ length: isAdmin ? 6 : 1 }).map((_, i) => (
+            <Skeleton key={i} className="h-52 rounded-2xl" />
+          ))}
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {restaurants?.map((r) => (
+          {restaurants.map((r) => (
             <div
               key={r.id}
               className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card overflow-hidden"
