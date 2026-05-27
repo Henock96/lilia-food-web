@@ -510,8 +510,20 @@ export interface AdminPayment {
     id: string;
     total: number;
     status: string;
+    /**
+     * Méthode choisie par le client au checkout — utile pour distinguer
+     * MTN MoMo vs Airtel Money quand `provider === 'MANUAL'`.
+     */
+    paymentMethod: PaymentMethod;
     user: { id: string; nom: string | null; phone: string | null } | null;
   } | null;
+}
+
+/** KPI agrégés paiements (GET /admin/payments/stats). */
+export interface PaymentsStats {
+  pending: { count: number; totalXaf: number };
+  monthSuccess: { count: number; totalXaf: number };
+  last7DaysSuccess: { count: number; totalXaf: number };
 }
 
 /** Un livreur dans la liste admin (GET /admin/deliverers). */
@@ -524,6 +536,43 @@ export interface AdminDeliverer {
   createdAt: string;
   deliveries: { id: string; status: string; createdAt: string }[];
   _count: { deliveries: number };
+}
+
+/**
+ * Statistiques agrégées d'un livreur (GET /admin/deliverers/:id/stats).
+ * Aligne le shape Prisma backend (`admin.service.ts::getDelivererStats`).
+ */
+export interface DelivererStats {
+  totalDeliveries: number;
+  deliveredCount: number;
+  failedCount: number;
+  inProgressCount: number;
+  /** 0..100 avec 2 décimales — calcul `delivered / (delivered+failed)`. */
+  successRate: number;
+  totalRevenueXAF: number;
+  /** Durée moyenne entre `pickedUpAt` et `deliveredAt`, en minutes. */
+  avgDeliveryMinutes: number | null;
+  last30dDeliveries: number;
+  lastDeliveryAt: string | null;
+}
+
+/** Une mission dans l'historique du livreur (GET /admin/deliverers/:id/missions). */
+export interface DelivererMissionSummary {
+  id: string;
+  orderId: string;
+  status: DeliveryStatus;
+  restaurantName: string;
+  clientName: string;
+  totalXAF: number;
+  acceptedAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+}
+
+/** Réponse paginée des missions livreur — shape `{ data, meta }`. */
+export interface PaginatedDelivererMissions {
+  data: DelivererMissionSummary[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
 /** Type d'incident (aligne backend Prisma `IncidentType` — 11 valeurs). */

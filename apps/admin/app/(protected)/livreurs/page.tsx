@@ -1,11 +1,12 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useAdminDeliverers } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bike, ChevronLeft, ChevronRight, Mail, Phone, Package } from 'lucide-react';
+import { Bike, ChevronLeft, ChevronRight, ChevronRight as ArrowIcon, Mail, Phone, Package } from 'lucide-react';
 
 export default function LivreursPage() {
   const { token } = useAuthStore();
@@ -36,7 +37,11 @@ export default function LivreursPage() {
               const name = d.nom || d.email || '—';
               const lastDelivery = d.deliveries[0] ?? null;
               return (
-                <div key={d.id} className="flex items-center gap-4 px-5 py-3">
+                <Link
+                  key={d.id}
+                  href={`/livreurs/${d.id}`}
+                  className="flex items-center gap-4 px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
+                >
                   <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
                     {d.imageUrl ? (
                       <Image src={d.imageUrl} alt={name} width={36} height={36} className="w-full h-full object-cover" />
@@ -72,7 +77,8 @@ export default function LivreursPage() {
                         : 'Aucune livraison'}
                     </p>
                   </div>
-                </div>
+                  <ArrowIcon size={14} className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" />
+                </Link>
               );
             })}
           </div>
