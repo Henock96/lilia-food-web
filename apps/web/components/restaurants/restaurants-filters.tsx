@@ -3,11 +3,27 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
-import type { Restaurant } from '@lilia/types';
+import type { Restaurant, VendorType } from '@lilia/types';
 import { RestaurantGrid } from './restaurant-grid';
+import { VendorTypeChips } from './vendor-type-chips';
 
 interface RestaurantsFiltersProps {
   restaurants: Restaurant[];
+}
+
+const VALID_VENDOR_TYPES: VendorType[] = [
+  'RESTAURANT',
+  'HOME_COOK',
+  'BAKERY',
+  'BEVERAGE_SHOP',
+  'GROCERY',
+];
+
+function parseVendorType(raw: string | null): VendorType | null {
+  if (raw && (VALID_VENDOR_TYPES as string[]).includes(raw)) {
+    return raw as VendorType;
+  }
+  return null;
 }
 
 export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
@@ -16,21 +32,33 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
   const pathname = usePathname();
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [showOpenOnly, setShowOpenOnly] = useState(false);
+  const [vendorType, setVendorType] = useState<VendorType | null>(() =>
+    parseVendorType(searchParams.get('vendorType')),
+  );
 
   // Sync URL → state when navigating back/forward
   useEffect(() => {
     setSearch(searchParams.get('q') ?? '');
+    setVendorType(parseVendorType(searchParams.get('vendorType')));
   }, [searchParams]);
+
+  function updateUrl(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   function updateSearch(value: string) {
     setSearch(value);
-    const params = new URLSearchParams(searchParams.toString());
-    if (value.trim()) {
-      params.set('q', value.trim());
-    } else {
-      params.delete('q');
-    }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    updateUrl({ q: value.trim() || null });
+  }
+
+  function updateVendorType(type: VendorType | null) {
+    setVendorType(type);
+    updateUrl({ vendorType: type });
   }
 
   const filtered = useMemo(() => {
@@ -42,12 +70,23 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
         r.adresse?.toLowerCase().includes(q) ||
         r.specialties?.some((s) => s.name.toLowerCase().includes(q));
       const matchesOpen = !showOpenOnly || r.isOpen;
-      return matchesSearch && matchesOpen;
+      // LIL-119 : marketplace filter. Si vendorType absent côté restaurant
+      // (vieux payload pré-Sprint A), traite-le comme RESTAURANT par défaut.
+      const matchesVendorType =
+        !vendorType || (r.vendorType ?? 'RESTAURANT') === vendorType;
+      return matchesSearch && matchesOpen && matchesVendorType;
     });
-  }, [restaurants, search, showOpenOnly]);
+  }, [restaurants, search, showOpenOnly, vendorType]);
 
   return (
     <>
+      {/* Chips marketplace (LIL-119) */}
+      <div className="mb-4 -mx-1 overflow-x-auto pb-1">
+        <div className="px-1">
+          <VendorTypeChips selected={vendorType} onChange={updateVendorType} />
+        </div>
+      </div>
+
       {/* Filters bar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-8">
         <div className="relative flex-1">
