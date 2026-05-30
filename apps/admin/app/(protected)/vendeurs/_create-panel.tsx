@@ -9,7 +9,6 @@ import { X } from 'lucide-react';
 
 interface FormState {
   vendorType: VendorType;
-  ownerFirebaseUid: string;
   email: string;
   password: string;
   nom: string;
@@ -28,7 +27,6 @@ interface FormState {
 
 const EMPTY: FormState = {
   vendorType: 'RESTAURANT',
-  ownerFirebaseUid: '',
   email: '',
   password: '',
   nom: '',
@@ -74,7 +72,6 @@ export function CreateVendorPanel({ onClose }: { onClose: () => void }) {
     e.preventDefault();
 
     const dto: CreateRestaurantWithOwnerDto = {
-      ownerFirebaseUid: form.ownerFirebaseUid.trim(),
       email: form.email.trim(),
       password: form.password,
       nom: form.nom.trim(),
@@ -172,14 +169,11 @@ export function CreateVendorPanel({ onClose }: { onClose: () => void }) {
 
         {/* Propriétaire */}
         <Section title="Propriétaire">
-          <Field label="Firebase UID *" hint="UID Firebase déjà créé du propriétaire">
-            <Input
-              value={form.ownerFirebaseUid}
-              onChange={(v) => set('ownerFirebaseUid', v)}
-              required
-              placeholder="abc123XYZ…"
-            />
-          </Field>
+          <p className="text-xs text-zinc-500 -mt-1">
+            Un compte Firebase est créé automatiquement avec ces identifiants.
+            Le propriétaire pourra se connecter immédiatement avec son email
+            et mot de passe.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Email *">
               <Input
