@@ -720,9 +720,11 @@ export interface AdminVendorFilters {
  * Body de POST /admin/restaurants — création vendeur + owner.
  * Sans `vendorType` → RESTAURANT auto-approuvé (compat. historique).
  * Avec `vendorType` non-RESTAURANT → adminApproved=false.
+ *
+ * LIL-118 : le user Firebase Auth est créé par le backend depuis email +
+ * password. `ownerFirebaseUid` n'est plus dans le DTO.
  */
 export interface CreateRestaurantWithOwnerDto {
-  ownerFirebaseUid: string;
   email: string;
   password: string;
   nom: string;
