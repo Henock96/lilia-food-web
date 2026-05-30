@@ -296,6 +296,10 @@ export interface Order {
   promoCodeId: string | null;
   discountAmount: number;
   deleteCommande: boolean;
+  /** LIL-121 : commande pré-commandée (madeToOrder), renseigné par le backend. */
+  isPreorder?: boolean;
+  /** LIL-121 : créneau de retrait/livraison demandé (ISO 8601 UTC). */
+  scheduledFor?: string | null;
   createdAt: string;
   updatedAt: string;
 }
