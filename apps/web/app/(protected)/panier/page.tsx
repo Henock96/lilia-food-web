@@ -204,7 +204,7 @@ export default function PanierPage() {
       // Création du Payment PENDING — sans ça l'admin ne voit rien dans
       // "Paiements en attente" et le flow MTN/Airtel manual reste bloqué.
       // Si cet appel échoue, la commande existe quand même : on prévient
-      // l'utilisateur mais on continue vers le détail (LIL-98).
+      // l'utilisateur mais on continue vers vraiment le détail (LIL-98).
       try {
         await createPayment.mutateAsync({
           orderId: result.id,
