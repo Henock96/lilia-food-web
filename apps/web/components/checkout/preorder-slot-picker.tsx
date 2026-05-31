@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, X } from 'lucide-react';
 
@@ -39,6 +39,24 @@ export function PreorderSlotPicker({
     currentValue ? toTimeInputValue(currentValue) : '12:00',
   );
   const [error, setError] = useState<string | null>(null);
+
+  // Resync picker state when modal opens with a new currentValue
+  useEffect(() => {
+    if (!open) return;
+    setDateStr(currentValue ? toDateInputValue(currentValue) : minDateStr);
+    setTimeStr(currentValue ? toTimeInputValue(currentValue) : '12:00');
+    setError(null);
+  }, [open, currentValue, minDateStr]);
+
+  // ESC key handler to close modal
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
 
   const handleConfirm = () => {
     if (!dateStr || !timeStr) {
