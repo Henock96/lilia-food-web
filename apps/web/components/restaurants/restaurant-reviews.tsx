@@ -36,7 +36,7 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
     return (
       <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
         <LeaveReviewForm restaurantId={restaurantId} />
-        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-3">Avis clients</h3>
+        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avis clients</h3>
         <p className="text-sm text-zinc-400">Aucun avis pour le moment.</p>
       </div>
     );
