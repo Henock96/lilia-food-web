@@ -643,7 +643,7 @@ export default function PanierPage() {
                     </div>
                     <button
                       onClick={() => setPickerOpen(true)}
-                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                      className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium"
                     >
                       Modifier
                     </button>
