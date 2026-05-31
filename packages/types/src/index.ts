@@ -520,6 +520,8 @@ export interface CreateOrderDto {
   contactPhone?: string;
   promoCode?: string;
   useLoyaltyPoints?: boolean;
+  /** ISO 8601 — date+heure de récupération/livraison pour les commandes preorder. */
+  scheduledFor?: string | null;
 }
 
 export interface CreateAdresseDto {
