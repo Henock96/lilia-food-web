@@ -5,12 +5,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { useDashboardOverview } from '@lilia/api-client';
+import { useDashboardOverview, useAdminPendingVendors } from '@lilia/api-client';
 import { useIsAdmin, useIsRestaurateur } from '@/lib/use-role';
 import {
   LayoutDashboard,
   ShoppingBag,
   Store,
+  Building2,
   Users,
   LogOut,
   X,
@@ -35,18 +36,23 @@ import { toast } from 'sonner';
  * Clients (de son resto), Promos. Les sections globales (Paiements,
  * Incidents, Livreurs, Zones, Paramètres plateforme) sont admin-only.
  */
+type BadgeKind = false | 'orders' | 'vendors';
+
 const NAV_ITEMS: {
   href: string;
   label: string;
   restaurateurLabel?: string;
   icon: typeof LayoutDashboard;
-  badge: boolean;
+  badge: BadgeKind;
   adminOnly: boolean;
 }[] = [
-  { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false, adminOnly: false },
-  { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: true,  adminOnly: false },
-  { href: '/produits',    label: 'Produits',    icon: Package,         badge: false, adminOnly: false },
+  { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false,    adminOnly: false },
+  { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: 'orders', adminOnly: false },
+  { href: '/produits',    label: 'Produits',    icon: Package,         badge: false,    adminOnly: false },
   { href: '/restaurants', label: 'Restaurants', restaurateurLabel: 'Mon Restaurant', icon: Store, badge: false, adminOnly: false },
+  // Marketplace multi-vendeurs (LIL-116) : créer / valider / suspendre les
+  // HOME_COOK, BAKERY, BEVERAGE_SHOP. Admin only.
+  { href: '/vendeurs',    label: 'Vendeurs',    icon: Building2,       badge: 'vendors', adminOnly: true  },
   // Clients : endpoint /admin/clients réservé ADMIN. La vue scoped resto
   // (GET /restaurants/:id/clients) viendra dans un follow-up de LIL-102.
   { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: true  },
@@ -74,6 +80,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const pending = (rawOverview as unknown as OverviewData | undefined)?.orders?.pending ?? 0;
   const isAdmin = useIsAdmin();
   const isRestaurateur = useIsRestaurateur();
+  // Pending vendeurs uniquement pour ADMIN (l'endpoint est admin-only)
+  const { data: pendingVendorsResp } = useAdminPendingVendors(isAdmin ? token : null);
+  const pendingVendorsCount = pendingVendorsResp?.total ?? 0;
 
   // Filtre les items globaux pour les RESTAURATEUR + ajuste les labels.
   const visibleNavItems = NAV_ITEMS.filter(
@@ -159,7 +168,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {visibleNavItems.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
-            const showBadge = badge && pending > 0;
+            const badgeCount =
+              badge === 'orders' ? pending
+              : badge === 'vendors' ? pendingVendorsCount
+              : 0;
+            const showBadge = badgeCount > 0;
             return (
               <Link
                 key={href}
@@ -177,7 +190,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 <span className="flex-1">{label}</span>
                 {showBadge && (
                   <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
-                    {pending > 99 ? '99+' : pending}
+                    {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
                 )}
               </Link>

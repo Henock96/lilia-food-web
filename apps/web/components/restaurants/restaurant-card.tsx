@@ -10,6 +10,7 @@ import { formatCurrency, formatDeliveryTime, cn } from '@lilia/utils';
 import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
+import { VendorTypeBadge } from './vendor-type-badge';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -75,14 +76,17 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             </div>
           )}
 
-          {/* Badge ouvert/fermé */}
-          <div className="absolute top-3 left-3">
+          {/* Badge ouvert/fermé + vendor type (LIL-119, masqué pour RESTAURANT) */}
+          <div className="absolute top-3 left-3 flex items-center gap-1.5">
             <span className={cn(
               'px-2.5 py-1 text-xs font-semibold rounded-full',
               restaurant.isOpen ? 'bg-[#27A660] text-white' : 'bg-charcoal-700/80 text-white',
             )}>
               {restaurant.isOpen ? 'Ouvert' : 'Fermé'}
             </span>
+            {restaurant.vendorType && (
+              <VendorTypeBadge vendorType={restaurant.vendorType} />
+            )}
           </div>
 
           {/* Bouton favori */}

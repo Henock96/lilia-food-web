@@ -9,7 +9,15 @@ import {
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import type { Product, ProductVariant, Category } from '@lilia/types';
+import type {
+  Product,
+  ProductVariant,
+  Category,
+  ProductType,
+  StockMode,
+  VendorType,
+  Restaurant,
+} from '@lilia/types';
 import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -19,11 +27,42 @@ interface ProductForm {
   nom: string; description: string; imageUrl: string;
   prixOriginal: string; categoryId: string; stockQuotidien: string;
   variants: VariantDraft[];
+  // Multi-vendeurs (LIL-116)
+  productType: ProductType | '';
+  stockMode: StockMode | '';
+  ingredients: string;
+  shelfLifeDays: string;
+  madeToOrder: boolean;
+  availableFrom: string;
+  availableUntil: string;
 }
 
 const EMPTY_FORM: ProductForm = {
   nom: '', description: '', imageUrl: '', prixOriginal: '',
   categoryId: '', stockQuotidien: '', variants: [],
+  productType: '', stockMode: '', ingredients: '', shelfLifeDays: '',
+  madeToOrder: false, availableFrom: '', availableUntil: '',
+};
+
+/**
+ * Types de produits autorisés par type de vendeur (LIL-114).
+ * Aligné sur la matrice côté backend ProductValidatorService.
+ * ALCOHOL est exclu partout (pivot — pas de vente d'alcool au lancement).
+ */
+const VENDOR_PRODUCT_OPTIONS: Record<VendorType, ProductType[]> = {
+  RESTAURANT: ['FOOD', 'BEVERAGE'],
+  HOME_COOK: ['FOOD', 'PASTRY'],
+  BAKERY: ['PASTRY', 'FOOD'],
+  BEVERAGE_SHOP: ['BEVERAGE'],
+  GROCERY: ['GROCERY', 'BEVERAGE'],
+};
+
+const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  FOOD: 'Plat / Repas',
+  BEVERAGE: 'Boisson',
+  PASTRY: 'Pâtisserie / Viennoiserie',
+  GROCERY: 'Épicerie',
+  ALCOHOL: 'Alcool',
 };
 
 type PanelState = null | { mode: 'create' } | { mode: 'edit'; product: Product };
@@ -42,6 +81,13 @@ function initForm(p?: Product): ProductForm {
     variants: p.variants.length
       ? p.variants.map((v, i) => ({ _key: i, id: v.id, label: v.label ?? '', prix: String(v.prix) }))
       : [{ _key: Date.now(), label: '', prix: '' }],
+    productType:   p.productType   ?? '',
+    stockMode:     p.stockMode     ?? '',
+    ingredients:   p.ingredients   ?? '',
+    shelfLifeDays: p.shelfLifeDays != null ? String(p.shelfLifeDays) : '',
+    madeToOrder:   p.madeToOrder   ?? false,
+    availableFrom:  p.availableFrom  ?? '',
+    availableUntil: p.availableUntil ?? '',
   };
 }
 
@@ -61,11 +107,12 @@ function stockColor(p: Product) {
 // ─── Side panel ─────────────────────────────────────────────────────────────
 
 function ProductPanel({
-  panel, categories, onClose,
+  panel, categories, vendorType, onClose,
   onSave, isSaving,
 }: {
   panel: Exclude<PanelState, null>;
   categories: Category[];
+  vendorType: VendorType;
   onClose: () => void;
   onSave: (form: ProductForm) => void;
   isSaving: boolean;
@@ -74,7 +121,9 @@ function ProductPanel({
     initForm(panel.mode === 'edit' ? panel.product : undefined),
   );
 
-  const set = (k: keyof ProductForm, v: string) => setForm(f => ({ ...f, [k]: v }));
+  function set<K extends keyof ProductForm>(k: K, v: ProductForm[K]) {
+    setForm(f => ({ ...f, [k]: v }));
+  }
 
   function addVariant() {
     setForm(f => ({ ...f, variants: [...f.variants, { _key: Date.now(), label: '', prix: '' }] }));
@@ -185,6 +234,108 @@ function ProductPanel({
               </select>
             </div>
           )}
+
+          {/* Multi-vendeurs : type produit + mode stock (LIL-116) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Type de produit
+              </label>
+              <select
+                value={form.productType}
+                onChange={e => set('productType', e.target.value as ProductType | '')}
+                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+              >
+                <option value="">Auto (FOOD)</option>
+                {VENDOR_PRODUCT_OPTIONS[vendorType].map(t => (
+                  <option key={t} value={t}>{PRODUCT_TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-zinc-500 mt-0.5">
+                Filtré selon le type de vendeur ({vendorType}).
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Mode de stock
+              </label>
+              <select
+                value={form.stockMode}
+                onChange={e => set('stockMode', e.target.value as StockMode | '')}
+                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+              >
+                <option value="">Auto (DAILY)</option>
+                <option value="DAILY">DAILY — reset chaque nuit</option>
+                <option value="PERMANENT">PERMANENT — stock réel</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Champs spécifiques HOME_COOK / BAKERY */}
+          {(vendorType === 'HOME_COOK' || vendorType === 'BAKERY') && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                  Ingrédients (info allergènes)
+                </label>
+                <textarea
+                  value={form.ingredients}
+                  onChange={e => set('ingredients', e.target.value)}
+                  rows={2}
+                  placeholder="Ex: farine, beurre, œufs, noisettes"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                    Conservation (jours)
+                  </label>
+                  <input
+                    type="number" min="1" value={form.shelfLifeDays}
+                    onChange={e => set('shelfLifeDays', e.target.value)}
+                    placeholder="Ex: 3"
+                    className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  />
+                </div>
+                <div className="flex items-end pb-2">
+                  <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.madeToOrder}
+                      onChange={e => set('madeToOrder', e.target.checked)}
+                      className="accent-primary-500"
+                    />
+                    Sur commande uniquement
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Fenêtre horaire (BAKERY surtout) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Disponible dès (HH:mm)
+              </label>
+              <input
+                type="time" value={form.availableFrom}
+                onChange={e => set('availableFrom', e.target.value)}
+                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Jusqu&apos;à (HH:mm)
+              </label>
+              <input
+                type="time" value={form.availableUntil}
+                onChange={e => set('availableUntil', e.target.value)}
+                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+              />
+            </div>
+          </div>
 
           {/* Variants */}
           <div>
@@ -346,13 +497,20 @@ export default function ProduitsPage() {
 
   // Récupère le restaurant propre à l'utilisateur (RESTAURATEUR) ou null (ADMIN)
   const { data: rawMine, isError: noOwnRestaurant } = useMyRestaurant(token);
-  const mine = rawMine as { id: string; nom: string } | undefined;
+  const mine = rawMine as Restaurant | undefined;
 
   // Pour les ADMINs sans restaurant attaché, on propose la liste complète
   const { data: allRestaurants = [] } = useRestaurants();
 
   // Restaurant actif : celui de l'utilisateur si RESTAURATEUR, sinon celui sélectionné dans le dropdown
   const restaurantId = mine?.id ?? selectedRestaurantId;
+
+  // Type de vendeur du restaurant actif — pilote la liste des productType
+  // proposés dans le panneau de création/édition (LIL-116).
+  const activeRestaurant =
+    mine ??
+    (allRestaurants as Restaurant[]).find((r) => r.id === selectedRestaurantId);
+  const vendorType: VendorType = activeRestaurant?.vendorType ?? 'RESTAURANT';
 
   // Pré-sélectionner le premier restaurant dès qu'ils sont chargés (ADMIN)
   if (!mine && !selectedRestaurantId && allRestaurants.length > 0) {
@@ -371,7 +529,7 @@ export default function ProduitsPage() {
     : products.filter((p: Product) => p.categoryId === filterCat);
 
   function handleSave(form: ProductForm) {
-    const payload = {
+    const payload: Record<string, unknown> = {
       nom:           form.nom.trim(),
       description:   form.description.trim() || undefined,
       imageUrl:      form.imageUrl.trim()    || undefined,
@@ -382,6 +540,15 @@ export default function ProduitsPage() {
         .filter(v => v.prix)
         .map(v => ({ id: v.id, label: v.label.trim() || undefined, prix: parseFloat(v.prix) })),
     };
+    // Champs multi-vendeurs (LIL-116) — n'envoie que ceux qui sont fournis,
+    // backend a des defaults sensés sur tout.
+    if (form.productType) payload.productType = form.productType;
+    if (form.stockMode) payload.stockMode = form.stockMode;
+    if (form.ingredients.trim()) payload.ingredients = form.ingredients.trim();
+    if (form.shelfLifeDays) payload.shelfLifeDays = parseInt(form.shelfLifeDays, 10);
+    if (form.madeToOrder) payload.madeToOrder = true;
+    if (form.availableFrom) payload.availableFrom = form.availableFrom;
+    if (form.availableUntil) payload.availableUntil = form.availableUntil;
 
     if (panel?.mode === 'create') {
       createProduct(payload, {
@@ -490,6 +657,7 @@ export default function ProduitsPage() {
         <ProductPanel
           panel={panel}
           categories={categories}
+          vendorType={vendorType}
           onClose={() => setPanel(null)}
           onSave={handleSave}
           isSaving={creating || updating}
