@@ -366,6 +366,26 @@ export interface ReviewStats {
   distribution: Record<string, number>;
 }
 
+export interface CreateReviewDto {
+  rating: number; // 1..5
+  comment?: string;
+  restaurantId: string;
+  /** ID de la commande liée (optionnel). Non utilisé côté web pour l'instant. */
+  orderId?: string;
+}
+
+export interface UpdateReviewDto {
+  rating?: number;
+  comment?: string;
+}
+
+export interface CanReviewResult {
+  canReview: boolean;
+  reason?: string;
+  /** Présent si canReview=false parce que l'user a déjà un avis. */
+  existingReviewId?: string;
+}
+
 export interface Banner {
   id: string;
   title: string | null;
