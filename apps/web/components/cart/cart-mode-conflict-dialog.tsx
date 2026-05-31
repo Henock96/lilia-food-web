@@ -47,21 +47,21 @@ export function CartModeConflictDialog({
           aria-labelledby="cart-conflict-title"
         >
           <motion.div
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+            className="bg-white dark:bg-dark-card rounded-2xl max-w-md w-full p-6 shadow-2xl"
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3 mb-4">
-              <div className="rounded-full bg-orange-100 p-2 shrink-0">
-                <AlertTriangle className="w-6 h-6 text-orange-600" />
+              <div className="rounded-full bg-orange-100 dark:bg-orange-900/30 p-2 shrink-0">
+                <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="flex-1">
-                <h3 id="cart-conflict-title" className="font-bold text-lg text-gray-900">
+                <h3 id="cart-conflict-title" className="font-bold text-lg text-gray-900 dark:text-zinc-100">
                   Mode de commande incompatible
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-zinc-400 mt-1">
                   {cartIsPreorder
                     ? `Votre panier contient des produits sur commande. "${incomingProductName}" est un produit standard.`
                     : `Votre panier contient des produits standard. "${incomingProductName}" est un produit sur commande (date à programmer).`}
@@ -72,7 +72,7 @@ export function CartModeConflictDialog({
             <div className="flex gap-2 mt-6">
               <button
                 onClick={onCancel}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-dark-border text-gray-700 dark:text-zinc-300 font-medium hover:bg-gray-50 dark:hover:bg-dark-surface"
               >
                 Annuler
               </button>

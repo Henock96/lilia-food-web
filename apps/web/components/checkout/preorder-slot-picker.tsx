@@ -96,7 +96,7 @@ export function PreorderSlotPicker({
           aria-labelledby="slot-picker-title"
         >
           <motion.div
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+            className="bg-white dark:bg-dark-card rounded-2xl max-w-md w-full p-6 shadow-2xl"
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
@@ -104,16 +104,16 @@ export function PreorderSlotPicker({
           >
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 id="slot-picker-title" className="font-bold text-lg text-gray-900">
+                <h3 id="slot-picker-title" className="font-bold text-lg text-gray-900 dark:text-zinc-100">
                   Date et heure de retrait
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-zinc-400 mt-1">
                   Le vendeur a besoin de minimum <strong>{leadHours}h</strong> de préavis.
                 </p>
               </div>
               <button
                 onClick={onCancel}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 p-1"
                 aria-label="Fermer"
               >
                 <X className="w-5 h-5" />
@@ -122,7 +122,7 @@ export function PreorderSlotPicker({
 
             <div className="space-y-4">
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                   <Calendar className="w-4 h-4" />
                   Date
                 </label>
@@ -132,11 +132,11 @@ export function PreorderSlotPicker({
                   min={minDateStr}
                   max={maxDateStr}
                   onChange={(e) => { setDateStr(e.target.value); setError(null); }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:bg-dark-surface dark:border-dark-border dark:text-zinc-100 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/30 outline-none"
                 />
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1.5">
                   <Clock className="w-4 h-4" />
                   Heure
                 </label>
@@ -144,11 +144,11 @@ export function PreorderSlotPicker({
                   type="time"
                   value={timeStr}
                   onChange={(e) => { setTimeStr(e.target.value); setError(null); }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:bg-dark-surface dark:border-dark-border dark:text-zinc-100 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900/30 outline-none"
                 />
               </div>
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
                   {error}
                 </p>
               )}
@@ -157,7 +157,7 @@ export function PreorderSlotPicker({
             <div className="flex gap-2 mt-6">
               <button
                 onClick={onCancel}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-dark-border text-gray-700 dark:text-zinc-300 font-medium hover:bg-gray-50 dark:hover:bg-dark-surface"
               >
                 Annuler
               </button>
