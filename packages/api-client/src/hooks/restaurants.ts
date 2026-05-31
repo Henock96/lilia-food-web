@@ -1,7 +1,10 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Restaurant, Review, ReviewStats, VendorType } from '@lilia/types';
+import type {
+  Restaurant, Review, ReviewStats, VendorType,
+  CreateReviewDto, UpdateReviewDto, CanReviewResult,
+} from '@lilia/types';
 import { apiClient, apiClientRaw } from '../client';
 
 export const restaurantKeys = {
@@ -12,6 +15,11 @@ export const restaurantKeys = {
   reviewStats: (id: string) => [...restaurantKeys.all, 'review-stats', id] as const,
   vendors: (vendorType: VendorType | null) =>
     [...restaurantKeys.all, 'vendors', vendorType] as const,
+};
+
+export const reviewKeys = {
+  canReview: (restaurantId: string) => ['reviews', 'can-review', restaurantId] as const,
+  myReview: (restaurantId: string) => ['reviews', 'my-review', restaurantId] as const,
 };
 
 export function useRestaurants() {
@@ -91,6 +99,75 @@ export function useToggleRestaurantOpen(token: string | null) {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+    },
+  });
+}
+
+export function useCanReview(restaurantId: string, token: string | null) {
+  return useQuery({
+    queryKey: reviewKeys.canReview(restaurantId),
+    queryFn: () =>
+      apiClient<CanReviewResult>(`/reviews/restaurant/${restaurantId}/can-review`, { token }),
+    enabled: !!token && !!restaurantId,
+    staleTime: 60_000,
+  });
+}
+
+export function useMyReview(restaurantId: string, token: string | null) {
+  return useQuery({
+    queryKey: reviewKeys.myReview(restaurantId),
+    queryFn: () =>
+      apiClient<Review | null>(`/reviews/restaurant/${restaurantId}/my-review`, { token }),
+    enabled: !!token && !!restaurantId,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateReview(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateReviewDto) =>
+      apiClient<Review>('/reviews', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(dto),
+      }),
+    onSuccess: (_review, dto) => {
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.reviews(dto.restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.reviewStats(dto.restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: reviewKeys.canReview(dto.restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: reviewKeys.myReview(dto.restaurantId) });
+    },
+  });
+}
+
+export function useUpdateReview(token: string | null, restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string } & UpdateReviewDto) =>
+      apiClient<Review>(`/reviews/${id}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.reviews(restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.reviewStats(restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: reviewKeys.myReview(restaurantId) });
+    },
+  });
+}
+
+export function useDeleteReview(token: string | null, restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient<{ success: boolean }>(`/reviews/${id}`, { method: 'DELETE', token }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.reviews(restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.reviewStats(restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: reviewKeys.canReview(restaurantId) });
+      void queryClient.invalidateQueries({ queryKey: reviewKeys.myReview(restaurantId) });
     },
   });
 }
