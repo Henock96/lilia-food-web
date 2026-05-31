@@ -2,6 +2,7 @@ import { Star } from 'lucide-react';
 import { apiClient } from '@lilia/api-client';
 import type { ReviewStats, Review } from '@lilia/types';
 import { formatRelativeTime, getInitials } from '@lilia/utils';
+import { LeaveReviewForm } from './leave-review-form';
 
 interface RestaurantReviewsProps {
   restaurantId: string;
@@ -34,6 +35,7 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
   if (!stats || reviews.length === 0) {
     return (
       <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
+        <LeaveReviewForm restaurantId={restaurantId} />
         <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-3">Avis clients</h3>
         <p className="text-sm text-zinc-400">Aucun avis pour le moment.</p>
       </div>
@@ -42,6 +44,7 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
+      <LeaveReviewForm restaurantId={restaurantId} />
       <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avis clients</h3>
 
       {/* Stats globales */}

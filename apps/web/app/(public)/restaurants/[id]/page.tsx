@@ -5,6 +5,7 @@ import { apiClient } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { RestaurantHero } from '@/components/restaurants/restaurant-hero';
 import { RestaurantMenu } from '@/components/restaurants/restaurant-menu';
+import { VendorInfoSection } from '@/components/restaurants/vendor-info-section';
 import { RestaurantReviews } from '@/components/restaurants/restaurant-reviews';
 import { ProductCardSkeleton } from '@/components/ui/skeleton';
 
@@ -46,6 +47,7 @@ export default async function RestaurantPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
+            <VendorInfoSection restaurant={restaurant} />
             <Suspense
               fallback={
                 <div className="flex flex-col gap-4">
