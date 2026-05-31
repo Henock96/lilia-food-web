@@ -27,6 +27,7 @@ export function ExpandableBio({ story, collapseThreshold = DEFAULT_THRESHOLD }: 
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
           className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
         >
           {expanded ? (
