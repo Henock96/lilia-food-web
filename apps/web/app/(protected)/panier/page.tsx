@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Trash2, Plus, Minus, ArrowRight, Tag,
   MapPin, Phone, ChevronDown, Check, Store, Bike, Plus as PlusIcon, Zap,
+  Calendar as CalendarIcon, AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import {
@@ -19,11 +20,13 @@ import {
   useProfile,
   useQuartiers,
   useReferralStats,
+  useRestaurant,
   apiClient,
 } from '@lilia/api-client';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
-import { formatCurrency, cn, isValidCongoPhone } from '@lilia/utils';
+import { formatCurrency, cn, isValidCongoPhone, isPreorderCart } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
+import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { toast } from 'sonner';
 
 export default function PanierPage() {
@@ -57,6 +60,19 @@ export default function PanierPage() {
   const [isDelivery, setIsDelivery] = useState(true);
   const [selectedAdresseId, setSelectedAdresseId] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const cartIsPreorder = isPreorderCart(cart);
+  const firstItemRestaurantId = cart?.items?.[0]?.product?.restaurantId ?? '';
+  const { data: vendorRestaurant } = useRestaurant(firstItemRestaurantId);
+  const leadHours = vendorRestaurant?.preorderLeadHours ?? 24;
+
+  useEffect(() => {
+    if (!cartIsPreorder && scheduledFor) {
+      setScheduledFor(null);
+    }
+  }, [cartIsPreorder, scheduledFor]);
 
   // Pre-fill phone from profile
   const profilePhone = profile?.phone ?? null;
@@ -158,6 +174,10 @@ export default function PanierPage() {
   }
 
   async function handleCheckout() {
+    if (cartIsPreorder && !scheduledFor) {
+      toast.error('Veuillez choisir un créneau de retrait pour cette pré-commande');
+      return;
+    }
     if (isDelivery && !selectedAdresseId) {
       toast.error('Veuillez sélectionner une adresse de livraison');
       return;
@@ -178,6 +198,7 @@ export default function PanierPage() {
         contactPhone: trimmedPhone,
         promoCode: promoResult?.valid ? promoCode : undefined,
         useLoyaltyPoints: useLoyaltyPoints && loyaltyPoints >= 100,
+        scheduledFor: scheduledFor ? scheduledFor.toISOString() : undefined,
       });
 
       // Création du Payment PENDING — sans ça l'admin ne voit rien dans
@@ -597,6 +618,54 @@ export default function PanierPage() {
               </div>
             )}
 
+            {/* Section preorder */}
+            {cartIsPreorder && (
+              <motion.div variants={cardVariants} className="bg-white dark:bg-dark-card rounded-2xl border border-orange-200 dark:border-orange-800 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CalendarIcon className="w-5 h-5 text-orange-600" />
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    Date et heure de retrait
+                    <span className="ml-2 text-xs font-normal text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded">
+                      Requis
+                    </span>
+                  </h3>
+                </div>
+
+                {scheduledFor ? (
+                  <div className="flex items-center justify-between gap-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-4 py-3">
+                    <div>
+                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                        {formatScheduledForFr(scheduledFor)}
+                      </p>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                        Préavis vendeur : {leadHours}h
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setPickerOpen(true)}
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                    >
+                      Modifier
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setPickerOpen(true)}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 font-medium hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                  >
+                    Choisir un créneau
+                  </button>
+                )}
+
+                <div className="mt-3 flex gap-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>
+                    Le vendeur peut annuler jusqu&apos;à J-1. Remboursement sous 48h.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Total */}
             <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
               <div className="flex flex-col gap-2 text-sm">
@@ -656,7 +725,7 @@ export default function PanierPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={checkoutLoading || isEmpty || !phoneIsValid || (isDelivery && !selectedAdresseId)}
+                disabled={checkoutLoading || isEmpty || !phoneIsValid || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-primary-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (
@@ -672,6 +741,23 @@ export default function PanierPage() {
           </div>
         </div>
       )}
+
+      <PreorderSlotPicker
+        open={pickerOpen}
+        leadHours={leadHours}
+        currentValue={scheduledFor}
+        onSelect={(d) => { setScheduledFor(d); setPickerOpen(false); }}
+        onCancel={() => setPickerOpen(false)}
+      />
     </motion.div>
   );
+}
+
+function formatScheduledForFr(d: Date): string {
+  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mn = String(d.getMinutes()).padStart(2, '0');
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} à ${hh}:${mn}`;
 }
