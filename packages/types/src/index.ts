@@ -768,3 +768,25 @@ export interface CreateRestaurantWithOwnerDto {
   specialties?: string[];
   productionNote?: string;
 }
+
+// --- Photo Galleries (E1/E2) ---
+// Trois entités backend (vendor-photos, product-images, menu-images)
+// partagent un shape identique côté API → un seul type Photo + un
+// discriminant EntityType.
+
+export type EntityType = 'vendor' | 'product' | 'menu';
+
+export interface Photo {
+  id: string;
+  url: string;
+  publicId: string | null;
+  alt: string | null;
+  displayOrder: number;
+  isCover: boolean;
+  createdAt: string;
+}
+
+// Aliases pour clarifier les call sites quand l'entité est connue.
+export type VendorPhoto = Photo & { restaurantId: string };
+export type ProductImage = Photo & { productId: string };
+export type MenuImage = Photo & { menuDuJourId: string };

@@ -14,3 +14,4 @@ export * from './hooks/admin-clients';
 export * from './hooks/admin-operations';
 export * from './hooks/admin-vendors';
 export * from './hooks/incidents';
+export * from './hooks/photos';
