@@ -1,12 +1,13 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRestaurants, useToggleRestaurantOpen, useMyRestaurant } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Phone, Clock, ToggleLeft, ToggleRight, Star, AlertCircle } from 'lucide-react';
+import { MapPin, Phone, Clock, ToggleLeft, ToggleRight, Star, AlertCircle, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -142,6 +143,15 @@ export default function RestaurantsPage() {
                     : <><ToggleLeft size={14} /> Ouvrir le restaurant</>
                   }
                 </button>
+
+                {/* Détails + Galerie photos */}
+                <Link
+                  href={`/restaurants/${r.id}`}
+                  className="flex items-center justify-center gap-2 w-full mt-2 px-3 py-2 rounded-xl text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <ImageIcon size={14} />
+                  Détails &amp; photos
+                </Link>
               </div>
             </div>
           ))}
