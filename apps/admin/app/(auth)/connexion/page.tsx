@@ -43,7 +43,9 @@ async function syncUser(token: string, email: string | null, displayName: string
       clearTimeout(t);
       const isAbort = (e as Error).name === 'AbortError';
       lastErr = isAbort ? `Tentative ${i + 1} timeout` : `Erreur réseau: ${(e as Error).message}`;
-      console.warn(`[sync] tentative ${i + 1} échouée:`, lastErr);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[sync] tentative ${i + 1} échouée:`, lastErr);
+      }
     }
   }
   throw new Error(`Synchronisation impossible après 5 tentatives. Dernière erreur: ${lastErr}`);
@@ -78,12 +80,10 @@ export default function ConnexionPage() {
       // 1. Firebase
       const credential = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
       const fbUser = credential.user;
-      console.log('[login] Firebase OK, uid:', fbUser.uid);
 
-      // 2. Token
+      // 2. Token (jamais loggé — fuite d'identifiants Firebase sinon)
       const token = await fbUser.getIdToken();
       setStep('Connexion au serveur…');
-      console.log('[login] Token obtenu, API_URL:', API_URL);
 
       // 3. Sync backend avec retries + timeouts
       const wakeTimer = setTimeout(() => setStep('Le serveur se réveille (30-50s)…'), 4000);
@@ -93,7 +93,6 @@ export default function ConnexionPage() {
       } finally {
         clearTimeout(wakeTimer);
       }
-      console.log('[login] Sync OK, role:', syncedUser.role);
 
       // 4. Role check
       if (!ALLOWED_ROLES.includes(syncedUser.role)) {
@@ -116,7 +115,12 @@ export default function ConnexionPage() {
       setStep('');
       const code = (err as { code?: string }).code ?? '';
       const msg  = (err as Error).message ?? '';
-      console.error('[login] Erreur:', code || msg, err);
+      // Ne logge que le code/message — `err` peut contenir le payload d'auth
+      // (email, token, identifiants Firebase) qu'on ne doit jamais persister
+      // dans les logs navigateur ni les outils de monitoring frontaux.
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[login] Erreur:', code || msg);
+      }
 
       if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
         setError('Email ou mot de passe incorrect.');
