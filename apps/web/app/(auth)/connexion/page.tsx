@@ -7,13 +7,14 @@ import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, type UserCredential } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
 
 function ConnexionForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') ?? '/restaurants';
+  const redirectTo = sanitizeRedirect(searchParams.get('redirect'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

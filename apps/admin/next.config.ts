@@ -10,9 +10,13 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname, '../..'),
   },
   images: {
+    // Allowlist strict — bloque l'open proxy d'optimisation next/image
+    // (DoS + abuse bandwidth Vercel via /_next/image?url=...).
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: '**' },
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+      // Avatars Google (sign-in Firebase Google provider).
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
   },
   async rewrites() {
