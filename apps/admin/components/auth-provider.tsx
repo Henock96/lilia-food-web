@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { onIdTokenChanged } from 'firebase/auth';
 import * as Sentry from '@sentry/nextjs';
 import { getFirebaseAuth } from '@/lib/firebase';
+import { setSessionCookie, clearSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
 
 /**
@@ -34,14 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const token = await firebaseUser.getIdToken();
           setToken(token);
-          document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+          await setSessionCookie(token);
         } catch {
           // token refresh impossible
         }
       } else {
         // Firebase session terminée (déconnexion ou expiration)
         signOut();
-        document.cookie = 'firebase-token=; path=/; max-age=0';
+        await clearSessionCookie();
       }
       setLoading(false);
     });

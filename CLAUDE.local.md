@@ -4,6 +4,22 @@ Fichier de suivi des changements récents pour le site web client (`lilia_web`).
 
 ---
 
+## Sprint J2 — Cohérence API (juin 2026)
+
+### `apiClient` explicite
+
+`packages/api-client/src/client.ts` :
+- `apiClient<T>(path, opts)` : unwrap explicite de `{ data: T }` (au lieu de l'ancien `json.data ?? json` silencieux). Si la réponse n'est PAS wrappée, log un `console.warn` en dev (`process.env.NODE_ENV !== 'production'`) pour pousser la migration.
+- `apiClientRaw<T>(path, opts)` : escape hatch pour endpoints non-wrappés (passthrough du JSON tel quel).
+
+Coordonné avec le backend `hmipoka/api-contract-v2` qui ajoute un `ApiResponseInterceptor` global wrapant TOUT en `{ data, message?, meta? }`. Voir `lilia-backend/docs/api/2026-06-02-J2-api-contract-v2.md`.
+
+### Sanitization logs admin connexion
+
+`apps/admin/app/(auth)/connexion/page.tsx` : 5 `console.log` retirés ou rewrappés sous `NODE_ENV !== 'production'` (Firebase UID, token, rôle ne fuient plus en prod).
+
+---
+
 ## Fonctionnalités ajoutées (Avril 2026)
 
 ### 1. Système de Favoris restaurants
@@ -100,4 +116,4 @@ packages/
 - **Optimistic updates**: `useToggleFavorite` met à jour le cache local immédiatement via `onMutate`, annule via `onError`. Utilise `queryClient.setQueryData` sur la clé `favoritesKeys.list`.
 - **React Query deduplication**: `usePopularRestaurants()` dans chaque `RestaurantCard` — TanStack Query déduplique les requêtes identiques → 1 seul appel réseau.
 - **`'use client'`**: tous les hooks et composants interactifs ont la directive `'use client'`.
-- **Package manager**: utiliser `bun run` (pas npm/pnpm).
+- **Package manager**: `pnpm@9.15.0` (déclaré dans `package.json#packageManager`). Le `bun.lock` à la racine est résiduel — utiliser `pnpm` pour install / type-check / lint / build.

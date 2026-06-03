@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
+import { clearSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
 import { useDashboardOverview, useAdminPendingVendors } from '@lilia/api-client';
 import { useIsAdmin, useIsRestaurateur } from '@/lib/use-role';
@@ -96,7 +97,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     try {
       await signOut(getFirebaseAuth());
       clearStore();
-      document.cookie = 'firebase-token=; path=/; max-age=0';
+      await clearSessionCookie();
       router.replace('/connexion');
     } catch {
       toast.error('Erreur lors de la déconnexion');
