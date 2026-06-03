@@ -21,20 +21,35 @@ export function useFavorites(token: string | null) {
 export function useToggleFavorite(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ restaurantId, isFavorite }: { restaurantId: string; isFavorite: boolean }) => {
+    mutationFn: async ({
+      restaurantId,
+      isFavorite,
+    }: {
+      restaurantId: string;
+      isFavorite: boolean;
+      // Objet restaurant requis pour l'ajout optimiste (insertion dans la liste).
+      restaurant?: Restaurant;
+    }) => {
       if (isFavorite) {
         await apiClient(`/favorites/${restaurantId}`, { method: 'DELETE', token });
       } else {
         await apiClient(`/favorites/${restaurantId}`, { method: 'POST', token });
       }
     },
-    onMutate: async ({ restaurantId, isFavorite }) => {
+    onMutate: async ({ restaurantId, isFavorite, restaurant }) => {
       await queryClient.cancelQueries({ queryKey: favoriteKeys.all });
       const previous = queryClient.getQueryData<Restaurant[]>(favoriteKeys.all);
-      // Optimistic update
-      queryClient.setQueryData<Restaurant[]>(favoriteKeys.all, (old = []) =>
-        isFavorite ? old.filter((r) => r.id !== restaurantId) : old,
-      );
+      // Optimistic update — retrait ET ajout (l'ajout insère le restaurant
+      // fourni s'il n'est pas déjà présent).
+      queryClient.setQueryData<Restaurant[]>(favoriteKeys.all, (old = []) => {
+        if (isFavorite) {
+          return old.filter((r) => r.id !== restaurantId);
+        }
+        if (restaurant && !old.some((r) => r.id === restaurantId)) {
+          return [...old, restaurant];
+        }
+        return old;
+      });
       return { previous };
     },
     onError: (_err, _vars, ctx) => {

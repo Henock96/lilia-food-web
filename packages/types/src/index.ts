@@ -499,7 +499,8 @@ export interface RevenueDataPoint {
 
 export interface PeakHourData {
   hour: number;
-  orders: number;
+  // Le backend (`getPeakHours`) renvoie `count`, pas `orders` (W12).
+  count: number;
 }
 
 export interface ClientStats {

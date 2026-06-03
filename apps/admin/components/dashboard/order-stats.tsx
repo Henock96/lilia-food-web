@@ -17,7 +17,9 @@ interface OrderStatsProps {
 }
 
 export function OrderStats({ data }: OrderStatsProps) {
-  const rows = Array.isArray(data) ? data : ((data as unknown as { data?: DashboardOrderStats[] }).data ?? []);
+  // Le hook `useDashboardOrderStats` garantit déjà un tableau ; garde
+  // défensive sans cast non sûr (W12).
+  const rows = Array.isArray(data) ? data : [];
   const total = rows.reduce((s, d) => s + d.count, 0);
 
   return (

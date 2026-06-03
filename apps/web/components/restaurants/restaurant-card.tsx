@@ -38,7 +38,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       return;
     }
     toggleFavorite.mutate(
-      { restaurantId: restaurant.id, isFavorite },
+      { restaurantId: restaurant.id, isFavorite, restaurant },
       {
         onSuccess: () =>
           toast.success(isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris'),
