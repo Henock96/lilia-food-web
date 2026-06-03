@@ -7,7 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 // le backend.
 
 const COOKIE_NAME = 'firebase-token';
-const MAX_AGE = 3600; // 1h — aligné sur l'expiration du token Firebase
+// Le cookie est un simple GATE DE PRÉSENCE (proxy.ts), pas l'autorisation
+// réelle (le backend vérifie le Bearer token). Il doit donc suivre la durée
+// de SESSION Firebase (refresh token ~30 j), pas l'expiration du ID token (1h),
+// sinon l'utilisateur revenant après 1h est redirigé vers /connexion alors que
+// sa session est encore valide (W9). Le client rafraîchit la valeur du cookie
+// à chaque `onIdTokenChanged` (~1h).
+const MAX_AGE = 60 * 60 * 24 * 30; // 30 jours — durée de session Firebase
 
 export async function POST(request: NextRequest) {
   let token: unknown;
