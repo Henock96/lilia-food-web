@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { setSessionCookie } from '@/lib/session';
 import { pageVariants } from '@lilia/motion';
 import { API_URL } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
@@ -107,7 +108,7 @@ export default function InscriptionPage() {
 
       // Pose le cookie immédiatement (avant le router.push final) pour que le
       // middleware voie l'utilisateur connecté à la prochaine navigation (LIL-97).
-      document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+      await setSessionCookie(token);
 
       // ── Étape 2 : sync en DB (priorité absolue) ───────────────────────────
       // On essaie de créer le user en DB avec téléphone et nom.
@@ -166,7 +167,7 @@ export default function InscriptionPage() {
       const cred = await signInWithPopup(auth, provider);
       // Pose le cookie avant la redirection (sinon race avec le middleware — LIL-97).
       const token = await cred.user.getIdToken();
-      document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+      await setSessionCookie(token);
       toast.success('Bienvenue sur Lilia Food 🎉');
       router.push('/restaurants');
     } catch {

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, type UserCredential } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { setSessionCookie } from '@/lib/session';
 import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
@@ -74,7 +75,7 @@ function ConnexionForm() {
    */
   async function primeAuthCookie(cred: UserCredential) {
     const token = await cred.user.getIdToken();
-    document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+    await setSessionCookie(token);
   }
 
   async function handleResetPassword(e: React.FormEvent) {

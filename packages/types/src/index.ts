@@ -9,13 +9,6 @@ export type OrderStatus =
   | 'EN_ROUTE'
   | 'LIVRER'
   | 'ANNULER';
-export type OrderLifecycleStatus =
-  | 'DRAFT'
-  | 'CONFIRMED'
-  | 'IN_PREPARATION'
-  | 'READY'
-  | 'COMPLETED'
-  | 'CANCELLED';
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'MTN_MOMO' | 'AIRTEL_MONEY';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type DeliveryStatus = 'EN_ATTENTE' | 'ASSIGNER' | 'EN_TRANSIT' | 'LIVRER' | 'ECHEC';
@@ -287,7 +280,6 @@ export interface Order {
   deliveryAddress: string | null;
   paymentMethod: PaymentMethod;
   status: OrderStatus;
-  lifecycleStatus: OrderLifecycleStatus | null;
   paidAt: string | null;
   notes: string | null;
   contactPhone: string | null;

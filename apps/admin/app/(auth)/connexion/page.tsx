@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
+import { setSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
 import { API_URL } from '@lilia/api-client';
 import type { User } from '@lilia/types';
@@ -106,7 +107,7 @@ export default function ConnexionPage() {
       // 5. Store + redirect
       setToken(token);
       setUser(syncedUser);
-      document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+      await setSessionCookie(token);
       setStep('Redirection…');
       router.replace('/dashboard');
 

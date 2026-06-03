@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { onIdTokenChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { setSessionCookie, clearSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
 import * as Sentry from '@sentry/nextjs';
 import { apiClient, API_URL } from '@lilia/api-client';
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const token = await firebaseUser.getIdToken();
           setToken(token);
           setFirebaseProfile(firebaseUser.displayName, firebaseUser.photoURL);
-          document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+          await setSessionCookie(token);
 
           // Sync backend uniquement quand on n'a pas encore de user en store
           // (évite un POST /users/sync à chaque refresh de token).
@@ -86,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setToken(null);
         setFirebaseProfile(null, null);
-        document.cookie = 'firebase-token=; path=/; max-age=0';
+        await clearSessionCookie();
       }
       setLoading(false);
     });
