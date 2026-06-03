@@ -43,7 +43,15 @@ export function useRestaurant(id: string) {
 export function useRestaurantReviews(restaurantId: string) {
   return useQuery({
     queryKey: restaurantKeys.reviews(restaurantId),
-    queryFn: () => apiClient<Review[]>(`/reviews/restaurant/${restaurantId}`),
+    // Backend : `{ message, data: reviews, stats }` → wrap global →
+    // `{ data: { message, data: reviews, stats } }`. `apiClient` déballe un
+    // niveau → on extrait encore `.data` pour le tableau d'avis.
+    queryFn: async () => {
+      const res = await apiClient<Review[] | { data?: Review[] }>(
+        `/reviews/restaurant/${restaurantId}`,
+      );
+      return Array.isArray(res) ? res : (res?.data ?? []);
+    },
     enabled: !!restaurantId,
     staleTime: 5 * 60 * 1000,
   });

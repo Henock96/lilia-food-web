@@ -20,7 +20,14 @@ async function getReviewStats(id: string): Promise<ReviewStats | null> {
 async function getReviews(id: string): Promise<Review[]> {
   'use cache';
   try {
-    return await apiClient<Review[]>(`/reviews/restaurant/${id}`);
+    // Le backend renvoie `{ message, data: reviews, stats }` → après le wrap
+    // global c'est `{ data: { message, data: reviews, stats } }`. `apiClient`
+    // déballe un niveau → on obtient `{ message, data: reviews, stats }`, donc
+    // on extrait encore `.data` pour récupérer le tableau d'avis.
+    const res = await apiClient<Review[] | { data?: Review[] }>(
+      `/reviews/restaurant/${id}`,
+    );
+    return Array.isArray(res) ? res : (res?.data ?? []);
   } catch {
     return [];
   }

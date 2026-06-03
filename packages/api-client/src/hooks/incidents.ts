@@ -8,7 +8,7 @@ import type {
   IncidentType,
   PaginatedIncidents,
 } from '@lilia/types';
-import { apiClient, apiClientRaw } from '../client';
+import { apiClient } from '../client';
 
 const PAGE_SIZE = 20;
 
@@ -46,7 +46,10 @@ export function useIncidents(
       if (filters.status) params.set('status', filters.status);
       if (filters.severity) params.set('severity', filters.severity);
       if (filters.type) params.set('type', filters.type);
-      return apiClientRaw<PaginatedIncidents>(
+      // Backend renvoie `{ data: [...], total }` → wrap global →
+      // `{ data: { data: [...], total } }`. `apiClient` déballe le niveau du
+      // wrap global → on récupère exactement `PaginatedIncidents`.
+      return apiClient<PaginatedIncidents>(
         `/incidents?${params.toString()}`,
         { token },
       );

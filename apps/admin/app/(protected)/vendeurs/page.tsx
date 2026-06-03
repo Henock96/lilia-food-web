@@ -6,6 +6,7 @@ import {
   useAdminPendingVendors,
   useApproveVendor,
   useSuspendVendor,
+  useActivateVendor,
   useVendorStats,
 } from '@lilia/api-client';
 import type { AdminVendor, VendorType } from '@lilia/types';
@@ -70,6 +71,7 @@ export default function VendeursPage() {
 
   const approveMutation = useApproveVendor(token);
   const suspendMutation = useSuspendVendor(token);
+  const activateMutation = useActivateVendor(token);
 
   const vendors = useMemo<AdminVendor[]>(() => {
     if (tab === 'pending') return pendingQuery.data?.data ?? [];
@@ -92,6 +94,14 @@ export default function VendeursPage() {
       onSuccess: () => toast.success(`${vendor.nom} approuvé`),
       onError: (err: unknown) =>
         toast.error((err as Error).message ?? 'Erreur lors de l\'approbation'),
+    });
+  }
+
+  function handleActivate(vendor: AdminVendor) {
+    activateMutation.mutate(vendor.id, {
+      onSuccess: () => toast.success(`${vendor.nom} réactivé`),
+      onError: (err: unknown) =>
+        toast.error((err as Error).message ?? 'Erreur lors de la réactivation'),
     });
   }
 
@@ -199,8 +209,12 @@ export default function VendeursPage() {
               vendor={v}
               onApprove={() => handleApprove(v)}
               onSuspend={() => setSuspendTarget(v)}
+              onActivate={() => handleActivate(v)}
               isApproving={
                 approveMutation.isPending && approveMutation.variables === v.id
+              }
+              isActivating={
+                activateMutation.isPending && activateMutation.variables === v.id
               }
             />
           ))}
@@ -291,12 +305,16 @@ function VendorCard({
   vendor,
   onApprove,
   onSuspend,
+  onActivate,
   isApproving,
+  isActivating,
 }: {
   vendor: AdminVendor;
   onApprove: () => void;
   onSuspend: () => void;
+  onActivate: () => void;
   isApproving: boolean;
+  isActivating: boolean;
 }) {
   const typeBadge = vendor.vendorType
     ? VENDOR_TYPE_BADGE[vendor.vendorType]
@@ -387,6 +405,16 @@ function VendorCard({
           >
             <XCircle size={14} />
             Suspendre
+          </button>
+        )}
+        {isSuspended && (
+          <button
+            onClick={onActivate}
+            disabled={isActivating}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-xs font-medium transition-colors disabled:opacity-60"
+          >
+            <CheckCircle2 size={14} />
+            {isActivating ? 'Réactivation…' : 'Réactiver'}
           </button>
         )}
       </div>
