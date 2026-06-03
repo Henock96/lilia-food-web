@@ -59,13 +59,14 @@ export function useAdminVendors(
 
 /**
  * Raccourci pour le badge "à valider" (GET /admin/vendors/pending).
- * Backend renvoie `{ data, total }` — on garde via apiClientRaw.
+ * Backend renvoie `{ data, total }` → wrap global → `{ data: { data, total } }`.
+ * `apiClient` déballe le wrap → on récupère `{ data, total }`.
  */
 export function useAdminPendingVendors(token: string | null) {
   return useQuery({
     queryKey: adminVendorKeys.pending(),
     queryFn: () =>
-      apiClientRaw<{ data: AdminVendor[]; total: number }>(
+      apiClient<{ data: AdminVendor[]; total: number }>(
         '/admin/vendors/pending',
         { token },
       ),
@@ -102,6 +103,25 @@ export function useSuspendVendor(token: string | null) {
         method: 'PATCH',
         token,
         body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminVendorKeys.all });
+      void queryClient.invalidateQueries({ queryKey: adminVendorKeys.stats() });
+    },
+  });
+}
+
+/**
+ * Réactive un vendeur suspendu (PATCH /admin/vendors/:id/activate).
+ * Inverse de `useSuspendVendor` — remet `isActive=true`.
+ */
+export function useActivateVendor(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vendorId: string) =>
+      apiClient<Restaurant>(`/admin/vendors/${vendorId}/activate`, {
+        method: 'PATCH',
+        token,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminVendorKeys.all });
