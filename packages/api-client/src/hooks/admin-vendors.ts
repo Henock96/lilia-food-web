@@ -59,14 +59,15 @@ export function useAdminVendors(
 
 /**
  * Raccourci pour le badge "à valider" (GET /admin/vendors/pending).
- * Backend renvoie `{ data, total }` → wrap global → `{ data: { data, total } }`.
- * `apiClient` déballe le wrap → on récupère `{ data, total }`.
+ * Contrat v2 : backend renvoie `{ data, total }` normalisé en
+ * `{ data, meta: { total } }` (interceptor règle 3b). `apiClientRaw` préserve
+ * l'enveloppe.
  */
 export function useAdminPendingVendors(token: string | null) {
   return useQuery({
     queryKey: adminVendorKeys.pending(),
     queryFn: () =>
-      apiClient<{ data: AdminVendor[]; total: number }>(
+      apiClientRaw<{ data: AdminVendor[]; meta: { total: number } }>(
         '/admin/vendors/pending',
         { token },
       ),

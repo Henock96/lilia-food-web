@@ -83,7 +83,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const isRestaurateur = useIsRestaurateur();
   // Pending vendeurs uniquement pour ADMIN (l'endpoint est admin-only)
   const { data: pendingVendorsResp } = useAdminPendingVendors(isAdmin ? token : null);
-  const pendingVendorsCount = pendingVendorsResp?.total ?? 0;
+  const pendingVendorsCount = pendingVendorsResp?.meta.total ?? 0;
 
   // Filtre les items globaux pour les RESTAURATEUR + ajuste les labels.
   const visibleNavItems = NAV_ITEMS.filter(

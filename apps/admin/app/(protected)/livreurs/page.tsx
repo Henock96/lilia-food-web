@@ -13,7 +13,7 @@ export default function LivreursPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, isPlaceholderData } = useAdminDeliverers(token, page);
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  const totalPages = data ? data.meta.totalPages : 1;
 
   return (
     <div className="max-w-4xl">
@@ -84,10 +84,10 @@ export default function LivreursPage() {
           </div>
         )}
 
-        {data && data.total > data.limit && (
+        {data && data.meta.total > data.meta.limit && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 dark:border-dark-border">
             <span className="text-xs text-zinc-400 tabular-nums">
-              {data.total} livreur{data.total > 1 ? 's' : ''} &middot; page {page}/{totalPages}
+              {data.meta.total} livreur{data.meta.total > 1 ? 's' : ''} &middot; page {page}/{totalPages}
             </span>
             <div className="flex items-center gap-1">
               <button

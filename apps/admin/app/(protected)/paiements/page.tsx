@@ -65,7 +65,7 @@ export default function PaiementsPage() {
   const { data: stats, isLoading: statsLoading } = usePaymentsStats(token);
   const confirm = useConfirmPayment(token);
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  const totalPages = data ? data.meta.totalPages : 1;
   const activeFilterLabel = STATUS_FILTERS.find((f) => f.value === status)?.label ?? '';
 
   function handleConfirm(id: string) {
@@ -201,10 +201,10 @@ export default function PaiementsPage() {
           </div>
         )}
 
-        {data && data.total > data.limit && (
+        {data && data.meta.total > data.meta.limit && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 dark:border-dark-border">
             <span className="text-xs text-zinc-400 tabular-nums">
-              {data.total} paiement{data.total > 1 ? 's' : ''} &middot; page {page}/{totalPages}
+              {data.meta.total} paiement{data.meta.total > 1 ? 's' : ''} &middot; page {page}/{totalPages}
             </span>
             <div className="flex items-center gap-1">
               <button

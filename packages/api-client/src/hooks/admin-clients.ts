@@ -7,7 +7,7 @@ import type {
   AdminClientLoyalty,
   AdminClientReferral,
 } from '@lilia/types';
-import { apiClient } from '../client';
+import { apiClient, apiClientRaw } from '../client';
 
 export const adminClientKeys = {
   all: ['admin', 'clients'] as const,
@@ -30,9 +30,8 @@ export function useAdminClients(
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (search.trim()) params.set('search', search.trim());
-      // `{ data, total, page, limit }` → wrap global → `{ data: { ... } }`.
-      // `apiClient` déballe le wrap → on récupère le `Paginated` directement.
-      return apiClient<Paginated<AdminClientListItem>>(
+      // Contrat v2 : `{ data, meta }` préservé via apiClientRaw.
+      return apiClientRaw<Paginated<AdminClientListItem>>(
         `/admin/clients?${params.toString()}`,
         { token },
       );

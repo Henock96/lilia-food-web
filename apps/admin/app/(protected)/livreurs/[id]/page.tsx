@@ -404,7 +404,7 @@ function useDelivererLookup(token: string | null, id: string) {
 
   const data = query.data?.data.find((d) => d.id === id);
   const hasMorePages = query.data
-    ? query.data.page * query.data.limit < query.data.total
+    ? query.data.meta.page * query.data.meta.limit < query.data.meta.total
     : false;
 
   // Avance à la page suivante si pas trouvé et que des pages restent —

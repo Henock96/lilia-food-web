@@ -35,9 +35,10 @@ export function useAdminPayments(token: string | null, page: number, status: str
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (status) params.set('status', status);
-      // `{ data, total, page, limit }` → wrap global → `{ data: { ... } }`.
-      // `apiClient` déballe le wrap → on récupère le `Paginated` directement.
-      return apiClient<Paginated<AdminPayment>>(`/admin/payments?${params.toString()}`, { token });
+      // Contrat v2 : backend renvoie `{ data, meta }` (interceptor règle 3b).
+      // `apiClientRaw` préserve l'enveloppe (liste dans `data`, pagination
+      // dans `meta`).
+      return apiClientRaw<Paginated<AdminPayment>>(`/admin/payments?${params.toString()}`, { token });
     },
     enabled: !!token,
     placeholderData: keepPreviousData,
@@ -74,8 +75,8 @@ export function useAdminDeliverers(token: string | null, page: number) {
     queryKey: adminOpsKeys.deliverers(page),
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
-      // Idem payments : wrap global → `apiClient` rend le `Paginated`.
-      return apiClient<Paginated<AdminDeliverer>>(`/admin/deliverers?${params.toString()}`, { token });
+      // Contrat v2 : `{ data, meta }` préservé via apiClientRaw.
+      return apiClientRaw<Paginated<AdminDeliverer>>(`/admin/deliverers?${params.toString()}`, { token });
     },
     enabled: !!token,
     placeholderData: keepPreviousData,
