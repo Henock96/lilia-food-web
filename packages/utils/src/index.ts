@@ -1,4 +1,39 @@
-import type { OrderStatus, DayOfWeek, Cart, Product } from '@lilia/types';
+import type { OrderStatus, DayOfWeek, Cart, Product, GalleryImage } from '@lilia/types';
+
+/** Entité porteuse d'images : galerie (`photos` pour restaurant, `images`
+ *  pour produit/menu) + `imageUrl` legacy en fallback. */
+type ImageBearing = {
+  imageUrl: string | null;
+  photos?: GalleryImage[];
+  images?: GalleryImage[];
+};
+
+/**
+ * Slides de galerie à afficher : la galerie (déjà triée cover d'abord par le
+ * backend) si disponible, sinon l'`imageUrl` legacy. Vide si aucune image.
+ */
+export function galleryImages(
+  entity: ImageBearing,
+  fallbackAlt = '',
+): { url: string; alt: string }[] {
+  const gallery = entity.photos ?? entity.images ?? [];
+  const fromGallery = gallery
+    .filter((g) => g.url?.trim())
+    .map((g) => ({ url: g.url, alt: g.alt ?? fallbackAlt }));
+  if (fromGallery.length > 0) return fromGallery;
+  if (entity.imageUrl?.trim()) return [{ url: entity.imageUrl, alt: fallbackAlt }];
+  return [];
+}
+
+/**
+ * Vignette pour les cartes de liste : cover de la galerie si disponible,
+ * sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
+ */
+export function coverImage(entity: ImageBearing): string | null {
+  const cover = (entity.photos ?? entity.images ?? []).find((g) => g.url?.trim());
+  if (cover) return cover.url;
+  return entity.imageUrl?.trim() ? entity.imageUrl : null;
+}
 
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('fr-FR', {

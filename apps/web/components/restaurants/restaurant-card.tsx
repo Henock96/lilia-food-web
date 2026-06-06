@@ -6,7 +6,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Star, Clock, Bike, MapPin, Heart } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
 import { cardVariants, buttonTap } from '@lilia/motion';
-import { formatCurrency, formatDeliveryTime, cn } from '@lilia/utils';
+import { formatCurrency, formatDeliveryTime, cn, coverImage } from '@lilia/utils';
 import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
@@ -23,6 +23,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const { data: popularList } = usePopularRestaurants();
   const toggleFavorite = useToggleFavorite(token);
 
+  const cover = coverImage(restaurant);
   const isFavorite = favorites?.some((f) => f.id === restaurant.id) ?? false;
   const isPopular = popularList?.some((r) => r.id === restaurant.id) ?? false;
   const isFastDelivery = restaurant.estimatedDeliveryTimeMax <= 30;
@@ -60,9 +61,9 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       >
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-charcoal-50 dark:bg-dark-surface">
-          {restaurant.imageUrl ? (
+          {cover ? (
             <Image
-              src={restaurant.imageUrl}
+              src={cover}
               alt={restaurant.nom}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"

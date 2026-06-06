@@ -1,10 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Star, Clock, Bike, Phone, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
-import { formatCurrency, formatDeliveryTime } from '@lilia/utils';
+import { formatCurrency, formatDeliveryTime, galleryImages } from '@lilia/utils';
+import { ImageCarousel } from '@/components/ui';
 
 interface RestaurantHeroProps {
   restaurant: Restaurant;
@@ -15,21 +15,17 @@ export function RestaurantHero({ restaurant }: RestaurantHeroProps) {
     <div className="relative">
       {/* Image hero avec parallax */}
       <div className="relative h-56 sm:h-72 lg:h-80 overflow-hidden bg-zinc-200">
-        {restaurant.imageUrl ? (
-          <Image
-            src={restaurant.imageUrl}
-            alt={restaurant.nom}
-            fill
-            className="object-cover"
-            priority
-            sizes="100vw"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-orange-200 to-amber-200 flex items-center justify-center">
-            <span className="text-7xl">🍽️</span>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <ImageCarousel
+          images={galleryImages(restaurant, restaurant.nom)}
+          className="h-full w-full"
+          priority
+          fallback={
+            <div className="w-full h-full bg-gradient-to-br from-orange-200 to-amber-200 flex items-center justify-center">
+              <span className="text-7xl">🍽️</span>
+            </div>
+          }
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
       </div>
 
       {/* Info card flottante */}

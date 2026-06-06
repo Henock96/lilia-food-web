@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, ShoppingCart, Check } from 'lucide-react';
 import type { Restaurant, Product, ProductVariant } from '@lilia/types';
-import { formatCurrency, cn, hasPreorderConflict, isPreorderCart } from '@lilia/utils';
+import { formatCurrency, cn, hasPreorderConflict, isPreorderCart, coverImage } from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
@@ -106,6 +106,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
 
   const isOutOfStock = product.stockRestant !== null && product.stockRestant === 0;
   const canAdd = restaurantOpen && !isOutOfStock && !!selectedVariant;
+  const cover = coverImage(product);
 
   async function handleAdd() {
     if (!token) {
@@ -172,9 +173,9 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       )}
     >
       {/* Image */}
-      {product.imageUrl && (
+      {cover && (
         <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-100 dark:bg-dark-surface">
-          <img src={product.imageUrl} alt={product.nom} className="w-full h-full object-cover" />
+          <img src={cover} alt={product.nom} className="w-full h-full object-cover" />
         </div>
       )}
 
