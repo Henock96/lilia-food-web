@@ -150,9 +150,9 @@ export default function VendeursPage() {
         </TabButton>
         <TabButton active={tab === 'pending'} onClick={() => setTab('pending')}>
           En attente
-          {pendingQuery.data && pendingQuery.data.total > 0 && (
+          {pendingQuery.data && pendingQuery.data.meta.total > 0 && (
             <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
-              {pendingQuery.data.total}
+              {pendingQuery.data.meta.total}
             </span>
           )}
         </TabButton>

@@ -79,17 +79,23 @@ export interface ReferralStats {
   loyaltyPoints: number;
 }
 
-/**
- * Enveloppe paginée des endpoints `/admin/*` : `{ data, total, page, limit }`.
- * Distincte de `PaginatedResponse<T>` : ces endpoints ne renvoient PAS de
- * champ `totalPages` — il se dérive côté client via `Math.ceil(total / limit)`.
- * Ne pas fusionner les deux types tant que le backend n'expose pas `totalPages`.
- */
-export interface Paginated<T> {
-  data: T[];
+/** Métadonnées de pagination renvoyées sous `meta` (API Contract v2). */
+export interface PaginationMeta {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
+}
+
+/**
+ * Enveloppe paginée des endpoints `/admin/*` : contrat conforme `{ data, meta }`.
+ * Le backend normalise désormais `{ data, total, page, limit }` en
+ * `{ data, meta: { total, page, limit, totalPages } }` (interceptor règle 3b).
+ * À consommer via `apiClientRaw` (qui préserve l'enveloppe).
+ */
+export interface Paginated<T> {
+  data: T[];
+  meta: PaginationMeta;
 }
 
 /** Un client dans la liste admin paginée (GET /admin/clients). */
@@ -121,12 +127,28 @@ export interface AdminClientReferral {
   referralBonusEarned: number;
 }
 
+/**
+ * Image de galerie partagée par les produits (`ProductImage`), les
+ * restaurants (`VendorPhoto`) et les menus (`MenuImage`). Même forme côté
+ * backend ; les endpoints renvoient la liste triée cover d'abord puis
+ * `displayOrder`.
+ */
+export interface GalleryImage {
+  id: string;
+  url: string;
+  alt: string | null;
+  displayOrder: number;
+  isCover: boolean;
+}
+
 export interface Restaurant {
   id: string;
   nom: string;
   adresse: string;
   phone: string;
   imageUrl: string | null;
+  /** Galerie photos vendeur (VendorPhoto). */
+  photos?: GalleryImage[];
   latitude: number | null;
   longitude: number | null;
   ownerId: string;
@@ -189,6 +211,8 @@ export interface Product {
   nom: string;
   description: string | null;
   imageUrl: string | null;
+  /** Galerie multi-images (ProductImage). */
+  images?: GalleryImage[];
   prixOriginal: number;
   stockQuotidien: number | null;
   stockRestant: number | null;
@@ -222,6 +246,8 @@ export interface MenuDuJour {
   nom: string;
   description: string | null;
   imageUrl: string | null;
+  /** Galerie multi-images (MenuImage). */
+  images?: GalleryImage[];
   prix: number;
   type: MenuType;
   ingredients: string | null;
@@ -681,10 +707,10 @@ export interface Incident {
   resolvedAt: string | null;
 }
 
-/** Reponse paginee `/incidents` — pas de `meta`, juste `{ data, total }`. */
+/** Reponse paginee `/incidents` — contrat conforme `{ data, meta: { total } }`. */
 export interface PaginatedIncidents {
   data: Incident[];
-  total: number;
+  meta: { total: number; page?: number; limit?: number; totalPages?: number };
 }
 
 /** Configuration plateforme (GET/PATCH /admin/platform-settings). */

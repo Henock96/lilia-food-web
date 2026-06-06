@@ -90,7 +90,7 @@ export default function IncidentsPage() {
     page,
   });
 
-  const total = data?.total ?? 0;
+  const total = data?.meta.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / INCIDENTS_PAGE_SIZE));
 
   function reset<T>(setter: (v: T | undefined) => void, value: T | undefined) {
