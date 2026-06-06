@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useState } from 'react';
 import {
   useMyRestaurant, useRestaurants, useProducts, useCategories,
@@ -21,7 +20,7 @@ import type {
   VendorType,
   Restaurant,
 } from '@lilia/types';
-import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -474,14 +473,7 @@ function ProductCard({
           >
             <Pencil size={12} /> Modifier
           </button>
-          <Link
-            href={`/produits/${product.id}`}
-            title="Photos & détails"
-            className="flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-          >
-            <ImageIcon size={12} />
-          </Link>
-          <button
+<button
             onClick={onDelete}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
           >
