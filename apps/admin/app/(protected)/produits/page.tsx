@@ -1,12 +1,13 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useState } from 'react';
 import {
   useMyRestaurant, useRestaurants, useProducts, useCategories,
-  useCreateProduct, useUpdateProduct, useDeleteProduct,
+  useCreateProduct, useUpdateProduct, useDeleteProduct, createPhoto,
 } from '@lilia/api-client';
+import { ProductImageBuffer, type DraftImage } from '@/components/product-image-buffer';
+import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -19,7 +20,7 @@ import type {
   VendorType,
   Restaurant,
 } from '@lilia/types';
-import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -108,19 +109,21 @@ function stockColor(p: Product) {
 // ─── Side panel ─────────────────────────────────────────────────────────────
 
 function ProductPanel({
-  panel, categories, vendorType, onClose,
+  panel, categories, vendorType, token, onClose,
   onSave, isSaving,
 }: {
   panel: Exclude<PanelState, null>;
   categories: Category[];
   vendorType: VendorType;
+  token: string | null;
   onClose: () => void;
-  onSave: (form: ProductForm) => void;
+  onSave: (form: ProductForm, buffer: DraftImage[]) => void;
   isSaving: boolean;
 }) {
   const [form, setForm] = useState<ProductForm>(() =>
     initForm(panel.mode === 'edit' ? panel.product : undefined),
   );
+  const [buffer, setBuffer] = useState<DraftImage[]>([]);
 
   function set<K extends keyof ProductForm>(k: K, v: ProductForm[K]) {
     setForm(f => ({ ...f, [k]: v }));
@@ -142,7 +145,7 @@ function ProductPanel({
       toast.error('Nom et prix sont requis');
       return;
     }
-    onSave(form);
+    onSave(form, buffer);
   }
 
   const title = panel.mode === 'create' ? 'Nouveau produit' : 'Modifier le produit';
@@ -164,22 +167,17 @@ function ProductPanel({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* Image preview */}
-          {form.imageUrl && (
-            <div className="w-full h-36 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 relative">
-              <Image src={form.imageUrl} alt="" fill className="object-cover" />
+          {/* Galerie : buffer en création, galerie live en édition */}
+          {panel.mode === 'create' ? (
+            <ProductImageBuffer value={buffer} onChange={setBuffer} />
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Photos
+              </label>
+              <PhotoGalleryEditor entity="product" parentId={panel.product.id} token={token} />
             </div>
           )}
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">URL image</label>
-            <input
-              value={form.imageUrl}
-              onChange={e => set('imageUrl', e.target.value)}
-              placeholder="https://..."
-              className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-            />
-          </div>
 
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Nom *</label>
@@ -475,14 +473,7 @@ function ProductCard({
           >
             <Pencil size={12} /> Modifier
           </button>
-          <Link
-            href={`/produits/${product.id}`}
-            title="Photos & détails"
-            className="flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-          >
-            <ImageIcon size={12} />
-          </Link>
-          <button
+<button
             onClick={onDelete}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
           >
@@ -528,7 +519,7 @@ export default function ProduitsPage() {
   const { data: products = [], isLoading } = useProducts(restaurantId || undefined);
   const { data: categories = [] }          = useCategories(restaurantId || undefined);
 
-  const { mutate: createProduct, isPending: creating } = useCreateProduct(token);
+  const { mutateAsync: createProductAsync, isPending: creating } = useCreateProduct(token);
   const { mutate: updateProduct, isPending: updating } = useUpdateProduct(token);
   const { mutate: deleteProduct, isPending: deleting } = useDeleteProduct(token);
 
@@ -536,11 +527,10 @@ export default function ProduitsPage() {
     ? products
     : products.filter((p: Product) => p.categoryId === filterCat);
 
-  function handleSave(form: ProductForm) {
+  async function handleSave(form: ProductForm, buffer: DraftImage[]) {
     const payload: Record<string, unknown> = {
       nom:           form.nom.trim(),
       description:   form.description.trim() || undefined,
-      imageUrl:      form.imageUrl.trim()    || undefined,
       prixOriginal:  parseFloat(form.prixOriginal),
       categoryId:    form.categoryId         || undefined,
       stockQuotidien: form.stockQuotidien ? parseInt(form.stockQuotidien) : undefined,
@@ -548,8 +538,6 @@ export default function ProduitsPage() {
         .filter(v => v.prix)
         .map(v => ({ id: v.id, label: v.label.trim() || undefined, prix: parseFloat(v.prix) })),
     };
-    // Champs multi-vendeurs (LIL-116) — n'envoie que ceux qui sont fournis,
-    // backend a des defaults sensés sur tout.
     if (form.productType) payload.productType = form.productType;
     if (form.stockMode) payload.stockMode = form.stockMode;
     if (form.ingredients.trim()) payload.ingredients = form.ingredients.trim();
@@ -559,11 +547,30 @@ export default function ProduitsPage() {
     if (form.availableUntil) payload.availableUntil = form.availableUntil;
 
     if (panel?.mode === 'create') {
-      createProduct(payload, {
-        onSuccess: () => { toast.success('Produit créé'); setPanel(null); },
-        onError:   () => toast.error('Erreur lors de la création'),
-      });
+      // La couverture du buffer alimente imageUrl (rétrocompat cartes).
+      const cover = buffer.find(b => b.isCover) ?? buffer[0];
+      payload.imageUrl = cover?.url ?? undefined;
+      try {
+        const created = await createProductAsync(payload);
+        let failures = 0;
+        for (const d of buffer) {
+          try {
+            await createPhoto('product', created.id, token, {
+              url: d.url, publicId: d.publicId, isCover: d.isCover,
+            });
+          } catch {
+            failures++;
+          }
+        }
+        toast.success(failures > 0
+          ? `Produit créé, ${failures} photo(s) non ajoutée(s) — réessayez en édition`
+          : 'Produit créé');
+        setPanel(null);
+      } catch {
+        toast.error('Erreur lors de la création');
+      }
     } else if (panel?.mode === 'edit') {
+      // En édition, la galerie live gère les images (et imageUrl côté backend).
       updateProduct({ id: panel.product.id, data: payload }, {
         onSuccess: () => { toast.success('Produit mis à jour'); setPanel(null); },
         onError:   () => toast.error('Erreur lors de la mise à jour'),
@@ -666,6 +673,7 @@ export default function ProduitsPage() {
           panel={panel}
           categories={categories}
           vendorType={vendorType}
+          token={token}
           onClose={() => setPanel(null)}
           onSave={handleSave}
           isSaving={creating || updating}
