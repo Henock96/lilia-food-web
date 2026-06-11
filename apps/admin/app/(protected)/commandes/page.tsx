@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRestaurantOrders, useUpdateOrderStatus } from '@lilia/api-client';
+import { useRestaurantOrders, useUpdateOrderStatus, useDownloadReceipt } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, OrderStatus } from '@lilia/types';
@@ -83,19 +83,33 @@ function formatScheduledFull(iso: string): string {
   return `${date} à ${time}`;
 }
 
+const PAID_STATUSES = new Set<OrderStatus>(['PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE', 'LIVRER']);
+
 function OrderCard({
   order,
   role,
+  token,
   onStatusUpdate,
 }: {
   order: Order;
   role: string | undefined;
+  token: string | null;
   onStatusUpdate: (id: string, status: OrderStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
   const nextStatus = NEXT_STATUS[order.status];
   const canAdvance = canAdvanceStatus(order.status, role);
   const waitingForPayment = order.status === 'EN_ATTENTE' && !canAdvance;
+  const isPaid = PAID_STATUSES.has(order.status);
+  const downloadReceipt = useDownloadReceipt(token);
+
+  async function handleDownloadReceipt() {
+    try {
+      await downloadReceipt.mutateAsync(order.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Impossible de générer le reçu');
+    }
+  }
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card">
@@ -139,6 +153,17 @@ function OrderCard({
         </div>
 
         <div className="flex items-center gap-2">
+          {isPaid && (
+            <button
+              onClick={handleDownloadReceipt}
+              disabled={downloadReceipt.isPending}
+              title="Télécharger le reçu PDF"
+              className="text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-dark-surface transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Download size={13} />
+              {downloadReceipt.isPending ? '...' : 'Reçu'}
+            </button>
+          )}
           {order.status !== 'LIVRER' && order.status !== 'ANNULER' && (
             <button
               onClick={() => onStatusUpdate(order.id, 'ANNULER')}
@@ -351,7 +376,7 @@ export default function CommandesPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((order) => (
-            <OrderCard key={order.id} order={order} role={role} onStatusUpdate={handleStatusUpdate} />
+            <OrderCard key={order.id} order={order} role={role} token={token} onStatusUpdate={handleStatusUpdate} />
           ))}
         </div>
       )}

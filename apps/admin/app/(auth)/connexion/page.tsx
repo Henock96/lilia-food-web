@@ -38,7 +38,15 @@ async function syncUser(token: string, email: string | null, displayName: string
         lastErr = `Serveur: ${res.status} — ${(json.message as string) ?? ''}`;
         continue;
       }
-      const user = (json.user ?? json.data ?? json) as User;
+      // POST /users/sync renvoie { message, isNew, user }, que l'ApiResponse-
+      // Interceptor global (J2) wrappe en { data: { message, isNew, user } }.
+      // On déballe l'enveloppe `data` PUIS la clé `user`. Tolère aussi les
+      // formes legacy { user } et l'objet user brut.
+      // Bug fix : l'ancien `json.user ?? json.data ?? json` retournait
+      // l'enveloppe `{ message, isNew, user }` → syncedUser.role === undefined
+      // → "Accès refusé — rôle undefined" pour tout login frais.
+      const envelope = (json.data ?? json) as Record<string, unknown>;
+      const user = (envelope.user ?? envelope) as User;
       return user;
     } catch (e: unknown) {
       clearTimeout(t);

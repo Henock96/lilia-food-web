@@ -4,9 +4,9 @@ import { use, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw, Download } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { useOrder, useCancelOrder, useReorder } from '@lilia/api-client';
+import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia/api-client';
 import type { OrderStatus } from '@lilia/types';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
@@ -29,6 +29,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { data: order, isLoading } = useOrder(id, token);
   const cancelOrder = useCancelOrder(token);
   const reorder = useReorder(token);
+  const downloadReceipt = useDownloadReceipt(token);
   const router = useRouter();
 
   async function handleCancel() {
@@ -48,6 +49,14 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       router.push('/panier');
     } catch {
       toast.error('Impossible de recommander cette commande');
+    }
+  }
+
+  async function handleDownloadReceipt() {
+    try {
+      await downloadReceipt.mutateAsync(id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Impossible de générer le reçu');
     }
   }
 
@@ -75,6 +84,8 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const currentStepIndex = STATUS_ORDER.indexOf(order.status);
   const isCancelled = order.status === 'ANNULER';
   const canCancel = order.status === 'EN_ATTENTE';
+  // Reçu disponible une fois la commande payée (PAYER et au-delà, hors annulée).
+  const isPaid = STATUS_ORDER.indexOf(order.status) >= STATUS_ORDER.indexOf('PAYER');
 
   return (
     <motion.div
@@ -227,6 +238,18 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">Adresse de livraison</p>
           <p className="text-zinc-500 dark:text-zinc-400">{order.deliveryAddress}</p>
         </div>
+      )}
+
+      {/* Reçu PDF — commande payée */}
+      {isPaid && (
+        <button
+          onClick={handleDownloadReceipt}
+          disabled={downloadReceipt.isPending}
+          className="w-full py-3 border border-zinc-200 dark:border-dark-border text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-dark-surface font-medium text-sm rounded-2xl transition-colors flex items-center justify-center gap-2 mb-3"
+        >
+          <Download className="w-4 h-4" />
+          {downloadReceipt.isPending ? 'Génération...' : 'Télécharger le reçu'}
+        </button>
       )}
 
       {/* Reorder */}
