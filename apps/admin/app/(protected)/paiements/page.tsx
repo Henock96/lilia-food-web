@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAdminPayments, useConfirmPayment, useRejectPayment, usePaymentsStats } from '@lilia/api-client';
-import type { PaymentMethod, PaymentStatus } from '@lilia/types';
+import type { PaymentMethod, PaymentStatus, PaymentsStats } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -16,6 +16,9 @@ import {
   Clock,
   TrendingUp,
   Calendar,
+  Timer,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -57,6 +60,22 @@ const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
 
 const formatXaf = (n: number) =>
   n.toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+
+/** « 7,5 min » sous 60 min, « 1 h 05 » au-delà. */
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) {
+    const rounded = Math.round(minutes * 10) / 10;
+    const asText = Number.isInteger(rounded)
+      ? rounded.toString()
+      : rounded.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return `${asText} min`;
+  }
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return `${h} h ${m.toString().padStart(2, '0')}`;
+}
+
+const VALIDATION_TARGET_MIN = 10; // seuil DoD LIL-78
 
 export default function PaiementsPage() {
   const { token } = useAuthStore();
@@ -125,6 +144,9 @@ export default function PaiementsPage() {
           accent="blue"
         />
       </div>
+
+      {/* Délai moyen de validation — instrument DoD (cible < 10 min) */}
+      <ValidationDelayBanner stats={stats} loading={statsLoading} />
 
       {/* Filtres statut */}
       <div className="flex flex-wrap gap-1.5">
@@ -330,6 +352,63 @@ function RejectModal({
             {isSubmitting ? 'Rejet…' : 'Rejeter'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bandeau « délai moyen de validation » (PENDING → confirmation, 7j roulants).
+ * Vert sous la cible DoD de 10 min, ambre au-dessus, neutre sans données.
+ */
+function ValidationDelayBanner({
+  stats,
+  loading,
+}: {
+  stats?: PaymentsStats;
+  loading: boolean;
+}) {
+  if (loading) {
+    return <Skeleton className="h-12 rounded-xl" />;
+  }
+  if (!stats) return null;
+
+  const { avgMinutes, sampleCount } = stats.validationDelay;
+  const hasData = avgMinutes !== null && sampleCount > 0;
+  const withinTarget = hasData && avgMinutes <= VALIDATION_TARGET_MIN;
+
+  const tone = !hasData
+    ? {
+        wrap: 'border-zinc-200 bg-zinc-50 dark:border-dark-border dark:bg-dark-card',
+        text: 'text-zinc-500',
+        Icon: Timer,
+      }
+    : withinTarget
+      ? {
+          wrap: 'border-emerald-200/70 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10',
+          text: 'text-emerald-600 dark:text-emerald-400',
+          Icon: CheckCircle2,
+        }
+      : {
+          wrap: 'border-amber-200/70 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10',
+          text: 'text-amber-600 dark:text-amber-400',
+          Icon: AlertTriangle,
+        };
+
+  const value = hasData ? `${formatMinutes(avgMinutes)} en moyenne` : 'Pas encore de données';
+  const sub = hasData
+    ? `sur ${sampleCount} paiement${sampleCount > 1 ? 's' : ''} confirmé${sampleCount > 1 ? 's' : ''} · 7 j · cible < 10 min`
+    : 'Délai mesuré dès les premières confirmations · cible < 10 min';
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${tone.wrap}`}>
+      <tone.Icon size={18} className={tone.text} />
+      <div className="min-w-0">
+        <p className="text-sm leading-tight">
+          <span className="text-zinc-500 dark:text-zinc-400">Délai de validation : </span>
+          <span className={`font-semibold ${tone.text}`}>{value}</span>
+        </p>
+        <p className="text-[11px] text-zinc-400 mt-0.5">{sub}</p>
       </div>
     </div>
   );
