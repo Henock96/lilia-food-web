@@ -618,6 +618,11 @@ export interface PaymentsStats {
   pending: { count: number; totalXaf: number };
   monthSuccess: { count: number; totalXaf: number };
   last7DaysSuccess: { count: number; totalXaf: number };
+  /**
+   * Délai moyen PENDING → confirmation sur 7j roulants (instrument DoD LIL-78,
+   * cible < 10 min). `avgMinutes` null = pas encore de données sur la fenêtre.
+   */
+  validationDelay: { avgMinutes: number | null; sampleCount: number };
 }
 
 /** Un livreur dans la liste admin (GET /admin/deliverers). */

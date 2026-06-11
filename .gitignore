@@ -1,6 +1,12 @@
 node_modules
 .pnpm-store
 
+# lockfiles non-pnpm — ce monorepo utilise pnpm uniquement (LIL-132)
+bun.lock
+bun.lockb
+package-lock.json
+yarn.lock
+
 # testing
 coverage
 

@@ -2,19 +2,23 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useAdminPayments, useConfirmPayment, usePaymentsStats } from '@lilia/api-client';
-import type { PaymentMethod, PaymentStatus } from '@lilia/types';
+import { useAdminPayments, useConfirmPayment, useRejectPayment, usePaymentsStats } from '@lilia/api-client';
+import type { PaymentMethod, PaymentStatus, PaymentsStats } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   CreditCard,
   Check,
+  X,
   ChevronLeft,
   ChevronRight,
   Phone,
   Clock,
   TrendingUp,
   Calendar,
+  Timer,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -57,6 +61,22 @@ const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
 const formatXaf = (n: number) =>
   n.toLocaleString('fr-FR', { maximumFractionDigits: 0 });
 
+/** « 7,5 min » sous 60 min, « 1 h 05 » au-delà. */
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) {
+    const rounded = Math.round(minutes * 10) / 10;
+    const asText = Number.isInteger(rounded)
+      ? rounded.toString()
+      : rounded.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return `${asText} min`;
+  }
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return `${h} h ${m.toString().padStart(2, '0')}`;
+}
+
+const VALIDATION_TARGET_MIN = 10; // seuil DoD LIL-78
+
 export default function PaiementsPage() {
   const { token } = useAuthStore();
   const [status, setStatus] = useState<StatusFilter>('');
@@ -64,6 +84,9 @@ export default function PaiementsPage() {
   const { data, isLoading, isError, isPlaceholderData } = useAdminPayments(token, page, status);
   const { data: stats, isLoading: statsLoading } = usePaymentsStats(token);
   const confirm = useConfirmPayment(token);
+  const reject = useRejectPayment(token);
+  // Paiement ciblé par le modal de rejet (null = modal fermé).
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; ref: string } | null>(null);
 
   const totalPages = data ? data.meta.totalPages : 1;
   const activeFilterLabel = STATUS_FILTERS.find((f) => f.value === status)?.label ?? '';
@@ -73,6 +96,20 @@ export default function PaiementsPage() {
       onSuccess: () => toast.success('Paiement confirmé'),
       onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur lors de la confirmation'),
     });
+  }
+
+  function handleReject(reason: string) {
+    if (!rejectTarget) return;
+    reject.mutate(
+      { paymentId: rejectTarget.id, reason },
+      {
+        onSuccess: () => {
+          toast.success('Paiement rejeté');
+          setRejectTarget(null);
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur lors du rejet'),
+      },
+    );
   }
 
   return (
@@ -107,6 +144,9 @@ export default function PaiementsPage() {
           accent="blue"
         />
       </div>
+
+      {/* Délai moyen de validation — instrument DoD (cible < 10 min) */}
+      <ValidationDelayBanner stats={stats} loading={statsLoading} />
 
       {/* Filtres statut */}
       <div className="flex flex-wrap gap-1.5">
@@ -187,13 +227,22 @@ export default function PaiementsPage() {
                     </p>
                   </div>
                   {p.status === 'PENDING' && (
-                    <button
-                      onClick={() => handleConfirm(p.id)}
-                      disabled={confirm.isPending && confirm.variables === p.id}
-                      className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      <Check size={13} /> Confirmer
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setRejectTarget({ id: p.id, ref: orderRef })}
+                        disabled={reject.isPending && reject.variables?.paymentId === p.id}
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      >
+                        <X size={13} /> Rejeter
+                      </button>
+                      <button
+                        onClick={() => handleConfirm(p.id)}
+                        disabled={confirm.isPending && confirm.variables === p.id}
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                      >
+                        <Check size={13} /> Confirmer
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -226,6 +275,140 @@ export default function PaiementsPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {rejectTarget && (
+        <RejectModal
+          orderRef={rejectTarget.ref}
+          isSubmitting={reject.isPending}
+          onCancel={() => setRejectTarget(null)}
+          onConfirm={handleReject}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Confirmation du rejet d'un paiement, avec raison optionnelle.
+ * La commande reste payable côté backend — le client est notifié de l'échec.
+ */
+function RejectModal({
+  orderRef,
+  isSubmitting,
+  onCancel,
+  onConfirm,
+}: {
+  orderRef: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="w-full max-w-md p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+              Rejeter le paiement #{orderRef} ?
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1">
+              La commande restera en attente de paiement. Le client sera notifié
+              de l&apos;échec et pourra réessayer.
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label="Fermer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <label className="block">
+          <span className="text-xs text-zinc-500 font-medium">Raison (optionnel)</span>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            maxLength={120}
+            placeholder="Ex: virement non reçu"
+            className="mt-1 w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          />
+        </label>
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm(reason.trim())}
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Rejet…' : 'Rejeter'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bandeau « délai moyen de validation » (PENDING → confirmation, 7j roulants).
+ * Vert sous la cible DoD de 10 min, ambre au-dessus, neutre sans données.
+ */
+function ValidationDelayBanner({
+  stats,
+  loading,
+}: {
+  stats?: PaymentsStats;
+  loading: boolean;
+}) {
+  if (loading) {
+    return <Skeleton className="h-12 rounded-xl" />;
+  }
+  if (!stats) return null;
+
+  const { avgMinutes, sampleCount } = stats.validationDelay;
+  const hasData = avgMinutes !== null && sampleCount > 0;
+  const withinTarget = hasData && avgMinutes <= VALIDATION_TARGET_MIN;
+
+  const tone = !hasData
+    ? {
+        wrap: 'border-zinc-200 bg-zinc-50 dark:border-dark-border dark:bg-dark-card',
+        text: 'text-zinc-500',
+        Icon: Timer,
+      }
+    : withinTarget
+      ? {
+          wrap: 'border-emerald-200/70 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10',
+          text: 'text-emerald-600 dark:text-emerald-400',
+          Icon: CheckCircle2,
+        }
+      : {
+          wrap: 'border-amber-200/70 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10',
+          text: 'text-amber-600 dark:text-amber-400',
+          Icon: AlertTriangle,
+        };
+
+  const value = hasData ? `${formatMinutes(avgMinutes)} en moyenne` : 'Pas encore de données';
+  const sub = hasData
+    ? `sur ${sampleCount} paiement${sampleCount > 1 ? 's' : ''} confirmé${sampleCount > 1 ? 's' : ''} · 7 j · cible < 10 min`
+    : 'Délai mesuré dès les premières confirmations · cible < 10 min';
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${tone.wrap}`}>
+      <tone.Icon size={18} className={tone.text} />
+      <div className="min-w-0">
+        <p className="text-sm leading-tight">
+          <span className="text-zinc-500 dark:text-zinc-400">Délai de validation : </span>
+          <span className={`font-semibold ${tone.text}`}>{value}</span>
+        </p>
+        <p className="text-[11px] text-zinc-400 mt-0.5">{sub}</p>
       </div>
     </div>
   );
