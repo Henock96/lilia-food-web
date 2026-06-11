@@ -43,7 +43,7 @@ export function Footer() {
                 <MapPin className="h-4 w-4 shrink-0 text-[var(--ember-400)]" />Brazzaville, Congo
               </span>
               <a href="tel:+242067454610" className="flex items-center gap-2.5 transition-colors hover:text-white">
-                <Phone className="h-4 w-4 shrink-0 text-[var(--ember-400)]" />+242 06 745 46 10
+                <Phone className="h-4 w-4 shrink-0 text-[var(--ember-400)]" />+242 06 561 42 94 - +242 05 372 03 93
               </a>
               <a href="mailto:contact@liliafood.com" className="flex items-center gap-2.5 transition-colors hover:text-white">
                 <Mail className="h-4 w-4 shrink-0 text-[var(--ember-400)]" />contact@liliafood.com
