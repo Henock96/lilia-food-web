@@ -196,3 +196,103 @@ body {
 
 /* ── Hero badge pulse ─────────────────────────────── */
 .pulse-dot { animation: pulse-dot 2s infinite; }
+
+/* ═══════════════════════════════════════════════════ */
+/*  LILIA NOIR — Refonte premium sombre gourmet         */
+/* ═══════════════════════════════════════════════════ */
+
+/* Palette dédiée aux sections art-dirigées (indépendante du toggle) */
+:root {
+  --noir-900: #0B0907;  /* fond le plus profond */
+  --noir-850: #110D0A;
+  --noir-800: #16110D;  /* surface */
+  --noir-700: #1F1812;  /* carte */
+  --noir-600: #2A2118;  /* carte élevée */
+  --noir-line: #322A20; /* bordures chaudes */
+  --ember-400: #F47430;
+  --ember-500: #E8541F;
+  --gold-400: #E9B873;
+}
+
+/* Texte dégradé braise → or (titres accent) */
+.text-ember {
+  background-image: linear-gradient(120deg, #FF9E6A 0%, #F47430 38%, #E9B873 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Surface verre sombre */
+.glass-noir {
+  background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Halo orange diffus — décor */
+.ember-glow {
+  background: radial-gradient(circle at center, rgba(244,116,48,0.45) 0%, rgba(244,116,48,0.12) 35%, transparent 70%);
+  filter: blur(36px);
+}
+
+/* Liseré dégradé sur cartes (masque conique via bordure) */
+.ring-ember {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06),
+    0 24px 60px -20px rgba(0,0,0,0.8),
+    0 0 48px -24px rgba(244,116,48,0.55);
+}
+
+/* Grain premium — overlay texture */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* Dégradé d'accroche radial pour fonds de section */
+.noir-canvas {
+  background:
+    radial-gradient(120% 80% at 15% -10%, rgba(244,116,48,0.16) 0%, transparent 45%),
+    radial-gradient(90% 70% at 95% 0%, rgba(233,184,115,0.10) 0%, transparent 50%),
+    var(--noir-900);
+}
+
+/* Marquee défilant (rails catégories / promos) */
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-x var(--marquee-duration, 42s) linear infinite;
+}
+.marquee-mask:hover .marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+}
+
+/* Étoile/scintillement lent pour halos */
+@keyframes ember-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.9;  transform: scale(1.08); }
+}
+.ember-breathe { animation: ember-breathe 6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ember-breathe { animation: none; }
+}
+
+/* Indice de scroll */
+@keyframes scroll-cue {
+  0%   { transform: translateY(0); opacity: 0; }
+  35%  { opacity: 1; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+.scroll-cue { animation: scroll-cue 1.8s ease-in-out infinite; }

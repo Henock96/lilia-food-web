@@ -1,29 +1,28 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { Search, ShoppingCart, Truck } from 'lucide-react';
-import { staggerContainerVariants, scrollRevealVariants } from '@lilia/motion';
+import { Search, ShoppingBag, Bike } from 'lucide-react';
+import { SectionHeading } from './_ui';
+
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 const steps = [
   {
     icon: Search,
-    title: 'Choisissez un restaurant',
-    description: 'Parcourez nos restaurants partenaires à Brazzaville et découvrez leurs menus.',
-    color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    title: 'Choisis ton vendeur',
+    description: 'Parcours restaurants, cuisines maison, boulangeries et boissons près de chez toi.',
     step: '01',
   },
   {
-    icon: ShoppingCart,
-    title: 'Composez votre commande',
-    description: 'Ajoutez vos plats préférés au panier. Appliquez un code promo si vous en avez un.',
-    color: 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400',
+    icon: ShoppingBag,
+    title: 'Compose ta commande',
+    description: 'Ajoute tes plats au panier, applique un code promo, paie par MTN MoMo ou Airtel.',
     step: '02',
   },
   {
-    icon: Truck,
-    title: 'Recevez votre repas',
-    description: 'Payez par MTN MoMo. Suivez votre commande en temps réel.',
-    color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+    icon: Bike,
+    title: 'Reçois, c’est chaud',
+    description: 'Suis ton livreur en temps réel et cumule des points fidélité à chaque commande.',
     step: '03',
   },
 ];
@@ -32,50 +31,53 @@ export function HowItWorks() {
   const reduced = useReducedMotion();
 
   return (
-    <section className="py-20 bg-white dark:bg-dark-surface">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={reduced ? {} : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-12"
-        >
-          <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-zinc-50 mb-4" style={{ fontFamily: 'var(--font-display)' }}>
-            Comment ça marche ?
-          </h2>
-          <p className="text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-            Commander votre repas n'a jamais été aussi simple. En 3 étapes, c'est dans votre assiette.
-          </p>
-        </motion.div>
+    <section className="relative overflow-hidden bg-[var(--noir-850)] py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          eyebrow="Simple comme bonjour"
+          title="Trois gestes,"
+          accent="et c’est servi."
+          align="center"
+        />
 
-        <motion.div
-          variants={reduced ? {} : staggerContainerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-80px' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
-        >
-          {steps.map((step, index) => (
+        <div className="relative mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+          {/* trait de liaison */}
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 top-9 hidden h-px bg-gradient-to-r from-transparent via-white/12 to-transparent md:block"
+          />
+
+          {steps.map((s, i) => (
             <motion.div
-              key={step.step}
-              variants={reduced ? {} : scrollRevealVariants}
-              className="relative flex flex-col items-center text-center p-8 rounded-2xl border border-zinc-100 dark:border-dark-border bg-zinc-50/50 dark:bg-dark-card hover:border-zinc-200 dark:hover:border-zinc-600 hover:bg-white dark:hover:bg-dark-surface transition-all group"
+              key={s.step}
+              initial={reduced ? {} : { opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ duration: 0.5, delay: i * 0.12, ease: EASE }}
+              className="group relative flex flex-col items-center text-center"
             >
-              <span className="absolute top-4 right-4 text-5xl font-black text-zinc-100 dark:text-dark-border group-hover:text-zinc-200 dark:group-hover:text-zinc-700 transition-colors select-none" aria-hidden>
-                {step.step}
-              </span>
-              <div className={`w-14 h-14 ${step.color} rounded-2xl flex items-center justify-center mb-5`}>
-                <step.icon className="w-7 h-7" aria-hidden />
+              <div className="relative mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center">
+                <span className="ember-glow absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                <span className="glass-noir relative flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl text-[var(--ember-400)] transition-transform duration-300 group-hover:-translate-y-1">
+                  <s.icon className="h-7 w-7" aria-hidden />
+                </span>
+                <span
+                  className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ember-500)] text-xs font-bold text-white"
+                  aria-hidden
+                >
+                  {s.step}
+                </span>
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg mb-3">{step.title}</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{step.description}</p>
-              {index < steps.length - 1 && (
-                <div className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-0.5 bg-zinc-200 dark:bg-dark-border" aria-hidden />
-              )}
+              <h3
+                className="text-xl font-bold text-white"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {s.title}
+              </h3>
+              <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/55">{s.description}</p>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

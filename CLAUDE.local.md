@@ -1,6 +1,30 @@
 # CLAUDE.local.md — Lilia Web
 
 Fichier de suivi des changements récents pour le site web client (`lilia_web`).
+Monorepo Turbo/pnpm : `apps/web` (client), `apps/admin`, `packages/*`
+(`api-client`, `types`, `utils`).
+
+---
+
+## Marketplace multi-vendeurs (mai-juin 2026)
+
+Lilia Food est passée d'une app de livraison de restaurants à une **marketplace
+locale multi-vendeurs** : restaurants, cuisines maison, boulangeries,
+pâtisseries, boissons. Un « restaurant » est désormais un **vendeur** typé par
+`vendorType`.
+
+- `VendorType` : `RESTAURANT` / `HOME_COOK` (cuisine maison) / `BAKERY`
+  (boulangerie) / `BEVERAGE_SHOP` (boissons) / `GROCERY` (épicerie). `ProductType` :
+  FOOD, BEVERAGE, PASTRY, GROCERY (`ALCOHOL` en DB mais jamais proposé — pas
+  d'alcool au lancement).
+- `apps/web/app/(public)/restaurants/page.tsx` : liste filtrable par type de
+  vendeur ; `apps/web/app/(protected)/panier/page.tsx` gère les produits
+  sur-commande (`madeToOrder`) — un panier = un seul mode (immédiat **ou** sur
+  commande).
+- Le catalogue n'expose que les vendeurs **approuvés + actifs** (filtrage backend).
+- ⚠️ Beaucoup de symboles restent nommés `restaurant*` : ils désignent le
+  vendeur générique. Ne pas renommer sans coordination cross-app (backend + 3
+  apps Flutter).
 
 ---
 

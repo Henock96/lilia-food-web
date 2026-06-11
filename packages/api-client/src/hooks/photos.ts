@@ -51,6 +51,30 @@ type UploadPayload = {
 };
 
 /**
+ * POST création d'une photo, hors contexte hook (utilisé pour rattacher
+ * les images d'un produit juste après sa création). Le caller a déjà fait
+ * l'upload Cloudinary et passe url + publicId.
+ */
+export function createPhoto(
+  entity: EntityType,
+  parentId: string,
+  token: string | null,
+  payload: UploadPayload,
+): Promise<Photo> {
+  return apiClient<Photo>(endpoints[entity], {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      [parentFields[entity]]: parentId,
+      url: payload.url,
+      publicId: payload.publicId,
+      ...(payload.alt !== undefined ? { alt: payload.alt } : {}),
+      isCover: payload.isCover ?? false,
+    }),
+  });
+}
+
+/**
  * POST création. Le caller fait l'upload Cloudinary séparément (cf.
  * apps/admin/lib/cloudinary-upload.ts) puis passe url + publicId ici.
  */
@@ -62,17 +86,7 @@ export function useUploadPhoto(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: UploadPayload) =>
-      apiClient<Photo>(endpoints[entity], {
-        method: 'POST',
-        token,
-        body: JSON.stringify({
-          [parentFields[entity]]: parentId,
-          url: payload.url,
-          publicId: payload.publicId,
-          ...(payload.alt !== undefined ? { alt: payload.alt } : {}),
-          isCover: payload.isCover ?? false,
-        }),
-      }),
+      createPhoto(entity, parentId, token, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: photoKeys.list(entity, parentId),

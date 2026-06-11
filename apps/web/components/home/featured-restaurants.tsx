@@ -1,53 +1,70 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { apiClient } from '@lilia/api-client';
+import { apiClientRaw } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
-import { RestaurantGrid } from '@/components/restaurants/restaurant-grid';
+import { VendorGrid } from '@/components/restaurants/vendor-grid';
 
-async function getRestaurants(): Promise<Restaurant[]> {
+/**
+ * Section « Les plus courus » — vendeurs en vedette. Consomme le marketplace
+ * `/vendors` (déjà filtré adminApproved + isActive côté backend, LIL-119).
+ */
+async function getVendors(): Promise<Restaurant[]> {
   'use cache';
   try {
-    return await apiClient<Restaurant[]>('/restaurants');
+    const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=12');
+    return res.data ?? [];
   } catch {
     return [];
   }
 }
 
 export async function FeaturedRestaurants() {
-  const restaurants = await getRestaurants();
+  const restaurants = await getVendors();
   const featured = restaurants.slice(0, 6);
 
   return (
-    <section className="py-16 bg-zinc-50/50 dark:bg-dark-bg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
+    <section className="grain noir-canvas relative overflow-hidden py-20 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-ember">
+              <span className="h-px w-6 bg-[var(--ember-400)]/60" aria-hidden />
+              Les plus courus
+            </span>
             <h2
-              className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100"
+              className="mt-3 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-[2.75rem]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
-              Restaurants populaires
+              Ils font saliver{' '}
+              <span className="text-ember italic">tout Brazza.</span>
             </h2>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">{restaurants.length} restaurants à Brazzaville</p>
+            <p className="mt-4 max-w-md text-base leading-relaxed text-white/55">
+              {restaurants.length > 0
+                ? `${restaurants.length} vendeurs ouverts en ce moment, prêts à te livrer.`
+                : 'Les meilleurs vendeurs de la ville, sélectionnés pour toi.'}
+            </p>
           </div>
+
           <Link
             href="/restaurants"
-            className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+            className="group hidden shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/5 px-5 py-2.5 text-sm font-medium text-white/80 transition-all hover:border-[var(--ember-400)]/50 hover:text-white sm:inline-flex"
           >
             Voir tout
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
-        <RestaurantGrid restaurants={featured} />
+        <div className="mt-12">
+          <VendorGrid restaurants={featured} />
+        </div>
 
-        <div className="mt-8 text-center sm:hidden">
+        <div className="mt-10 text-center sm:hidden">
           <Link
             href="/restaurants"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white font-medium rounded-2xl hover:bg-primary-600 transition-colors"
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--ember-500)] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--ember-400)]"
           >
-            Voir tous les restaurants
-            <ArrowRight className="w-4 h-4" />
+            Voir tous les vendeurs
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </div>
