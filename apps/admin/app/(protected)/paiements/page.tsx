@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useAdminPayments, useConfirmPayment, usePaymentsStats } from '@lilia/api-client';
+import { useAdminPayments, useConfirmPayment, useRejectPayment, usePaymentsStats } from '@lilia/api-client';
 import type { PaymentMethod, PaymentStatus } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   CreditCard,
   Check,
+  X,
   ChevronLeft,
   ChevronRight,
   Phone,
@@ -64,6 +65,9 @@ export default function PaiementsPage() {
   const { data, isLoading, isError, isPlaceholderData } = useAdminPayments(token, page, status);
   const { data: stats, isLoading: statsLoading } = usePaymentsStats(token);
   const confirm = useConfirmPayment(token);
+  const reject = useRejectPayment(token);
+  // Paiement ciblé par le modal de rejet (null = modal fermé).
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; ref: string } | null>(null);
 
   const totalPages = data ? data.meta.totalPages : 1;
   const activeFilterLabel = STATUS_FILTERS.find((f) => f.value === status)?.label ?? '';
@@ -73,6 +77,20 @@ export default function PaiementsPage() {
       onSuccess: () => toast.success('Paiement confirmé'),
       onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur lors de la confirmation'),
     });
+  }
+
+  function handleReject(reason: string) {
+    if (!rejectTarget) return;
+    reject.mutate(
+      { paymentId: rejectTarget.id, reason },
+      {
+        onSuccess: () => {
+          toast.success('Paiement rejeté');
+          setRejectTarget(null);
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur lors du rejet'),
+      },
+    );
   }
 
   return (
@@ -187,13 +205,22 @@ export default function PaiementsPage() {
                     </p>
                   </div>
                   {p.status === 'PENDING' && (
-                    <button
-                      onClick={() => handleConfirm(p.id)}
-                      disabled={confirm.isPending && confirm.variables === p.id}
-                      className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      <Check size={13} /> Confirmer
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setRejectTarget({ id: p.id, ref: orderRef })}
+                        disabled={reject.isPending && reject.variables?.paymentId === p.id}
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      >
+                        <X size={13} /> Rejeter
+                      </button>
+                      <button
+                        onClick={() => handleConfirm(p.id)}
+                        disabled={confirm.isPending && confirm.variables === p.id}
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                      >
+                        <Check size={13} /> Confirmer
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -226,6 +253,83 @@ export default function PaiementsPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {rejectTarget && (
+        <RejectModal
+          orderRef={rejectTarget.ref}
+          isSubmitting={reject.isPending}
+          onCancel={() => setRejectTarget(null)}
+          onConfirm={handleReject}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Confirmation du rejet d'un paiement, avec raison optionnelle.
+ * La commande reste payable côté backend — le client est notifié de l'échec.
+ */
+function RejectModal({
+  orderRef,
+  isSubmitting,
+  onCancel,
+  onConfirm,
+}: {
+  orderRef: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="w-full max-w-md p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+              Rejeter le paiement #{orderRef} ?
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1">
+              La commande restera en attente de paiement. Le client sera notifié
+              de l&apos;échec et pourra réessayer.
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label="Fermer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <label className="block">
+          <span className="text-xs text-zinc-500 font-medium">Raison (optionnel)</span>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            maxLength={120}
+            placeholder="Ex: virement non reçu"
+            className="mt-1 w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          />
+        </label>
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm(reason.trim())}
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Rejet…' : 'Rejeter'}
+          </button>
+        </div>
       </div>
     </div>
   );

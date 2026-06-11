@@ -69,6 +69,27 @@ export function useConfirmPayment(token: string | null) {
   });
 }
 
+/**
+ * Rejet manuel d'un paiement (POST /payments/:id/reject).
+ * La commande reste EN_ATTENTE côté backend : le client peut réessayer.
+ * `reason` optionnel (virement non retrouvé par défaut).
+ */
+export function useRejectPayment(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ paymentId, reason }: { paymentId: string; reason?: string }) =>
+      apiClient<unknown>(`/payments/${paymentId}/reject`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify(reason?.trim() ? { reason: reason.trim() } : {}),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'payments'] });
+      void queryClient.invalidateQueries({ queryKey: adminOpsKeys.paymentsStats });
+    },
+  });
+}
+
 /** Livreurs paginés (GET /admin/deliverers). */
 export function useAdminDeliverers(token: string | null, page: number) {
   return useQuery({
