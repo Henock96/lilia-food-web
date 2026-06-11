@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import type { Restaurant, VendorType } from '@lilia/types';
-import { RestaurantGrid } from './restaurant-grid';
+import { VendorGrid } from './vendor-grid';
 import { VendorTypeChips } from './vendor-type-chips';
 
 interface RestaurantsFiltersProps {
@@ -36,7 +36,6 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
     parseVendorType(searchParams.get('vendorType')),
   );
 
-  // Sync URL → state when navigating back/forward
   useEffect(() => {
     setSearch(searchParams.get('q') ?? '');
     setVendorType(parseVendorType(searchParams.get('vendorType')));
@@ -70,8 +69,6 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
         r.adresse?.toLowerCase().includes(q) ||
         r.specialties?.some((s) => s.name.toLowerCase().includes(q));
       const matchesOpen = !showOpenOnly || r.isOpen;
-      // LIL-119 : marketplace filter. Si vendorType absent côté restaurant
-      // (vieux payload pré-Sprint A), traite-le comme RESTAURANT par défaut.
       const matchesVendorType =
         !vendorType || (r.vendorType ?? 'RESTAURANT') === vendorType;
       return matchesSearch && matchesOpen && matchesVendorType;
@@ -81,59 +78,64 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
   return (
     <>
       {/* Chips marketplace (LIL-119) */}
-      <div className="mb-4 -mx-1 overflow-x-auto pb-1">
+      <div className="-mx-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
         <div className="px-1">
           <VendorTypeChips selected={vendorType} onChange={updateVendorType} />
         </div>
       </div>
 
-      {/* Filters bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-8">
+      {/* Barre de filtres */}
+      <div className="mb-10 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
           <input
             type="text"
             value={search}
             onChange={(e) => updateSearch(e.target.value)}
-            placeholder="Rechercher un restaurant ou une cuisine..."
-            className="w-full pl-10 pr-10 py-3 bg-white dark:bg-dark-surface border border-zinc-200 dark:border-dark-border rounded-2xl text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+            placeholder="Rechercher un vendeur, une cuisine, un plat…"
+            className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-10 text-sm text-white placeholder:text-white/35 transition-all focus:border-[var(--ember-400)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--ember-500)]/20"
           />
           {search && (
             <button
               onClick={() => updateSearch('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white"
+              aria-label="Effacer la recherche"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>
 
         <button
           onClick={() => setShowOpenOnly((v) => !v)}
-          className={`flex items-center gap-2 px-4 py-3 rounded-2xl border text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all ${
             showOpenOnly
-              ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
-              : 'bg-white dark:bg-dark-surface border-zinc-200 dark:border-dark-border text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600'
+              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+              : 'border-white/10 bg-white/5 text-white/65 hover:border-white/20 hover:text-white'
           }`}
         >
-          <div className={`w-2 h-2 rounded-full ${showOpenOnly ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
+          <span className={`h-2 w-2 rounded-full ${showOpenOnly ? 'bg-emerald-400' : 'bg-white/30'}`} />
           Ouverts maintenant
         </button>
       </div>
 
       {/* Résultats */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-zinc-400 dark:text-zinc-600">
-          <Search className="w-12 h-12 mx-auto mb-4 opacity-30" />
-          <p className="font-medium text-zinc-600 dark:text-zinc-400">Aucun résultat pour "{search}"</p>
-          <p className="text-sm mt-1">Essayez une autre recherche</p>
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/8 bg-white/[0.02] py-20 text-center">
+          <Search className="mb-4 h-12 w-12 text-white/20" />
+          <p className="font-semibold text-white">
+            {search ? `Aucun résultat pour « ${search} »` : 'Aucun vendeur pour ce filtre'}
+          </p>
+          <p className="mt-1 text-sm text-white/45">Essaie une autre recherche ou un autre type.</p>
         </div>
       ) : (
         <>
           {(search || showOpenOnly) && (
-            <p className="text-sm text-zinc-500 mb-4">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
+            <p className="mb-4 text-sm text-white/45">
+              {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+            </p>
           )}
-          <RestaurantGrid restaurants={filtered} />
+          <VendorGrid restaurants={filtered} />
         </>
       )}
     </>

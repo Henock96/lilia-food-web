@@ -59,10 +59,10 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-sm font-medium transition-all',
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-sm font-medium transition-all',
         active
-          ? 'bg-primary-500 text-white border-primary-500 shadow-sm'
-          : 'bg-white dark:bg-dark-surface border-zinc-200 dark:border-dark-border text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600',
+          ? 'border-[var(--ember-500)] bg-[var(--ember-500)] text-white shadow-lg shadow-[var(--ember-500)]/25'
+          : 'border-white/10 bg-white/5 text-white/65 hover:border-[var(--ember-400)]/40 hover:text-white',
       )}
     >
       <span aria-hidden>{emoji}</span>
