@@ -63,7 +63,7 @@ export async function FeaturedRestaurants() {
             href="/restaurants"
             className="inline-flex items-center gap-2 rounded-2xl bg-[var(--ember-500)] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--ember-400)]"
           >
-            Voir tous les vendeurs
+            Voir tous les restaurants
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

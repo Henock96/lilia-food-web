@@ -111,6 +111,75 @@ export function useToggleRestaurantOpen(token: string | null) {
   });
 }
 
+// ─── Configuration restaurant (LIL-109) ─────────────────────────────────────
+
+export interface UpdateRestaurantInput {
+  nom?: string;
+  adresse?: string;
+  phone?: string;
+  imageUrl?: string;
+  acceptsPreorders?: boolean;
+  preorderLeadHours?: number;
+  maxOrdersPerDay?: number;
+}
+
+export interface UpdateDeliverySettingsInput {
+  deliveryPriceMode?: 'FIXED' | 'ZONE_BASED';
+  fixedDeliveryFee?: number;
+  minimumOrderAmount?: number;
+  estimatedDeliveryTimeMin?: number;
+  estimatedDeliveryTimeMax?: number;
+}
+
+export interface OperatingHourInput {
+  dayOfWeek: string;
+  openTime: string;
+  closeTime: string;
+  isClosed?: boolean;
+}
+
+/** PATCH /restaurants/:id — infos générales (nom, adresse, téléphone, image). */
+export function useUpdateRestaurant(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateRestaurantInput }) =>
+      apiClient<Restaurant>(`/restaurants/${id}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: restaurantKeys.all }),
+  });
+}
+
+/** PATCH /restaurants/:id/delivery-settings — mode, frais, min commande, ETA. */
+export function useUpdateDeliverySettings(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateDeliverySettingsInput }) =>
+      apiClient<Restaurant>(`/restaurants/${id}/delivery-settings`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: restaurantKeys.all }),
+  });
+}
+
+/** PUT /restaurants/:id/operating-hours — horaires de la semaine (bulk upsert). */
+export function useSetOperatingHours(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, hours }: { id: string; hours: OperatingHourInput[] }) =>
+      apiClient<unknown>(`/restaurants/${id}/operating-hours`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({ hours }),
+      }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: restaurantKeys.all }),
+  });
+}
+
 export function useCanReview(restaurantId: string, token: string | null) {
   return useQuery({
     queryKey: reviewKeys.canReview(restaurantId),
