@@ -74,6 +74,8 @@ export function VendorCard({ restaurant }: VendorCardProps) {
               src={cover}
               alt={restaurant.nom}
               fill
+              // Image vendeur = URL externe arbitraire → unoptimized (cf. restaurant-card).
+              unoptimized
               className="object-cover transition-transform duration-700 group-hover:scale-110"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               placeholder="blur"

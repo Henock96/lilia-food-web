@@ -10,14 +10,13 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname, '../..'),
   },
   images: {
-    // Allowlist strict — bloque l'open proxy d'optimisation next/image
-    // (DoS + abuse bandwidth Vercel via /_next/image?url=...).
-    remotePatterns: [
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
-      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
-      // Avatars Google (sign-in Firebase Google provider).
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-    ],
+    // Back-office interne : les images (menus, vitrine, produits…) sont des
+    // URLs saisies librement par les admins / restaurateurs (y compris via le
+    // mobile admin) — un allowlist d'hôtes serait du whack-a-mole permanent.
+    // On désactive l'optimiseur next/image pour l'admin : sans le proxy
+    // `/_next/image`, le vecteur d'open-proxy/DoS disparaît et tous les hôtes
+    // passent. L'optimisation n'a aucun intérêt sur un dashboard à faible trafic.
+    unoptimized: true,
   },
   async rewrites() {
     return [

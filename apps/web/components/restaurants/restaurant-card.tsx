@@ -66,6 +66,10 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
               src={cover}
               alt={restaurant.nom}
               fill
+              // Image vendeur = URL externe arbitraire → on contourne
+              // l'optimiseur next/image (allowlist stricte conservée pour les
+              // visuels curés). Voir choix LIL-107/108/109.
+              unoptimized
               className="object-cover group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               placeholder="blur"

@@ -63,6 +63,9 @@ export function ImageCarousel({
               src={img.url}
               alt={img.alt}
               fill
+              // Galerie vendeur = URLs externes arbitraires → unoptimized
+              // (allowlist next/image conservée pour les visuels curés).
+              unoptimized
               className="object-cover"
               priority={priority && i === 0}
               sizes={sizes}
