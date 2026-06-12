@@ -37,7 +37,7 @@ const HERO_DISHES = [
   },
 ];
 
-const TITLE_WORDS = ['Tout', 'Brazzaville,'];
+const TITLE_WORDS = ["T'as", 'Faim,'];
 
 export function HeroSection() {
   const reduced = useReducedMotion();
@@ -112,7 +112,7 @@ export function HeroSection() {
               transition={{ delay: 0.3, duration: 0.6, ease: EASE }}
               className="text-ember italic"
             >
-              livré chez toi.
+              On livre.
             </motion.span>
           </h1>
 
@@ -122,7 +122,7 @@ export function HeroSection() {
             transition={{ delay: 0.38, duration: 0.5, ease: EASE }}
             className="max-w-md text-lg leading-relaxed text-white/60"
           >
-            Restaurants, cuisines maison, boulangeries, pâtisseries et boissons.
+            Commandez depuis les meilleurs restaurants, boulangeries, pâtisseries et autres sur Lilia Food.
             Toute la ville réunie dans une seule appli — payée par MoMo, livrée chaude.
           </motion.p>
 

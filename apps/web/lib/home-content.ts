@@ -98,7 +98,7 @@ export const HOME_PROMOS: HomePromo[] = [
   {
     badge: 'Nouveau',
     title: 'Cuisines maison à l’honneur',
-    description: 'Les chefs de quartier rejoignent Lilia. Goûte le fait-main.',
+    description: 'Les chefs de quartier rejoignent Lilia Food. Goûte le fait-main.',
     image:
       'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?q=80&w=1200&auto=format&fit=crop',
     tone: 'plum',
@@ -181,7 +181,7 @@ export const PARTNER_PERKS: PartnerPerk[] = [
   {
     icon: Megaphone,
     title: 'Mise en avant',
-    description: 'Les nouveaux vendeurs sont boostés sur la home pendant leurs premières semaines.',
+    description: "Les nouveaux vendeurs sont boostés sur la page d'accueil pendant leurs premières semaines.",
   },
 ];
 
@@ -193,8 +193,8 @@ export interface TrustStat {
 }
 
 export const TRUST_STATS: TrustStat[] = [
-  { value: 120, suffix: '+', label: 'Vendeurs partenaires' },
-  { value: 25, suffix: ' min', label: 'Livraison moyenne' },
-  { value: 15, suffix: 'k+', label: 'Commandes livrées' },
+  { value: 12, suffix: '+', label: 'Vendeurs partenaires' },
+  { value: 10, suffix: ' min', label: 'Livraison moyenne' },
+  { value: 1, suffix: 'k+', label: 'Commandes livrées' },
   { value: 4.8, suffix: '/5', label: 'Note moyenne', decimals: 1 },
 ];

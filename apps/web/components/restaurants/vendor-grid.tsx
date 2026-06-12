@@ -20,7 +20,7 @@ export function VendorGrid({ restaurants, emptyHint }: VendorGridProps) {
         <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5">
           <UtensilsCrossed className="h-6 w-6 text-white/40" aria-hidden />
         </span>
-        <p className="text-lg font-semibold text-white">Aucun vendeur disponible</p>
+        <p className="text-lg font-semibold text-white">Aucun restaurant disponible</p>
         <p className="mt-1 text-sm text-white/45">{emptyHint ?? 'Reviens bientôt, ça arrive !'}</p>
       </div>
     );
