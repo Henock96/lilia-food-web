@@ -7,6 +7,8 @@ export * from './hooks/dashboard';
 export * from './hooks/adresses';
 export * from './hooks/profile';
 export * from './hooks/products';
+export * from './hooks/categories';
+export * from './hooks/menus';
 export * from './hooks/promo';
 
 export * from './hooks/favorites';

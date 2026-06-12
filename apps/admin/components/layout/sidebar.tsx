@@ -18,6 +18,8 @@ import {
   X,
   Package,
   Tag,
+  FolderTree,
+  UtensilsCrossed,
   CreditCard,
   Bike,
   MapPin,
@@ -50,13 +52,16 @@ const NAV_ITEMS: {
   { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false,    adminOnly: false },
   { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: 'orders', adminOnly: false },
   { href: '/produits',    label: 'Produits',    icon: Package,         badge: false,    adminOnly: false },
-  { href: '/restaurants', label: 'Restaurants', restaurateurLabel: 'Mon Restaurant', icon: Store, badge: false, adminOnly: false },
+  { href: '/categories',  label: 'Catégories',  icon: FolderTree,      badge: false,    adminOnly: false },
+  { href: '/menus',       label: 'Menus',       icon: UtensilsCrossed, badge: false,    adminOnly: false },
+  { href: '/restaurants', label: 'Restaurants', restaurateurLabel: 'Ma vitrine', icon: Store, badge: false, adminOnly: false },
+  { href: '/mon-restaurant', label: 'Mon Restaurant', icon: Settings,  badge: false,    adminOnly: false },
   // Marketplace multi-vendeurs (LIL-116) : créer / valider / suspendre les
   // HOME_COOK, BAKERY, BEVERAGE_SHOP. Admin only.
   { href: '/vendeurs',    label: 'Vendeurs',    icon: Building2,       badge: 'vendors', adminOnly: true  },
-  // Clients : endpoint /admin/clients réservé ADMIN. La vue scoped resto
-  // (GET /restaurants/:id/clients) viendra dans un follow-up de LIL-102.
-  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: true  },
+  // Clients : ADMIN voit /admin/clients (plateforme), RESTAURATEUR voit ses
+  // clients scopés via GET /restaurants/:id/clients (LIL-107).
+  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: false },
   // Promos : endpoints /promo CRUD sont @Roles('ADMIN') côté backend.
   { href: '/promos',      label: 'Promos',      icon: Tag,             badge: false, adminOnly: true  },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
