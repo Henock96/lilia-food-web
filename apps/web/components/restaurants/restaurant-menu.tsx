@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ShoppingCart, Check } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import type { Restaurant, Product, ProductVariant } from '@lilia/types';
 import { formatCurrency, cn, hasPreorderConflict, isPreorderCart, coverImage } from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
-import { useCartStore } from '@/store/cart';
 import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
 import { toast } from 'sonner';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
@@ -96,7 +96,6 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
 
 function ProductItem({ product, restaurantOpen }: { product: Product; restaurantOpen: boolean }) {
   const { token } = useAuthStore();
-  const { openCart } = useCartStore();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
   const { data: cart } = useCart(token);
@@ -175,7 +174,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       {/* Image */}
       {cover && (
         <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-100 dark:bg-dark-surface">
-          <img src={cover} alt={product.nom} className="w-full h-full object-cover" />
+          <Image src={cover} alt={product.nom} fill sizes="96px" className="object-cover" />
         </div>
       )}
 

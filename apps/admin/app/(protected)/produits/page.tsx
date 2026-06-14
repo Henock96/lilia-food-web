@@ -495,7 +495,7 @@ export default function ProduitsPage() {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
 
   // Récupère le restaurant propre à l'utilisateur (RESTAURATEUR) ou null (ADMIN)
-  const { data: rawMine, isError: noOwnRestaurant } = useMyRestaurant(token);
+  const { data: rawMine } = useMyRestaurant(token);
   const mine = rawMine as Restaurant | undefined;
 
   // Pour les ADMINs sans restaurant attaché, on propose la liste complète

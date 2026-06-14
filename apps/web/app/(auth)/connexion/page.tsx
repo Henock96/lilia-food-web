@@ -187,7 +187,7 @@ function ConnexionForm() {
       <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mt-6">
         Pas encore de compte ?{' '}
         <Link href="/inscription" className="text-primary-600 dark:text-primary-400 font-medium hover:underline">
-          S'inscrire
+          S&apos;inscrire
         </Link>
       </p>
 

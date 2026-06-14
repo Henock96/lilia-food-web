@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, useReducedMotion, useTransform } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Search, ArrowRight, Clock } from 'lucide-react';
 import { TRUST_STATS, HOME_CATEGORIES } from '@/lib/home-content';
@@ -214,11 +215,13 @@ export function HeroSection() {
               className="absolute left-1/2 top-1/2 z-10 h-[26rem] w-80 -translate-x-1/2 -translate-y-1/2"
             >
               <div className="ring-ember relative h-full w-full overflow-hidden rounded-[2rem]">
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=900&auto=format&fit=crop"
                   alt="Plat savoureux livré par Lilia Food"
-                  className="h-full w-full object-cover"
-                  loading="eager"
+                  fill
+                  priority
+                  sizes="320px"
+                  className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <div className="absolute bottom-5 left-5 right-5">
@@ -245,7 +248,7 @@ export function HeroSection() {
               >
                 <div className="glass-noir h-full w-full overflow-hidden rounded-3xl p-1.5">
                   <div className="relative h-full w-full overflow-hidden rounded-[1.25rem]">
-                    <img src={d.src} alt={d.label} className="h-full w-full object-cover" loading="lazy" />
+                    <Image src={d.src} alt={d.label} fill sizes="160px" className="object-cover" />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3">
                       <p className="text-sm font-semibold text-white">{d.label}</p>
                       <p className="text-[11px] text-white/60">{d.meta}</p>

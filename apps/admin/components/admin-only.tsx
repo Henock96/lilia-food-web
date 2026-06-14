@@ -57,7 +57,7 @@ export function AdminOnly({ children }: { children: React.ReactNode }) {
           Accès réservé aux administrateurs
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Cette section n'est pas accessible avec votre rôle. Redirection en cours…
+          Cette section n&apos;est pas accessible avec votre rôle. Redirection en cours…
         </p>
       </div>
     );

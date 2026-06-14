@@ -12,7 +12,6 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
-let auth: Auth;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -20,6 +19,6 @@ if (!getApps().length) {
   app = getApps()[0]!;
 }
 
-auth = getAuth(app);
+const auth: Auth = getAuth(app);
 
 export { app, auth };

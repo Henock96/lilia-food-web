@@ -39,7 +39,7 @@ export default function GlobalError({
             Une erreur est survenue
           </h2>
           <p className="text-zinc-500 mb-8 text-sm leading-relaxed">
-            Quelque chose s'est mal passé de notre côté. Nos équipes sont sur le coup.
+            Quelque chose s&apos;est mal passé de notre côté. Nos équipes sont sur le coup.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

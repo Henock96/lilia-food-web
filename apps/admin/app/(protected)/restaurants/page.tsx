@@ -54,7 +54,7 @@ export default function RestaurantsPage() {
           Aucun restaurant attribué
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Votre compte restaurateur n'est associé à aucun restaurant.
+          Votre compte restaurateur n&apos;est associé à aucun restaurant.
           Contactez un administrateur Lilia pour finaliser votre activation.
         </p>
       </div>

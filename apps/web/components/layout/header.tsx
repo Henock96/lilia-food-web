@@ -26,6 +26,13 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Ferme le menu mobile à chaque changement de route (reset pendant le render).
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (pathname !== prevPath) {
+    setPrevPath(pathname);
+    setMobileOpen(false);
+  }
+
   const { data: cart } = useCart(token);
 
   useEffect(() => {
@@ -41,9 +48,6 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   return (
     <motion.header
@@ -146,9 +150,11 @@ export function Header() {
                 aria-label="Mon profil"
               >
                 {(user?.imageUrl ?? firebasePhotoUrl) ? (
-                  <img
+                  <Image
                     src={user?.imageUrl ?? firebasePhotoUrl!}
                     alt={user?.nom ?? firebaseDisplayName ?? ''}
+                    width={28}
+                    height={28}
                     className="h-7 w-7 rounded-full object-cover ring-2 ring-[var(--ember-400)]/40"
                   />
                 ) : (

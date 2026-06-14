@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -320,7 +320,7 @@ export default function DelivererDetailPage({
             </div>
           ) : missionsError ? (
             <div className="px-5 py-12 text-center">
-              <p className="text-sm text-red-500">Impossible de charger l'historique.</p>
+              <p className="text-sm text-red-500">Impossible de charger l&apos;historique.</p>
             </div>
           ) : missionsList.length === 0 ? (
             <div className="px-5 py-12 text-center">
@@ -407,13 +407,11 @@ function useDelivererLookup(token: string | null, id: string) {
     ? query.data.meta.page * query.data.meta.limit < query.data.meta.total
     : false;
 
-  // Avance à la page suivante si pas trouvé et que des pages restent —
-  // dans useEffect pour éviter setState pendant le render.
-  useEffect(() => {
-    if (query.data && !data && hasMorePages && !query.isFetching) {
-      setPage((p) => p + 1);
-    }
-  }, [query.data, data, hasMorePages, query.isFetching]);
+  // Avance à la page suivante si l'élément n'est pas trouvé et qu'il reste des
+  // pages — mise à jour pendant le render (converge : isFetching bloque la boucle).
+  if (query.data && !data && hasMorePages && !query.isFetching) {
+    setPage((p) => p + 1);
+  }
 
   const stillScanning =
     query.isLoading ||

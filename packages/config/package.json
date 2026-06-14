@@ -3,7 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "exports": {
-    "./eslint": "./eslint/index.js",
+    "./eslint": "./eslint/index.mjs",
     "./tsconfig/*": "./tsconfig/*.json"
+  },
+  "dependencies": {
+    "eslint-config-next": "^16.0.0",
+    "eslint-config-prettier": "^10.0.0"
   }
 }

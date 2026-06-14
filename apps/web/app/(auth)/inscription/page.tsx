@@ -225,6 +225,8 @@ export default function InscriptionPage() {
                 className="w-20 h-20 rounded-full border-2 border-dashed border-zinc-300 dark:border-dark-border bg-zinc-50 dark:bg-dark-surface flex items-center justify-center overflow-hidden hover:border-primary-400 dark:hover:border-primary-500 transition-colors group"
               >
                 {avatarPreview ? (
+                  // Aperçu local (blob: via createObjectURL) — non optimisable par next/image.
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarPreview} alt="Aperçu" className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-zinc-400 group-hover:text-primary-500 transition-colors">

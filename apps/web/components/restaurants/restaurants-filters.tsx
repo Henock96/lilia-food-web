@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import type { Restaurant, VendorType } from '@lilia/types';
@@ -36,10 +36,17 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
     parseVendorType(searchParams.get('vendorType')),
   );
 
-  useEffect(() => {
-    setSearch(searchParams.get('q') ?? '');
-    setVendorType(parseVendorType(searchParams.get('vendorType')));
-  }, [searchParams]);
+  // Resynchronise l'état avec l'URL quand elle change (nav arrière/avant) — reset pendant le render.
+  const qParam = searchParams.get('q') ?? '';
+  const vtRaw = searchParams.get('vendorType');
+  const [prevQParam, setPrevQParam] = useState(qParam);
+  const [prevVtRaw, setPrevVtRaw] = useState(vtRaw);
+  if (qParam !== prevQParam || vtRaw !== prevVtRaw) {
+    setPrevQParam(qParam);
+    setPrevVtRaw(vtRaw);
+    setSearch(qParam);
+    setVendorType(parseVendorType(vtRaw));
+  }
 
   function updateUrl(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());

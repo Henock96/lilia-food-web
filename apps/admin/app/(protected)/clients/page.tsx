@@ -731,9 +731,8 @@ function RestaurantClientsView() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<RestaurantClient | null>(null);
-
-  // Retour page 1 à chaque recherche
-  useEffect(() => { setPage(1); }, [search]);
+  // Timestamp figé au montage : évite un appel impur à Date.now() pendant le render.
+  const [now] = useState(() => Date.now());
 
   // Cas restaurateur sans restaurant attribué — même UX que la page Restaurants
   if (noResto) {
@@ -752,7 +751,6 @@ function RestaurantClientsView() {
   }
 
   // Nouveaux sur 30 jours (calculé sur le lot chargé)
-  const now = Date.now();
   const newCount = clients.filter(
     (c) => now - new Date(c.createdAt).getTime() < 30 * 24 * 60 * 60 * 1000,
   ).length;
@@ -806,7 +804,7 @@ function RestaurantClientsView() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Nom, téléphone, email…"
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />

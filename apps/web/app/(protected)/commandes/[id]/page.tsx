@@ -3,7 +3,7 @@
 import { use, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw, Download } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia/api-client';

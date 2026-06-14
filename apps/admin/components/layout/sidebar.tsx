@@ -155,6 +155,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-primary-500/20 border border-primary-500/30 flex items-center justify-center shrink-0 overflow-hidden">
                 {user.imageUrl ? (
+                  // Admin volontairement en next/image désactivé (config `unoptimized`,
+                  // URLs libres saisies par les admins) — voir CLAUDE.local.md.
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.imageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-primary-400 text-xs font-semibold">

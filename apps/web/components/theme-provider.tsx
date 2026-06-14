@@ -21,13 +21,17 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
+  // Lecture du thème persisté dès l'init (SSR-safe) — évite un setState dans l'effet.
+  const [theme, setThemeState] = useState<Theme>(() =>
+    typeof window === 'undefined'
+      ? 'system'
+      : ((localStorage.getItem('lilia-theme') as Theme) ?? 'system'),
+  );
   const [resolved, setResolved] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    const stored = (localStorage.getItem('lilia-theme') as Theme) ?? 'system';
-    setThemeState(stored);
-    applyTheme(stored);
+    applyTheme(theme);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function applyTheme(t: Theme) {

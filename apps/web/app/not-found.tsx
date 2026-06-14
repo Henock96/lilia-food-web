@@ -43,7 +43,7 @@ export default function NotFound() {
           Plat introuvable
         </h2>
         <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
-          Cette page n'est pas au menu. Elle a peut-être été retirée ou l'adresse est incorrecte.
+          Cette page n&apos;est pas au menu. Elle a peut-être été retirée ou l&apos;adresse est incorrecte.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -51,7 +51,7 @@ export default function NotFound() {
             href="/"
             className="px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-primary-200/50 hover:-translate-y-0.5 active:translate-y-0"
           >
-            Retour à l'accueil
+            Retour à l&apos;accueil
           </Link>
           <Link
             href="/restaurants"
