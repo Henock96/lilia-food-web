@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "@lilia/types": "workspace:*",
-    "@tanstack/react-query": "^5.62.0"
+    "@tanstack/react-query": "^5.101.4"
   }
 }

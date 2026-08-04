@@ -6,6 +6,31 @@ Monorepo Turbo/pnpm : `apps/web` (client), `apps/admin`, `packages/*`
 
 ---
 
+## Remédiation audit (août 2026 — `AUDIT_2026-08-01.md`)
+
+1. **Uploads admin — preset unsigned supprimé** (E-5). `apps/admin` uploadait en
+   direct vers Cloudinary avec un preset *unsigned* : `cloud_name` et
+   `upload_preset` vivaient dans des `NEXT_PUBLIC_*`, donc lisibles dans le
+   bundle JS — n'importe qui pouvait uploader sur le compte Cloudinary de Lilia.
+   `lib/cloudinary-upload.ts` passe maintenant par **`POST /upload/image`**
+   (backend authentifié, 5 Mo, `FileTypeValidator` jpeg/png/webp, dossier
+   imposé) — ce que `apps/web` faisait déjà.
+   - Signature : `uploadToCloudinary(file, token, folder?)` — le **token
+     Firebase est désormais obligatoire**, `folder` ∈ `restaurants | products |
+     menus | users | banners`. Appelants mis à jour :
+     `photo-gallery-editor.tsx`, `product-image-buffer.tsx`.
+   - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` / `_UPLOAD_PRESET` **retirés** de
+     `apps/admin/.env.example`. Les identifiants Cloudinary ne vivent plus que
+     dans l'env du backend.
+   - ⚠️ **Reste à faire côté ops** : désactiver le preset unsigned dans la
+     console Cloudinary — tant qu'il est actif, l'ancienne surface d'attaque
+     existe même sans les variables.
+2. **Dépendances** — `pnpm audit --prod` : 52 vulnérabilités (1 critique, 28
+   hautes) → **0**. `pnpm update -r` (Next 16.2.4 → **16.2.12**) + `overrides`
+   `postcss >= 8.5.18` et `sharp >= 0.35.0`. `type-check` / `lint` / `build` ✅.
+
+---
+
 ## Marketplace multi-vendeurs (mai-juin 2026)
 
 Lilia Food est passée d'une app de livraison de restaurants à une **marketplace
