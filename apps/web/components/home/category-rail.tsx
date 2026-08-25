@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import { HOME_CATEGORIES } from '@/lib/home-content';
@@ -52,11 +53,12 @@ export function CategoryRail() {
                   className="group relative block h-72 w-60 shrink-0 overflow-hidden rounded-[1.75rem] border border-white/8"
                   aria-label={`${c.label} — ${c.tagline}`}
                 >
-                  <img
+                  <Image
                     src={c.image}
                     alt=""
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    loading="lazy"
+                    fill
+                    sizes="240px"
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" />
                   {/* halo couleur au hover */}

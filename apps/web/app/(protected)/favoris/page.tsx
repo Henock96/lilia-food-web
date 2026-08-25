@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
-import { useFavorites, useToggleFavorite } from '@lilia/api-client';
+import { useFavorites } from '@lilia/api-client';
 import { RestaurantCard } from '@/components/restaurants/restaurant-card';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 

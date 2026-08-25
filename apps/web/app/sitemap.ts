@@ -1,8 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { apiClient } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
-
-const BASE_URL = 'https://lilia-food.vercel.app';
+import { SITE_URL as BASE_URL } from '@/lib/site';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [

@@ -7,9 +7,10 @@ import { signOut } from 'firebase/auth';
 import {
   User, Mail, Phone, LogOut, Edit2, ChevronRight,
   Package, MapPin, Plus, Trash2, Check, X, Star,
-  ShoppingBag, Clock, Shield, Camera, Gift, Copy, Zap, TrendingUp,
+  ShoppingBag, Clock, Shield, Gift, Copy, Zap, TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import {
@@ -20,14 +21,14 @@ import {
   useReferralStats, useLoyaltyTransactions,
 } from '@lilia/api-client';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, getInitials, cn } from '@lilia/utils';
-import { pageVariants, cardVariants } from '@lilia/motion';
+import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
 
 export default function ProfilPage() {
   const router = useRouter();
   const { user: storeUser, token, signOut: storeSignOut, setUser } = useAuthStore();
 
-  const { data: profile, isLoading: profileLoading } = useProfile(token);
+  const { data: profile } = useProfile(token);
   const updateProfile = useUpdateProfile(token);
   const { data: orders = [] } = useMyOrders(token);
   const { data: adresses = [], isLoading: adressesLoading } = useAdresses(token);
@@ -150,9 +151,11 @@ export default function ProfilPage() {
           {/* Avatar */}
           <div className="relative flex-shrink-0">
             {user.imageUrl ? (
-              <img
+              <Image
                 src={user.imageUrl}
                 alt={user.nom ?? ''}
+                width={80}
+                height={80}
                 className="w-20 h-20 rounded-2xl object-cover border-4 border-white/30 shadow-lg"
               />
             ) : (

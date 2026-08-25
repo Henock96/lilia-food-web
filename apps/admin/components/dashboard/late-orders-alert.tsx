@@ -12,8 +12,9 @@ export function LateOrdersAlert() {
   const { token } = useAuthStore();
   const { data: orders } = useRestaurantOrders(token);
   const [dismissed, setDismissed] = useState(false);
+  // Timestamp figé au montage : évite un appel impur à Date.now() pendant le render.
+  const [now] = useState(() => Date.now());
 
-  const now = Date.now();
   const lateOrders = (orders ?? []).filter((o: Order) => {
     if (!['EN_ATTENTE', 'EN_PREPARATION'].includes(o.status)) return false;
     return now - new Date(o.createdAt).getTime() > LATE_MINUTES * 60 * 1000;

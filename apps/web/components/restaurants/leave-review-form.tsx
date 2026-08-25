@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Star, Trash2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -37,12 +37,13 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
   const isDisabledByGate = !canReview && !existingReviewId;
   const existingReview = isEditing ? myReviewQ.data ?? null : null;
 
-  useEffect(() => {
-    if (existingReview) {
-      setRating(existingReview.rating);
-      setComment(existingReview.comment ?? '');
-    }
-  }, [existingReview]);
+  // Pré-remplit le formulaire avec l'avis existant, une seule fois quand il arrive.
+  const [reviewPrefilled, setReviewPrefilled] = useState(false);
+  if (!reviewPrefilled && existingReview) {
+    setReviewPrefilled(true);
+    setRating(existingReview.rating);
+    setComment(existingReview.comment ?? '');
+  }
 
   if (!token) return null;
   if (canReviewQ.isLoading) {

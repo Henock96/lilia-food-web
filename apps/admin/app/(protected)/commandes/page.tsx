@@ -51,8 +51,6 @@ function canAdvanceStatus(currentStatus: OrderStatus, role: string | undefined):
   return role === 'ADMIN';
 }
 
-const ALL_STATUSES: OrderStatus[] = ['EN_ATTENTE', 'PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE', 'LIVRER', 'ANNULER'];
-
 // LIL-123 : Brazzaville n'a pas de DST, mais on passe toujours par Intl pour rester
 // portable si on déménage l'admin sur un fuseau différent. `en-CA` produit le
 // format YYYY-MM-DD qui est trivialement comparable en string.

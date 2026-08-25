@@ -29,7 +29,14 @@ import {
 import type { EntityType, Photo } from '@lilia/types';
 import { toast } from 'sonner';
 import { Loader2, Star, Trash2, Pencil, Plus } from 'lucide-react';
-import { uploadToCloudinary } from '@/lib/cloudinary-upload';
+import { uploadToCloudinary, type UploadFolder } from '@/lib/cloudinary-upload';
+
+/** `EntityType` (vendor/product/menu) → dossier Cloudinary accepté par le backend. */
+const ENTITY_FOLDER: Record<EntityType, UploadFolder> = {
+  vendor: 'restaurants',
+  product: 'products',
+  menu: 'menus',
+};
 
 const MAX_PHOTOS = 5;
 
@@ -68,7 +75,11 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
     }
     setIsUploading(true);
     try {
-      const { secureUrl, publicId } = await uploadToCloudinary(file);
+      const { secureUrl, publicId } = await uploadToCloudinary(
+        file,
+        token ?? '',
+        ENTITY_FOLDER[entity],
+      );
       await upload.mutateAsync({
         url: secureUrl,
         publicId,

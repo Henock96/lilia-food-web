@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Star, Clock, Bike, MapPin, Heart } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
@@ -18,6 +19,8 @@ interface RestaurantCardProps {
 
 export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const reduced = useReducedMotion();
+  // Timestamp figé au montage : évite un appel impur à Date.now() pendant le render.
+  const [now] = useState(() => Date.now());
   const { token } = useAuthStore();
   const { data: favorites } = useFavorites(token);
   const { data: popularList } = usePopularRestaurants();
@@ -28,7 +31,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const isPopular = popularList?.some((r) => r.id === restaurant.id) ?? false;
   const isFastDelivery = restaurant.estimatedDeliveryTimeMax <= 30;
   const isNew = restaurant.createdAt
-    ? (Date.now() - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= 7
+    ? (now - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= 7
     : false;
 
   function handleFavorite(e: React.MouseEvent) {

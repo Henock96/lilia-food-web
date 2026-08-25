@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Star, Trash2, Plus } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
 import { uploadToCloudinary } from '@/lib/cloudinary-upload';
 
 export type DraftImage = { url: string; publicId: string; isCover: boolean };
@@ -23,6 +24,8 @@ export function ProductImageBuffer({ value, onChange }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const atMax = value.length >= MAX_PHOTOS;
+  // L'upload passe désormais par le backend authentifié (audit E-5).
+  const token = useAuthStore((s) => s.token);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -32,7 +35,11 @@ export function ProductImageBuffer({ value, onChange }: Props) {
     for (const file of Array.from(files)) {
       if (next.length >= MAX_PHOTOS) break;
       try {
-        const { secureUrl, publicId } = await uploadToCloudinary(file);
+        const { secureUrl, publicId } = await uploadToCloudinary(
+          file,
+          token ?? '',
+          'products',
+        );
         next.push({ url: secureUrl, publicId, isCover: next.length === 0 });
       } catch {
         failures++;

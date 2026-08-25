@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
@@ -101,9 +102,11 @@ export function CartDrawer() {
                         className="flex items-center gap-3 bg-zinc-50 dark:bg-dark-card rounded-2xl p-3"
                       >
                         {item.product?.imageUrl && (
-                          <img
+                          <Image
                             src={item.product.imageUrl}
                             alt={item.product.nom}
+                            width={48}
+                            height={48}
                             className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
                           />
                         )}

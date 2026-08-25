@@ -20,7 +20,6 @@ export function RevenueChart({ data }: RevenueChartProps) {
 
   const maxRevenue = Math.max(...data.map((d) => d.revenue), 1);
   const chartH = 140;
-  const chartW = 100; // viewBox percentage
 
   const points = data.map((d, i) => ({
     x: (i / (data.length - 1)) * 100,

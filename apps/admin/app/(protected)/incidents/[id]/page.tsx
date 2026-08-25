@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useState, use } from 'react';
 import Link from 'next/link';
 import { useIncident, useUpdateIncident } from '@lilia/api-client';
 import type { IncidentStatus } from '@lilia/types';
@@ -36,10 +36,12 @@ export default function IncidentDetailPage({
 
   const [resolution, setResolution] = useState('');
 
-  // Pré-fill une seule fois quand l'incident est chargé (ou mis à jour).
-  useEffect(() => {
-    if (incident?.resolution) setResolution(incident.resolution);
-  }, [incident?.resolution]);
+  // Pré-remplit une seule fois quand l'incident est chargé (reset pendant le render).
+  const [resolutionPrefilled, setResolutionPrefilled] = useState(false);
+  if (!resolutionPrefilled && incident?.resolution) {
+    setResolutionPrefilled(true);
+    setResolution(incident.resolution);
+  }
 
   function handleStatusChange(target: IncidentStatus) {
     const needsResolution = target === 'RESOLVED' || target === 'CLOSED';

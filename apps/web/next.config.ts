@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       // Visuels marketing utilisés dans hero-section.
       { protocol: 'https', hostname: 'images.unsplash.com' },
+      // Avatars de démo (testimonials home) — contenu placeholder.
+      { protocol: 'https', hostname: 'i.pravatar.cc' },
     ],
   },
   env: {

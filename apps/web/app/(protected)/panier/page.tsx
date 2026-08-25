@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Trash2, Plus, Minus, ArrowRight, Tag,
-  MapPin, Phone, ChevronDown, Check, Store, Bike, Plus as PlusIcon, Zap,
+  MapPin, Phone, Check, Store, Bike, Plus as PlusIcon, Zap,
   Calendar as CalendarIcon, AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
@@ -68,27 +70,26 @@ export default function PanierPage() {
   const { data: vendorRestaurant } = useRestaurant(firstItemRestaurantId);
   const leadHours = vendorRestaurant?.preorderLeadHours ?? 24;
 
-  useEffect(() => {
-    if (!cartIsPreorder && scheduledFor) {
-      setScheduledFor(null);
-    }
-  }, [cartIsPreorder, scheduledFor]);
+  // Réinitialise le créneau si le panier n'est plus en pré-commande (reset pendant le render).
+  if (!cartIsPreorder && scheduledFor) {
+    setScheduledFor(null);
+  }
 
-  // Pre-fill phone from profile
+  // Pré-remplit le téléphone depuis le profil, une seule fois quand il arrive.
   const profilePhone = profile?.phone ?? null;
-  useEffect(() => {
-    if (profilePhone) setContactPhone((prev) => prev || profilePhone);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profilePhone]);
+  const [phonePrefilled, setPhonePrefilled] = useState(false);
+  if (!phonePrefilled && profilePhone) {
+    setPhonePrefilled(true);
+    setContactPhone((prev) => prev || profilePhone);
+  }
 
-  // Auto-select default address
-  useEffect(() => {
-    if (adresses.length > 0 && !selectedAdresseId) {
-      const def = adresses.find((a) => a.isDefault) ?? adresses[0];
-      if (def) setSelectedAdresseId(def.id);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adresses.length]);
+  // Sélectionne l'adresse par défaut une seule fois, une fois les adresses chargées.
+  const [addrAutoSelected, setAddrAutoSelected] = useState(false);
+  if (!addrAutoSelected && adresses.length > 0 && !selectedAdresseId) {
+    setAddrAutoSelected(true);
+    const def = adresses.find((a) => a.isDefault) ?? adresses[0];
+    if (def) setSelectedAdresseId(def.id);
+  }
 
   // New address form
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -254,12 +255,12 @@ export default function PanierPage() {
             <p className="font-semibold text-zinc-800 text-lg">Votre panier est vide</p>
             <p className="text-zinc-500 text-sm mt-1">Ajoutez des plats depuis un restaurant</p>
           </div>
-          <a
+          <Link
             href="/restaurants"
             className="mt-2 px-6 py-3 bg-primary-500 text-white font-medium rounded-2xl hover:bg-primary-600 transition-colors"
           >
             Voir les restaurants
-          </a>
+          </Link>
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -277,9 +278,11 @@ export default function PanierPage() {
                     className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4 flex items-center gap-4"
                   >
                     {item.product?.imageUrl && (
-                      <img
+                      <Image
                         src={item.product.imageUrl}
                         alt={item.product.nom}
+                        width={64}
+                        height={64}
                         className="w-16 h-16 rounded-xl object-cover shrink-0"
                       />
                     )}
@@ -495,7 +498,7 @@ export default function PanierPage() {
                 </p>
               ) : (
                 <p className="text-xs text-zinc-400 mt-1.5">
-                  Le livreur et l'agent paiement vous joindront sur ce numéro
+                  Le livreur et l&apos;agent paiement vous joindront sur ce numéro
                 </p>
               )}
             </div>

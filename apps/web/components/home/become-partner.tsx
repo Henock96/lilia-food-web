@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ChefHat } from 'lucide-react';
 import { PARTNER_PERKS } from '@/lib/home-content';
@@ -16,11 +17,13 @@ export function BecomePartner() {
         <div className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-gradient-to-br from-[var(--noir-700)] to-[var(--noir-850)] p-8 sm:p-12 lg:p-16">
           {/* halo + photo ambiance */}
           <div aria-hidden className="ember-glow absolute -right-20 -top-20 h-96 w-96" />
-          <img
+          <Image
             aria-hidden
             src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1200&auto=format&fit=crop"
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-10"
+            fill
+            sizes="100vw"
+            className="pointer-events-none object-cover opacity-10"
           />
 
           <div className="relative grid items-center gap-12 lg:grid-cols-2">

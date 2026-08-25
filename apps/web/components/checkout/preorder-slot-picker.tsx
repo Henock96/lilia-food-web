@@ -40,13 +40,18 @@ export function PreorderSlotPicker({
   );
   const [error, setError] = useState<string | null>(null);
 
-  // Resync picker state when modal opens with a new currentValue
-  useEffect(() => {
-    if (!open) return;
-    setDateStr(currentValue ? toDateInputValue(currentValue) : minDateStr);
-    setTimeStr(currentValue ? toTimeInputValue(currentValue) : '12:00');
-    setError(null);
-  }, [open, currentValue, minDateStr]);
+  // Resync de l'état du picker quand la modale s'ouvre (ou change de valeur) — reset pendant le render.
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevValue, setPrevValue] = useState(currentValue);
+  if (open !== prevOpen || currentValue !== prevValue) {
+    setPrevOpen(open);
+    setPrevValue(currentValue);
+    if (open) {
+      setDateStr(currentValue ? toDateInputValue(currentValue) : minDateStr);
+      setTimeStr(currentValue ? toTimeInputValue(currentValue) : '12:00');
+      setError(null);
+    }
+  }
 
   // ESC key handler to close modal
   useEffect(() => {

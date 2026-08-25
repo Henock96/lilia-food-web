@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Sparkles, Tag, ArrowRight } from 'lucide-react';
 import { HOME_PROMOS, type HomePromo } from '@/lib/home-content';
@@ -38,11 +39,12 @@ export function PromoStrip() {
               whileHover={reduced ? {} : { y: -6 }}
               className="group relative h-64 overflow-hidden rounded-[1.75rem] border border-white/8"
             >
-              <img
+              <Image
                 src={promo.image}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                loading="lazy"
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className={`absolute inset-0 bg-gradient-to-br ${TONE[promo.tone]} mix-blend-multiply`} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Star, Quote } from 'lucide-react';
 import { HOME_TESTIMONIALS, type HomeTestimonial } from '@/lib/home-content';
 import { SectionHeading } from './_ui';
@@ -47,7 +48,7 @@ function TestimonialCard({ t }: { t: HomeTestimonial }) {
       </div>
       <blockquote className="text-[15px] leading-relaxed text-white/80">“{t.quote}”</blockquote>
       <figcaption className="mt-auto flex items-center gap-3 pt-2">
-        <img src={t.avatar} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-[var(--ember-400)]/30" loading="lazy" />
+        <Image src={t.avatar} alt="" width={40} height={40} className="h-10 w-10 rounded-full object-cover ring-2 ring-[var(--ember-400)]/30" />
         <div>
           <p className="text-sm font-semibold text-white">{t.name}</p>
           <p className="text-xs text-white/45">{t.area}</p>
