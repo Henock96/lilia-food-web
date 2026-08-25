@@ -3,9 +3,12 @@ import { Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { Providers } from '@/components/providers';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
+import { SITE_URL } from '@/lib/site';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: '/' },
   title: {
     default: 'Lilia Food — Livraison de repas à Brazzaville',
     template: '%s | Lilia Food',
@@ -18,6 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Lilia Food — Livraison de repas à Brazzaville',
     description: 'Commandez depuis les meilleurs restaurants de Brazzaville. Livraison rapide, paiement MTN MoMo.',
+    url: SITE_URL,
     siteName: 'Lilia Food',
     locale: 'fr_CG',
     type: 'website',
