@@ -53,7 +53,7 @@ export async function FeaturedRestaurants() {
             <div
               key={`empty-${i}`}
               aria-hidden
-              className="grid min-h-[10.5rem] place-items-center rounded-xl border-[1.5px] border-dashed border-cream-300 bg-cream-200 text-[11.5px] text-ink-300"
+              className="grid min-h-[10.5rem] place-items-center rounded-xl border-[1.5px] border-dashed border-cream-300 bg-cream-200 text-[11.5px] text-ink-500"
             >
               {i === 0 ? 'Prochain vendeur ici' : ''}
             </div>
