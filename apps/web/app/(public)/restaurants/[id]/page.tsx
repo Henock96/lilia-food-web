@@ -39,7 +39,7 @@ export default async function RestaurantPage({ params }: PageProps) {
   if (!restaurant) notFound();
 
   return (
-    <div className="min-h-screen bg-zinc-50 pt-16">
+    <div className="min-h-screen bg-zinc-50">
       {/* Hero statique */}
       <RestaurantHero restaurant={restaurant} />
 
