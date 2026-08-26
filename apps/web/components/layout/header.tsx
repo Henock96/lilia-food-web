@@ -127,7 +127,7 @@ export function Header() {
             ) : (
               <Link
                 href="/connexion"
-                className="rounded-pill bg-tomato-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-tomato-700 hover:shadow-md"
+                className="inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 tracking-[-0.01em] whitespace-nowrap select-none bg-tomato-600 text-white hover:bg-tomato-700 shadow-sm hover:shadow-md px-5 py-2.5 text-sm rounded-pill"
               >
                 Connexion
               </Link>
