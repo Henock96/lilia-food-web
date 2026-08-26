@@ -29,10 +29,6 @@ const nextConfig: NextConfig = {
       // débloquer l'affichage ; la vraie correction est de remplacer l'image du
       // produit côté admin, après quoi cette entrée doit disparaître.
       { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
-      // Visuels marketing utilisés dans hero-section.
-      { protocol: 'https', hostname: 'images.unsplash.com' },
-      // Avatars de démo (testimonials home) — contenu placeholder.
-      { protocol: 'https', hostname: 'i.pravatar.cc' },
     ],
   },
   env: {

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ChefHat } from 'lucide-react';
 import { PARTNER_PERKS } from '@/lib/home-content';
@@ -15,16 +14,8 @@ export function BecomePartner() {
     <section className="relative overflow-hidden bg-[var(--noir-850)] py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-gradient-to-br from-[var(--noir-700)] to-[var(--noir-850)] p-8 sm:p-12 lg:p-16">
-          {/* halo + photo ambiance */}
+          {/* halo d'ambiance */}
           <div aria-hidden className="ember-glow absolute -right-20 -top-20 h-96 w-96" />
-          <Image
-            aria-hidden
-            src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1200&auto=format&fit=crop"
-            alt=""
-            fill
-            sizes="100vw"
-            className="pointer-events-none object-cover opacity-10"
-          />
 
           <div className="relative grid items-center gap-12 lg:grid-cols-2">
             <div>

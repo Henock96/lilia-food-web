@@ -1,11 +1,8 @@
 import { HeroSlider } from '@/components/home/hero-slider';
 import { CategoryRail } from '@/components/home/category-rail';
-import { PromoStrip } from '@/components/home/promo-strip';
 import { FeaturedRestaurants } from '@/components/home/featured-restaurants';
 import { HowItWorks } from '@/components/home/how-it-works';
-import { Testimonials } from '@/components/home/testimonials';
 import { BecomePartner } from '@/components/home/become-partner';
-import { AppDownloadBanner } from '@/components/home/app-download-banner';
 import { getVendors } from '@/lib/vendors';
 import { selectHeroSlides } from '@/lib/hero-slides';
 import { getHeroMode } from '@/lib/hero-mode';
@@ -27,12 +24,9 @@ export default async function HomePage() {
     <div>
       <HeroSlider slides={heroSlides} mode={heroMode} />
       <CategoryRail />
-      <PromoStrip />
       <FeaturedRestaurants />
       <HowItWorks />
-      <Testimonials />
       <BecomePartner />
-      <AppDownloadBanner />
     </div>
   );
 }
