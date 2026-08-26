@@ -1,3 +1,4 @@
+import 'server-only';
 import { fetchImageWidth, HERO_MIN_WIDTH } from './image-size';
 
 /**

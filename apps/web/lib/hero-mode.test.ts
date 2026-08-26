@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getHeroMode } from './hero-mode';
 
+// `server-only` lève dès l'import hors d'un bundler Next.js (Server
+// Components) : Next l'alias vers un no-op côté serveur, ce que Vitest ne
+// fait pas. On neutralise pour pouvoir tester `hero-mode.ts` telle quelle.
+vi.mock('server-only', () => ({}));
+
 const { fetchImageWidth } = vi.hoisted(() => ({ fetchImageWidth: vi.fn() }));
 
 vi.mock('./image-size', async () => {

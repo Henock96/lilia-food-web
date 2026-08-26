@@ -19,22 +19,29 @@ const ROTATE_MS = 6000;
  *
  * Trois volumes de slides, deux modes de fond :
  * - 0 ou 1 slide → bannière statique, aucune carte, aucune rotation.
- * - 2+ slides → cartes cliquables + rotation automatique (pause au survol
- *   ou au focus, désactivée si `prefers-reduced-motion`).
- * - `mode: 'photo'` → la ou les photos servent de fond.
- * - `mode: 'flat'` → aplat `tomato-500` : pas d'image trop petite agrandie
- *   en flou sur l'élément le plus visible du site. Les cartes, elles,
- *   restent affichées selon la même règle dans les deux modes.
+ * - 2+ slides → cartes cliquables. En mode photo, elles font tourner le
+ *   fond (rotation auto + clic). En mode aplat, rien ne changerait
+ *   visuellement en cliquant dessus (pas de photo à faire tourner) : elles
+ *   deviennent des liens directs vers la fiche du vendeur, et la rotation
+ *   automatique est coupée.
+ * - `mode: 'photo'` → la photo active sert de fond, overlay sombre pour la
+ *   lisibilité du texte.
+ * - `mode: 'flat'` → aplat `tomato-600` (pas de gros titre uniquement : le
+ *   600 est le seul des trois rouges qui passe le contraste AA en texte
+ *   courant blanc, cf. `globals.css`) : pas d'image trop petite agrandie en
+ *   flou sur l'élément le plus visible du site. Les cartes restent en
+ *   `cream-100` dans les deux modes.
  */
 export function HeroSlider({ slides, mode }: { slides: HeroSlide[]; mode: HeroMode }) {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  // En dessous de 2 vendeurs il n'y a rien à faire tourner : le hero devient
-  // une simple bannière statique. C'est l'état du site au lancement, pas un
-  // cas dégradé.
-  const rotating = slides.length >= 2 && !reduced && !paused;
+  const isPhoto = mode === 'photo' && slides.length > 0;
+
+  // En aplat, aucune image ne change au clic : la rotation automatique n'a
+  // rien à montrer et n'aurait fait que déplacer un surlignage muet.
+  const rotating = isPhoto && slides.length >= 2 && !reduced && !paused;
 
   useEffect(() => {
     if (!rotating) return;
@@ -42,11 +49,17 @@ export function HeroSlider({ slides, mode }: { slides: HeroSlide[]; mode: HeroMo
     return () => clearInterval(id);
   }, [rotating, slides.length]);
 
-  const isPhoto = mode === 'photo' && slides.length > 0;
+  // Ne monter que la photo active et, au plus, la suivante (préchargée pour
+  // une transition immédiate) : jusqu'à 5 vendeurs éligibles, mais jamais
+  // plus de 2 <Image> en concurrence avec l'image de LCP pour la bande
+  // passante.
+  const mountedIndexes = isPhoto
+    ? Array.from(new Set([active, (active + 1) % slides.length]))
+    : [];
 
   return (
     <section
-      className={`relative h-[19rem] overflow-hidden sm:h-[22rem] ${isPhoto ? '' : 'bg-tomato-500'}`}
+      className={`relative h-[19rem] overflow-hidden sm:h-[22rem] ${isPhoto ? '' : 'bg-tomato-600'}`}
       aria-label="Accueil Lilia Food"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -55,22 +68,22 @@ export function HeroSlider({ slides, mode }: { slides: HeroSlide[]; mode: HeroMo
     >
       {isPhoto && (
         <>
-          {/* Seule la première image est prioritaire ; les suivantes ne
-              doivent pas concurrencer le LCP sur une connexion lente. */}
-          {slides.map((s, i) => (
-            <Image
-              key={s.id}
-              src={s.imageUrl}
-              alt=""
-              fill
-              priority={i === 0}
-              loading={i === 0 ? undefined : 'lazy'}
-              sizes="100vw"
-              className={`object-cover transition-opacity duration-[400ms] ${
-                i === active ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-          ))}
+          {mountedIndexes.map((i) => {
+            const s = slides[i];
+            return (
+              <Image
+                key={s.id}
+                src={s.imageUrl}
+                alt=""
+                fill
+                priority={i === 0}
+                sizes="100vw"
+                className={`object-cover transition-opacity duration-[400ms] ${
+                  i === active ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            );
+          })}
           <div
             aria-hidden
             className="absolute inset-0 bg-gradient-to-r from-ink-900/85 via-ink-900/55 to-ink-900/10"
@@ -84,7 +97,11 @@ export function HeroSlider({ slides, mode }: { slides: HeroSlide[]; mode: HeroMo
         <h1 className="font-display max-w-lg text-4xl font-extrabold leading-[1.02] tracking-tight text-white sm:text-5xl">
           Le goût de Brazza, livré.
         </h1>
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-white/85 sm:text-base">
+        <p
+          className={`mt-3 max-w-md text-sm leading-relaxed sm:text-base ${
+            isPhoto ? 'text-white/85' : 'text-white'
+          }`}
+        >
           Grillades, cuisines maison, boulangeries — livré chez toi à Brazzaville.
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -108,30 +125,42 @@ export function HeroSlider({ slides, mode }: { slides: HeroSlide[]; mode: HeroMo
       </div>
 
       {slides.length >= 2 && (
-        <div
-          className="absolute inset-x-0 bottom-4 mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 sm:px-6 lg:px-8"
-          aria-live="polite"
-        >
-          {slides.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setActive(i)}
-              aria-current={i === active}
-              className={`min-w-[9.5rem] shrink-0 rounded-xl px-3 py-2 text-left transition-colors ${
-                i === active
-                  ? 'border-2 border-tomato-500 bg-cream-100'
-                  : 'bg-cream-100/70 hover:bg-cream-100/90'
-              }`}
-            >
-              <span className="font-display block text-[13px] font-bold text-ink-900">
-                {s.nom}
-              </span>
-              <span className="mt-0.5 block text-[11px] text-ink-500">
-                {s.delay} · {s.adresse}
-              </span>
-            </button>
-          ))}
+        <div className="absolute inset-x-0 bottom-4 mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 sm:px-6 lg:px-8">
+          {slides.map((s, i) =>
+            isPhoto ? (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActive(i)}
+                aria-current={i === active}
+                className={`min-w-[9.5rem] shrink-0 rounded-xl px-3 py-2 text-left transition-colors ${
+                  i === active
+                    ? 'border-2 border-tomato-500 bg-cream-100'
+                    : 'bg-cream-100/70 hover:bg-cream-100/90'
+                }`}
+              >
+                <span className="font-display block text-[13px] font-bold text-ink-900">
+                  {s.nom}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-ink-500">
+                  {s.delay} · {s.adresse}
+                </span>
+              </button>
+            ) : (
+              <Link
+                key={s.id}
+                href={`/restaurants/${s.id}`}
+                className="min-w-[9.5rem] shrink-0 rounded-xl bg-cream-100/90 px-3 py-2 text-left transition-colors hover:bg-cream-100"
+              >
+                <span className="font-display block text-[13px] font-bold text-ink-900">
+                  {s.nom}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-ink-500">
+                  {s.delay} · {s.adresse}
+                </span>
+              </Link>
+            ),
+          )}
         </div>
       )}
     </section>
