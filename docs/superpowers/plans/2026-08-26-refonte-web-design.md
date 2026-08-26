@@ -773,7 +773,9 @@ Dans `category-rail.tsx`, produire une grille de 4 tuiles (`grid-cols-2 lg:grid-
 ```ts
 const toneClasses: Record<HomeCategory['tone'], string> = {
   photo:  'bg-cream-300 text-ink-900',
-  tomato: 'bg-tomato-500 text-white',
+  // tomato-600 et non 500 : du texte blanc de 14 px sur #EF4423 donne 3,8:1,
+  // sous le seuil de 4,5:1 posé par les contraintes globales.
+  tomato: 'bg-tomato-600 text-white',
   cream:  'bg-cream-200 text-ink-900',
   ink:    'bg-ink-900 text-cream-100',
 };
@@ -903,7 +905,9 @@ Retirer le titre de section, l'eyebrow en capitales espacées et les animations 
 
 - [ ] **Step 2 : Refaire le bloc partenaire**
 
-Un bloc `rounded-2xl bg-tomato-500 text-white p-7`, en `flex` avec titre et texte à gauche, bouton à droite (`bg-white text-tomato-700 rounded-pill px-6 py-3 font-extrabold`), qui passe en colonne sous `sm`.
+Un bloc `rounded-2xl bg-tomato-600 text-white p-7`, en `flex` avec titre et texte à gauche, bouton à droite (`bg-white text-tomato-700 rounded-pill px-6 py-3 font-extrabold`), qui passe en colonne sous `sm`.
+
+Le fond est `tomato-600`, pas `tomato-500` : le paragraphe de ce bloc fait 13 px, et du texte blanc de cette taille sur `#EF4423` ne donne que 3,8:1. Le paragraphe est en opacité pleine, sans `opacity-*` — une opacité réduite sur fond coloré repasse sous le seuil.
 
 - Titre : « Tu cuisines ? Vends sur Lilia Food. »
 - Texte : « Restaurant, cuisine maison, boulangerie ou boissons — inscris-toi, on s'occupe des commandes et de la livraison. »
