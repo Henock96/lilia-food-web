@@ -96,12 +96,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
-        <Link href="/commandes" className="p-2 hover:bg-zinc-100 dark:hover:bg-dark-surface rounded-xl transition-colors">
-          <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+        <Link href="/commandes" className="p-2 hover:bg-zinc-100 rounded-xl transition-colors">
+          <ArrowLeft className="w-5 h-5 text-zinc-600" />
         </Link>
         <div>
-          <h1 className="font-bold text-zinc-900 dark:text-zinc-100">Commande #{order.id.slice(-6).toUpperCase()}</h1>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatDateTime(order.createdAt)}</p>
+          <h1 className="font-bold text-zinc-900">Commande #{order.id.slice(-6).toUpperCase()}</h1>
+          <p className="text-xs text-zinc-400 mt-0.5">{formatDateTime(order.createdAt)}</p>
         </div>
         <span className={`ml-auto px-3 py-1.5 text-xs font-semibold rounded-full border ${getOrderStatusColor(order.status)}`}>
           {formatOrderStatus(order.status)}
@@ -110,8 +110,8 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
       {/* Timeline des statuts */}
       {!isCancelled && (
-        <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5 mb-4">
-          <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm mb-5">Suivi de commande</h3>
+        <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-4">
+          <h3 className="font-semibold text-zinc-800 text-sm mb-5">Suivi de commande</h3>
           <div className="flex flex-col gap-0">
             {STATUS_STEPS.map((step, index) => {
               const isCompleted = STATUS_ORDER.indexOf(step.status) <= currentStepIndex;
@@ -131,7 +131,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           ? isCurrent
                             ? 'bg-primary-500 text-white shadow-lg shadow-primary-200'
                             : 'bg-emerald-500 text-white'
-                          : 'bg-zinc-100 dark:bg-dark-surface text-zinc-400',
+                          : 'bg-zinc-100 text-zinc-400',
                       )}
                     >
                       <step.icon className="w-4 h-4" />
@@ -143,14 +143,14 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         animate={isCompleted && !isCurrent ? 'animate' : 'initial'}
                         className={cn(
                           'w-0.5 h-6 rounded-full my-1 origin-top',
-                          isCompleted && !isCurrent ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-dark-border',
+                          isCompleted && !isCurrent ? 'bg-emerald-400' : 'bg-zinc-200',
                         )}
                       />
                     )}
                   </div>
                   {/* Label */}
                   <div className="pb-6 pt-1.5">
-                    <p className={cn('text-sm font-medium', isCompleted ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-600')}>
+                    <p className={cn('text-sm font-medium', isCompleted ? 'text-zinc-900' : 'text-zinc-400')}>
                       {step.label}
                     </p>
                     {isCurrent && (
@@ -181,51 +181,51 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       )}
 
       {/* Articles */}
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5 mb-4">
-        <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm mb-4">{order.restaurant?.nom}</h3>
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-4">
+        <h3 className="font-semibold text-zinc-800 text-sm mb-4">{order.restaurant?.nom}</h3>
         <div className="flex flex-col gap-3">
           {order.items.map((item) => (
             <div key={item.id} className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm text-zinc-800 dark:text-zinc-200 font-medium truncate">{item.product?.nom}</p>
+                <p className="text-sm text-zinc-800 font-medium truncate">{item.product?.nom}</p>
                 {item.variantLabel && (
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">{item.variantLabel}</p>
+                  <p className="text-xs text-zinc-400">{item.variantLabel}</p>
                 )}
               </div>
               <div className="flex items-center gap-3 shrink-0 text-sm">
-                <span className="text-zinc-400 dark:text-zinc-500">×{item.quantite}</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(item.prix * item.quantite)}</span>
+                <span className="text-zinc-400">×{item.quantite}</span>
+                <span className="font-semibold text-zinc-800">{formatCurrency(item.prix * item.quantite)}</span>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="border-t border-zinc-100 dark:border-dark-border mt-4 pt-4 flex flex-col gap-1.5 text-sm">
-          <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
+        <div className="border-t border-zinc-100 mt-4 pt-4 flex flex-col gap-1.5 text-sm">
+          <div className="flex justify-between text-zinc-500">
             <span>Sous-total</span>
             <span>{formatCurrency(order.subTotal)}</span>
           </div>
           {order.isDelivery && (
-            <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
+            <div className="flex justify-between text-zinc-500">
               <span>Livraison</span>
               {order.deliveryFee === 0 && order.promoCodeId ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Gratuit</span>
+                <span className="text-emerald-600 font-medium">Gratuit</span>
               ) : (
                 <span>{formatCurrency(order.deliveryFee)}</span>
               )}
             </div>
           )}
-          <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
+          <div className="flex justify-between text-zinc-500">
             <span>Frais de service</span>
             <span>{formatCurrency(order.serviceFee)}</span>
           </div>
           {order.discountAmount > 0 && (
-            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+            <div className="flex justify-between text-emerald-600">
               <span>Réduction code promo</span>
               <span>-{formatCurrency(order.discountAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-zinc-900 dark:text-zinc-100 text-base pt-1 border-t border-zinc-100 dark:border-dark-border">
+          <div className="flex justify-between font-bold text-zinc-900 text-base pt-1 border-t border-zinc-100">
             <span>Total</span>
             <span>{formatCurrency(order.total)}</span>
           </div>
@@ -234,9 +234,9 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
       {/* Livraison info */}
       {order.deliveryAddress && (
-        <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4 mb-4 text-sm">
-          <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">Adresse de livraison</p>
-          <p className="text-zinc-500 dark:text-zinc-400">{order.deliveryAddress}</p>
+        <div className="bg-white rounded-2xl border border-zinc-100 p-4 mb-4 text-sm">
+          <p className="font-medium text-zinc-700 mb-1">Adresse de livraison</p>
+          <p className="text-zinc-500">{order.deliveryAddress}</p>
         </div>
       )}
 
@@ -245,7 +245,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
         <button
           onClick={handleDownloadReceipt}
           disabled={downloadReceipt.isPending}
-          className="w-full py-3 border border-zinc-200 dark:border-dark-border text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-dark-surface font-medium text-sm rounded-2xl transition-colors flex items-center justify-center gap-2 mb-3"
+          className="w-full py-3 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-sm rounded-2xl transition-colors flex items-center justify-center gap-2 mb-3"
         >
           <Download className="w-4 h-4" />
           {downloadReceipt.isPending ? 'Génération...' : 'Télécharger le reçu'}
@@ -269,7 +269,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
         <button
           onClick={handleCancel}
           disabled={cancelOrder.isPending}
-          className="w-full py-3 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-medium text-sm rounded-2xl transition-colors"
+          className="w-full py-3 border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm rounded-2xl transition-colors"
         >
           {cancelOrder.isPending ? 'Annulation...' : 'Annuler la commande'}
         </button>

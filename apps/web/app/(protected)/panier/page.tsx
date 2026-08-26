@@ -275,7 +275,7 @@ export default function PanierPage() {
                     variants={cardVariants}
                     exit={{ opacity: 0, x: -20, height: 0 }}
                     layout
-                    className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4 flex items-center gap-4"
+                    className="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-4"
                   >
                     {item.product?.imageUrl && (
                       <Image
@@ -287,7 +287,7 @@ export default function PanierPage() {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm truncate">{item.product?.nom}</p>
+                      <p className="font-semibold text-zinc-900 text-sm truncate">{item.product?.nom}</p>
                       {item.variant?.label && (
                         <p className="text-xs text-zinc-400">{item.variant.label}</p>
                       )}
@@ -326,8 +326,8 @@ export default function PanierPage() {
             </motion.div>
 
             {/* Delivery mode */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Mode de réception</p>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <p className="text-sm font-medium text-zinc-700 mb-3">Mode de réception</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setIsDelivery(true)}
@@ -471,8 +471,8 @@ export default function PanierPage() {
             </AnimatePresence>
 
             {/* Contact phone — obligatoire pour le paiement manuel MTN/Airtel */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <label className="block text-sm font-medium text-zinc-700 mb-2">
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
                   Numéro de contact <span className="text-rose-500">*</span>
@@ -486,10 +486,10 @@ export default function PanierPage() {
                 placeholder="+242 06 XXX XX XX"
                 aria-invalid={phoneError}
                 className={cn(
-                  'w-full text-sm border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 transition-all',
+                  'w-full text-sm border bg-white text-zinc-900 placeholder:text-zinc-400 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 transition-all',
                   phoneError
-                    ? 'border-rose-300 dark:border-rose-500/50 focus:ring-rose-500/20 focus:border-rose-400'
-                    : 'border-zinc-200 dark:border-dark-border focus:ring-primary-500/20 focus:border-primary-400',
+                    ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-400'
+                    : 'border-zinc-200 focus:ring-primary-500/20 focus:border-primary-400',
                 )}
               />
               {phoneError ? (
@@ -504,14 +504,14 @@ export default function PanierPage() {
             </div>
 
             {/* Notes */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Note pour le restaurant</label>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Note pour le restaurant</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ex: sans piment, sans oignon..."
                 rows={2}
-                className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full text-sm border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
               />
             </div>
           </div>
@@ -519,8 +519,8 @@ export default function PanierPage() {
           {/* Right — promo, payment, total */}
           <div className="flex flex-col gap-4">
             {/* Promo code */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Code promo</label>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Code promo</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
@@ -548,8 +548,8 @@ export default function PanierPage() {
             </div>
 
             {/* Paiement */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Mode de paiement</p>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <p className="text-sm font-medium text-zinc-700 mb-3">Mode de paiement</p>
               <div className="flex flex-col gap-2">
                 {([
                   { method: 'MTN_MOMO', label: 'MTN Mobile Money', color: 'bg-yellow-400', number: process.env.NEXT_PUBLIC_MTN_NUMBER },
@@ -580,11 +580,11 @@ export default function PanierPage() {
               </div>
 
               {/* Instructions de paiement */}
-              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl">
-                <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1">
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-xs font-semibold text-amber-800 mb-1">
                   Instructions de paiement
                 </p>
-                <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                <p className="text-xs text-amber-700 leading-relaxed">
                   Envoyez le montant total au numéro{' '}
                   <span className="font-bold font-mono">
                     {paymentMethod === 'MTN_MOMO'
@@ -598,23 +598,23 @@ export default function PanierPage() {
 
             {/* Points fidélité toggle */}
             {loyaltyPoints >= 100 && (
-              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                  <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
                     <Zap className="w-4 h-4 text-amber-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    <p className="text-sm font-semibold text-amber-800">
                       {loyaltyPoints} points disponibles
                     </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <p className="text-xs text-amber-600">
                       = {formatCurrency(loyaltyPoints * 5)} de réduction
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setUseLoyaltyPoints((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${useLoyaltyPoints ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-600'}`}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${useLoyaltyPoints ? 'bg-amber-500' : 'bg-zinc-200'}`}
                 >
                   <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${useLoyaltyPoints ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </button>
@@ -623,30 +623,30 @@ export default function PanierPage() {
 
             {/* Section preorder */}
             {cartIsPreorder && (
-              <motion.div variants={cardVariants} className="bg-white dark:bg-dark-card rounded-2xl border border-orange-200 dark:border-orange-800 p-4">
+              <motion.div variants={cardVariants} className="bg-white rounded-2xl border border-orange-200 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CalendarIcon className="w-5 h-5 text-orange-600" />
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  <h3 className="font-semibold text-zinc-900">
                     Date et heure de retrait
-                    <span className="ml-2 text-xs font-normal text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded">
+                    <span className="ml-2 text-xs font-normal text-orange-700 bg-orange-100 px-2 py-0.5 rounded">
                       Requis
                     </span>
                   </h3>
                 </div>
 
                 {scheduledFor ? (
-                  <div className="flex items-center justify-between gap-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 bg-orange-50 rounded-xl px-4 py-3">
                     <div>
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      <p className="font-semibold text-zinc-900">
                         {formatScheduledForFr(scheduledFor)}
                       </p>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                      <p className="text-xs text-zinc-600 mt-0.5">
                         Préavis vendeur : {leadHours}h
                       </p>
                     </div>
                     <button
                       onClick={() => setPickerOpen(true)}
-                      className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium"
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                     >
                       Modifier
                     </button>
@@ -654,13 +654,13 @@ export default function PanierPage() {
                 ) : (
                   <button
                     onClick={() => setPickerOpen(true)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 font-medium hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-orange-300 text-orange-700 font-medium hover:bg-orange-50"
                   >
                     Choisir un créneau
                   </button>
                 )}
 
-                <div className="mt-3 flex gap-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                <div className="mt-3 flex gap-2 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <p>
                     Le vendeur peut annuler jusqu&apos;à J-1. Remboursement sous 48h.
@@ -670,14 +670,14 @@ export default function PanierPage() {
             )}
 
             {/* Total */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
               <div className="flex flex-col gap-2 text-sm">
-                <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                <div className="flex justify-between text-zinc-600">
                   <span>Sous-total</span>
                   <span>{formatCurrency(subTotal)}</span>
                 </div>
                 {isDelivery && (
-                  <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                  <div className="flex justify-between text-zinc-600">
                     <span>Livraison</span>
                     {deliveryDiscount > 0 ? (
                       <span className="flex items-center gap-1.5">
@@ -689,7 +689,7 @@ export default function PanierPage() {
                     )}
                   </div>
                 )}
-                <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                <div className="flex justify-between text-zinc-600">
                   <span>Frais de service</span>
                   <span>{formatCurrency(serviceFee)}</span>
                 </div>
@@ -705,8 +705,8 @@ export default function PanierPage() {
                     <span>-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
                 )}
-                <div className="h-px bg-zinc-100 dark:bg-dark-border my-1" />
-                <div className="flex justify-between font-bold text-zinc-900 dark:text-zinc-100 text-base">
+                <div className="h-px bg-zinc-100 my-1" />
+                <div className="flex justify-between font-bold text-zinc-900 text-base">
                   <span>Total</span>
                   <span>{formatCurrency(total)}</span>
                 </div>

@@ -5,11 +5,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Menu, X, Sun, Moon } from 'lucide-react';
+import { ShoppingCart, Menu, X } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useCart } from '@lilia/api-client';
-import { useTheme } from '@/components/theme-provider';
 import { cn } from '@lilia/utils';
 
 const navLinks = [
@@ -22,7 +21,6 @@ export function Header() {
   const pathname = usePathname();
   const { user, token, firebaseDisplayName, firebasePhotoUrl } = useAuthStore();
   const { itemCount, setItemCount, toggleCart } = useCartStore();
-  const { resolved, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -103,24 +101,6 @@ export function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
-              aria-label={resolved === 'dark' ? 'Mode clair' : 'Mode sombre'}
-              className="rounded-full p-2.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <AnimatePresence mode="wait" initial={false}>
-                {resolved === 'dark' ? (
-                  <motion.span key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Sun className="h-[1.15rem] w-[1.15rem]" />
-                  </motion.span>
-                ) : (
-                  <motion.span key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Moon className="h-[1.15rem] w-[1.15rem]" />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-
             <button
               onClick={toggleCart}
               className="relative rounded-full p-2.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"

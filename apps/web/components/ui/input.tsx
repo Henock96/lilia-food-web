@@ -19,13 +19,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className={cn('flex flex-col gap-1.5', wrapperClassName)}>
         {label && (
-          <label className="text-xs font-semibold text-charcoal-500 dark:text-charcoal-300">
+          <label className="text-xs font-semibold text-charcoal-500">
             {label}
           </label>
         )}
 
         <div className={cn(
-          'flex items-center gap-2.5 bg-white dark:bg-dark-card',
+          'flex items-center gap-2.5 bg-white',
           'border-[1.5px] rounded-md px-3.5 py-3 transition-all duration-200',
           focused
             ? 'border-primary-500 shadow-[0_0_0_3px_rgba(232,84,31,.12)]'
@@ -33,7 +33,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               ? 'border-danger'
               : success
                 ? 'border-success'
-                : 'border-charcoal-100 dark:border-dark-border',
+                : 'border-charcoal-100',
         )}>
           {leftIcon && (
             <span className={cn(
@@ -48,7 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             className={cn(
               'flex-1 bg-transparent border-none outline-none',
-              'text-sm text-charcoal-700 dark:text-charcoal-50 placeholder:text-charcoal-400',
+              'text-sm text-charcoal-700 placeholder:text-charcoal-400',
               'font-sans',
               className,
             )}

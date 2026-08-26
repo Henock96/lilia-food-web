@@ -214,7 +214,7 @@ export default function ProfilPage() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5 mb-4 shadow-sm"
+            className="bg-white rounded-2xl border border-zinc-100 p-5 mb-4 shadow-sm"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-zinc-800">Modifier le profil</h3>
@@ -268,8 +268,8 @@ export default function ProfilPage() {
       </AnimatePresence>
 
       {/* ── Infos personnelles ────────────────────────────── */}
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border divide-y divide-zinc-50 dark:divide-dark-border mb-4">
-        <div className="px-4 py-3 flex items-center gap-2 border-b border-zinc-50 dark:border-dark-border">
+      <div className="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50 mb-4">
+        <div className="px-4 py-3 flex items-center gap-2 border-b border-zinc-50">
           <Shield className="w-3.5 h-3.5 text-zinc-400" />
           <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Informations</span>
         </div>
@@ -279,20 +279,20 @@ export default function ProfilPage() {
           { icon: Phone, label: 'Téléphone', value: user.phone ?? 'Non renseigné' },
         ].map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex items-center gap-3 px-4 py-3.5">
-            <div className="w-8 h-8 bg-zinc-50 dark:bg-dark-surface rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-zinc-50 rounded-xl flex items-center justify-center flex-shrink-0">
               <Icon className="w-3.5 h-3.5 text-zinc-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">{label}</p>
-              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{value}</p>
+              <p className="text-xs text-zinc-400">{label}</p>
+              <p className="text-sm font-medium text-zinc-800 truncate">{value}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Adresses ─────────────────────────────────────── */}
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border mb-4 overflow-hidden">
-        <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-50 dark:border-dark-border">
+      <div className="bg-white rounded-2xl border border-zinc-100 mb-4 overflow-hidden">
+        <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-50">
           <div className="flex items-center gap-2">
             <MapPin className="w-3.5 h-3.5 text-zinc-400" />
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Mes adresses</span>
@@ -312,13 +312,13 @@ export default function ProfilPage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="px-4 py-3 bg-zinc-50 dark:bg-dark-surface border-b border-zinc-100 dark:border-dark-border overflow-hidden"
+              className="px-4 py-3 bg-zinc-50 border-b border-zinc-100 overflow-hidden"
             >
               <div className="flex flex-col gap-2">
                 <select
                   value={newQuartierId}
                   onChange={(e) => setNewQuartierId(e.target.value)}
-                  className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                  className="w-full text-sm border border-zinc-200 bg-white text-zinc-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
                 >
                   <option value="">Quartier (optionnel)</option>
                   {quartiers.map((q) => (
@@ -330,7 +330,7 @@ export default function ProfilPage() {
                   value={newRue}
                   onChange={(e) => setNewRue(e.target.value)}
                   placeholder="Rue / Précision (ex: Rue Mfilou, face pharmacie)"
-                  className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                  className="w-full text-sm border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
                 />
                 <div className="flex gap-2">
                   <button
@@ -385,14 +385,14 @@ export default function ProfilPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{adresse.rue}</p>
+                <p className="text-sm font-medium text-zinc-800 truncate">{adresse.rue}</p>
                 {adresse.isDefault && (
                   <span className="flex-shrink-0 text-xs bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded-full font-medium">
                     Défaut
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">{adresse.ville}{adresse.quartier ? ` — ${adresse.quartier.nom}` : ''}</p>
+              <p className="text-xs text-zinc-400">{adresse.ville}{adresse.quartier ? ` — ${adresse.quartier.nom}` : ''}</p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {!adresse.isDefault && (
@@ -481,22 +481,22 @@ export default function ProfilPage() {
       </div>
 
       {/* ── Parrainage ──────────────────────────────────── */}
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5 mb-4">
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-4">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center">
             <Gift className="w-4 h-4 text-emerald-500" />
           </div>
           <div>
-            <p className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">Programme de parrainage</p>
+            <p className="font-semibold text-zinc-800 text-sm">Programme de parrainage</p>
             <p className="text-xs text-zinc-400">Invitez vos amis et gagnez des points</p>
           </div>
         </div>
 
         {referralStats?.referralCode && (
-          <div className="bg-zinc-50 dark:bg-dark-surface rounded-xl p-3 flex items-center justify-between gap-3 mb-4">
+          <div className="bg-zinc-50 rounded-xl p-3 flex items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-xs text-zinc-400 mb-0.5">Votre code</p>
-              <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-widest">{referralStats.referralCode}</p>
+              <p className="text-lg font-bold text-zinc-900 tracking-widest">{referralStats.referralCode}</p>
             </div>
             <button
               onClick={copyReferralCode}
@@ -509,17 +509,17 @@ export default function ProfilPage() {
         )}
 
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-zinc-50 dark:bg-dark-surface rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{referralStats?.totalReferrals ?? 0}</p>
+          <div className="bg-zinc-50 rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-zinc-900">{referralStats?.totalReferrals ?? 0}</p>
             <p className="text-xs text-zinc-400 mt-0.5">Amis parrainés</p>
           </div>
-          <div className="bg-zinc-50 dark:bg-dark-surface rounded-xl p-3 text-center">
+          <div className="bg-zinc-50 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-emerald-600">{referralStats?.rewardedReferrals ?? 0}</p>
             <p className="text-xs text-zinc-400 mt-0.5">Récompenses reçues</p>
           </div>
         </div>
 
-        <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-3 text-xs text-emerald-700 dark:text-emerald-400 space-y-1">
+        <div className="bg-emerald-50 rounded-xl p-3 text-xs text-emerald-700 space-y-1">
           <div className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 shrink-0" /> Votre ami commande → vous gagnez <strong>+500 pts</strong> (2 500 FCFA)</div>
           <div className="flex items-center gap-1.5"><Gift className="w-3.5 h-3.5 shrink-0" /> Votre ami reçoit <strong>+200 pts</strong> bonus à l&apos;inscription</div>
         </div>
@@ -527,8 +527,8 @@ export default function ProfilPage() {
 
       {/* ── Commandes récentes ───────────────────────────── */}
       {recentOrders.length > 0 && (
-        <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border mb-4 overflow-hidden">
-          <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-50 dark:border-dark-border">
+        <div className="bg-white rounded-2xl border border-zinc-100 mb-4 overflow-hidden">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-50">
             <div className="flex items-center gap-2">
               <Package className="w-3.5 h-3.5 text-zinc-400" />
               <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Commandes récentes</span>
@@ -546,14 +546,14 @@ export default function ProfilPage() {
                 i < recentOrders.length - 1 ? 'border-b border-zinc-50' : '',
               )}
             >
-              <div className="w-8 h-8 bg-zinc-50 dark:bg-dark-surface rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-zinc-50 rounded-xl flex items-center justify-center flex-shrink-0">
                 <ShoppingBag className="w-3.5 h-3.5 text-zinc-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                <p className="text-sm font-medium text-zinc-800 truncate">
                   {order.restaurant?.nom ?? 'Restaurant'}
                 </p>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">{formatDateTime(order.createdAt)}</p>
+                <p className="text-xs text-zinc-400">{formatDateTime(order.createdAt)}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="text-right">
@@ -571,7 +571,7 @@ export default function ProfilPage() {
 
       {/* ── Liens rapides ────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50 mb-6">
-        <div className="px-4 py-3 flex items-center gap-2 border-b border-zinc-50 dark:border-dark-border">
+        <div className="px-4 py-3 flex items-center gap-2 border-b border-zinc-50">
           <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Navigation</span>
         </div>
         <Link href="/commandes" className="flex items-center gap-3 px-4 py-3.5 hover:bg-zinc-50 transition-colors group">

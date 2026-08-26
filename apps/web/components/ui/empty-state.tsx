@@ -19,7 +19,7 @@ export function EmptyState({ icon, title, subtitle, action, className }: EmptySt
           {icon}
         </div>
       )}
-      <p className="text-lg font-bold text-charcoal-700 dark:text-charcoal-50">{title}</p>
+      <p className="text-lg font-bold text-charcoal-700">{title}</p>
       {subtitle && (
         <p className="text-[13px] text-charcoal-400 leading-relaxed max-w-[260px]">{subtitle}</p>
       )}

@@ -43,7 +43,7 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
     <div>
       {/* Sticky category bar */}
       {categories.length > 0 && (
-        <div className="sticky top-16 z-10 -mx-4 px-4 py-3 bg-zinc-50/95 dark:bg-dark-bg/95 backdrop-blur-sm border-b border-zinc-200 dark:border-dark-border mb-6">
+        <div className="sticky top-16 z-10 -mx-4 px-4 py-3 bg-zinc-50/95 backdrop-blur-sm border-b border-zinc-200 mb-6">
           <div className="flex gap-2 overflow-x-auto scrollbar-none">
             {categories.map((cat) => (
               <button
@@ -53,7 +53,7 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
                   'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all',
                   activeCategory === cat.id
                     ? 'bg-primary-500 text-white shadow-sm'
-                    : 'bg-white dark:bg-dark-surface text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-dark-border hover:border-zinc-300 dark:hover:border-zinc-600',
+                    : 'bg-white text-zinc-600 border border-zinc-200 hover:border-zinc-300',
                 )}
               >
                 {cat.nom}
@@ -70,7 +70,7 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
           if (catProducts.length === 0) return null;
           return (
             <section key={cat.id} id={`cat-${cat.id}`}>
-              <h2 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg mb-4">{cat.nom}</h2>
+              <h2 className="font-bold text-zinc-900 text-lg mb-4">{cat.nom}</h2>
               <div className="flex flex-col gap-3">
                 {catProducts.map((product) => (
                   <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
@@ -81,7 +81,7 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
         })}
         {uncategorized.length > 0 && (
           <section>
-            <h2 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg mb-4">Autres plats</h2>
+            <h2 className="font-bold text-zinc-900 text-lg mb-4">Autres plats</h2>
             <div className="flex flex-col gap-3">
               {uncategorized.map((product) => (
                 <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
@@ -167,13 +167,13 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
     <motion.div
       layout
       className={cn(
-        'bg-white dark:bg-dark-card rounded-xl border border-zinc-100 dark:border-dark-border p-4 flex gap-4 transition-all hover:border-zinc-200 dark:hover:border-zinc-600 hover:shadow-sm dark:hover:shadow-black/20',
+        'bg-white rounded-xl border border-zinc-100 p-4 flex gap-4 transition-all hover:border-zinc-200 hover:shadow-sm',
         isOutOfStock && 'opacity-60',
       )}
     >
       {/* Image */}
       {cover && (
-        <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-100 dark:bg-dark-surface">
+        <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-100">
           <Image src={cover} alt={product.nom} fill sizes="96px" className="object-cover" />
         </div>
       )}
@@ -182,13 +182,13 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start gap-2">
           <div>
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm leading-snug">{product.nom}</h3>
+            <h3 className="font-semibold text-zinc-900 text-sm leading-snug">{product.nom}</h3>
             {product.description && (
-              <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-1 line-clamp-2">{product.description}</p>
+              <p className="text-zinc-500 text-xs mt-1 line-clamp-2">{product.description}</p>
             )}
           </div>
           {isOutOfStock && (
-            <span className="px-2 py-0.5 bg-zinc-100 dark:bg-dark-surface text-zinc-500 dark:text-zinc-400 text-xs rounded-full whitespace-nowrap flex-shrink-0">
+            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 text-xs rounded-full whitespace-nowrap flex-shrink-0">
               Rupture
             </span>
           )}
@@ -204,8 +204,8 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
                 className={cn(
                   'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
                   selectedVariant?.id === v.id
-                    ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
-                    : 'bg-white dark:bg-dark-surface border-zinc-200 dark:border-dark-border text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600',
+                    ? 'bg-primary-50 border-primary-300 text-primary-700'
+                    : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300',
                 )}
               >
                 {v.label ?? 'Standard'} — {formatCurrency(v.prix)}
@@ -216,7 +216,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
 
         {/* Prix + Add */}
         <div className="flex items-center justify-between mt-3">
-          <span className="font-bold text-zinc-900 dark:text-zinc-100">
+          <span className="font-bold text-zinc-900">
             {formatCurrency(selectedVariant?.prix ?? product.prixOriginal)}
           </span>
 

@@ -20,7 +20,7 @@ export function Chip({ label, selected, onClick, icon, className }: ChipProps) {
         'border-[1.5px] transition-all duration-150 whitespace-nowrap',
         selected
           ? 'bg-primary-500/10 border-primary-500 text-primary-500 font-semibold'
-          : 'bg-white dark:bg-dark-card border-charcoal-100 dark:border-dark-border text-charcoal-500 dark:text-charcoal-300 hover:border-primary-500 hover:text-primary-500',
+          : 'bg-white border-charcoal-100 text-charcoal-500 hover:border-primary-500 hover:text-primary-500',
         className,
       )}
     >
@@ -56,7 +56,7 @@ export function CategoryChip({ icon, label, active, onClick }: CategoryChipProps
       </div>
       <span className={cn(
         'text-[11px] text-center leading-tight max-w-[60px]',
-        active ? 'font-semibold text-primary-500' : 'font-normal text-charcoal-500 dark:text-charcoal-300',
+        active ? 'font-semibold text-primary-500' : 'font-normal text-charcoal-500',
       )}>
         {label}
       </span>

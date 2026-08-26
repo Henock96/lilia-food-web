@@ -42,7 +42,7 @@ export function OrderStatusStepper({ status, className }: OrderStatusStepperProp
                 'w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 transition-all duration-300',
                 done
                   ? 'bg-primary-500 text-white'
-                  : 'bg-cream-200 text-charcoal-400 border-2 border-charcoal-100 dark:bg-dark-muted dark:border-dark-border',
+                  : 'bg-cream-200 text-charcoal-400 border-2 border-charcoal-100',
                 current && 'shadow-[0_0_0_4px_rgba(232,84,31,.2)]',
               )}>
                 {done && i < currentStep ? '✓' : i + 1}
@@ -50,7 +50,7 @@ export function OrderStatusStepper({ status, className }: OrderStatusStepperProp
               {i < STEPS.length - 1 && (
                 <div className={cn(
                   'flex-1 h-0.5 mx-1 transition-all duration-300',
-                  i < currentStep ? 'bg-primary-500' : 'bg-charcoal-100 dark:bg-dark-border',
+                  i < currentStep ? 'bg-primary-500' : 'bg-charcoal-100',
                 )} />
               )}
             </div>

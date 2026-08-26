@@ -35,7 +35,7 @@ export default function CommandesPage() {
       animate="animate"
       className="max-w-2xl mx-auto px-4 sm:px-6 py-10 min-h-screen"
     >
-      <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-8" style={{ fontFamily: 'var(--font-display)' }}>
+      <h1 className="text-2xl font-bold text-zinc-900 mb-8" style={{ fontFamily: 'var(--font-display)' }}>
         Mes commandes
       </h1>
 
@@ -76,12 +76,12 @@ export default function CommandesPage() {
             <motion.div key={order.id} variants={cardVariants}>
               <Link
                 href={`/commandes/${order.id}`}
-                className="block bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border hover:border-zinc-200 dark:hover:border-zinc-600 hover:shadow-sm dark:hover:shadow-black/20 p-5 transition-all group"
+                className="block bg-white rounded-2xl border border-zinc-100 hover:border-zinc-200 hover:shadow-sm p-5 transition-all group"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{order.restaurant?.nom ?? 'Restaurant'}</p>
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatDateTime(order.createdAt)}</p>
+                    <p className="font-semibold text-zinc-900 text-sm">{order.restaurant?.nom ?? 'Restaurant'}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">{formatDateTime(order.createdAt)}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${getOrderStatusColor(order.status)}`}>
@@ -91,17 +91,17 @@ export default function CommandesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+                <div className="flex items-center justify-between gap-4 text-xs text-zinc-500">
                   <div className="flex items-center gap-4">
                     <span>{order.items.length} article{order.items.length > 1 ? 's' : ''}</span>
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(order.total)}</span>
+                    <span className="font-semibold text-zinc-800">{formatCurrency(order.total)}</span>
                     <span>{order.isDelivery ? 'Livraison' : 'Retrait'}</span>
                   </div>
                   {(order.status === 'LIVRER' || order.status === 'ANNULER') && (
                     <button
                       onClick={(e) => handleReorder(e, order.id)}
                       disabled={reorder.isPending}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-xl text-xs font-medium transition-colors shrink-0"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-xl text-xs font-medium transition-colors shrink-0"
                     >
                       <RotateCcw className="w-3 h-3" />
                       Recommander

@@ -8,12 +8,12 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-dark-bg flex items-center justify-center px-4">
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         {/* Illustration SVG afro */}
         <div className="flex justify-center mb-8">
           <svg viewBox="0 0 200 200" className="w-48 h-48" fill="none" aria-hidden>
-            <circle cx="100" cy="100" r="90" fill="#fff7ed" className="dark:fill-dark-card" />
+            <circle cx="100" cy="100" r="90" fill="#fff7ed" className="" />
             {/* Assiette vide */}
             <ellipse cx="100" cy="120" rx="55" ry="12" fill="#fed7aa" opacity="0.6" />
             <circle cx="100" cy="100" r="42" fill="#ffedd5" stroke="#fdba74" strokeWidth="2.5" />
@@ -39,10 +39,10 @@ export default function NotFound() {
         <h1 className="text-6xl font-black text-primary-500 mb-2" style={{ fontFamily: 'var(--font-display)' }}>
           404
         </h1>
-        <h2 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100 mb-3">
+        <h2 className="text-2xl font-bold text-zinc-800 mb-3">
           Plat introuvable
         </h2>
-        <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
+        <p className="text-zinc-500 mb-8 leading-relaxed">
           Cette page n&apos;est pas au menu. Elle a peut-être été retirée ou l&apos;adresse est incorrecte.
         </p>
 
@@ -55,7 +55,7 @@ export default function NotFound() {
           </Link>
           <Link
             href="/restaurants"
-            className="px-6 py-3 bg-white dark:bg-dark-card border border-zinc-200 dark:border-dark-border text-zinc-700 dark:text-zinc-200 font-semibold rounded-2xl hover:bg-zinc-50 dark:hover:bg-dark-surface transition-all hover:-translate-y-0.5"
+            className="px-6 py-3 bg-white border border-zinc-200 text-zinc-700 font-semibold rounded-2xl hover:bg-zinc-50 transition-all hover:-translate-y-0.5"
           >
             Voir les restaurants
           </Link>

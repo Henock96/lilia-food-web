@@ -16,7 +16,7 @@ export default function GlobalError({
 
   return (
     <html lang="fr">
-      <body className="min-h-screen bg-zinc-50 dark:bg-dark-bg flex items-center justify-center px-4" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <body className="min-h-screen bg-zinc-50 flex items-center justify-center px-4" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div className="max-w-md w-full text-center">
           <div className="flex justify-center mb-8">
             <svg viewBox="0 0 200 200" className="w-44 h-44" fill="none" aria-hidden>

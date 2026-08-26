@@ -20,7 +20,7 @@ export default function FavorisPage() {
       className="max-w-4xl mx-auto px-4 sm:px-6 py-10 min-h-screen"
     >
       <h1
-        className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-8"
+        className="text-2xl font-bold text-zinc-900 mb-8"
         style={{ fontFamily: 'var(--font-display)' }}
       >
         Mes favoris
@@ -29,7 +29,7 @@ export default function FavorisPage() {
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-64 bg-zinc-100 dark:bg-dark-surface rounded-2xl animate-pulse" />
+            <div key={i} className="h-64 bg-zinc-100 rounded-2xl animate-pulse" />
           ))}
         </div>
       )}
@@ -45,10 +45,10 @@ export default function FavorisPage() {
           variants={containerVariants}
           className="flex flex-col items-center justify-center py-24 gap-4 text-center"
         >
-          <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+          <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
             <Heart className="w-10 h-10 text-red-300" />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">
+          <h2 className="text-lg font-semibold text-zinc-700">
             Aucun favori pour l&apos;instant
           </h2>
           <p className="text-sm text-zinc-500 max-w-xs">

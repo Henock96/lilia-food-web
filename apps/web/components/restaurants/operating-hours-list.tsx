@@ -53,7 +53,7 @@ export function OperatingHoursList({ hours }: OperatingHoursListProps) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 text-sm text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100"
+        className="w-full flex items-center justify-between gap-2 text-sm text-zinc-700 hover:text-zinc-900"
         aria-expanded={expanded}
       >
         <span className="flex items-center gap-2">
@@ -86,8 +86,8 @@ export function OperatingHoursList({ hours }: OperatingHoursListProps) {
                   key={day}
                   className={`flex justify-between text-sm ${
                     isToday
-                      ? 'font-semibold text-zinc-900 dark:text-zinc-100'
-                      : 'text-zinc-600 dark:text-zinc-400'
+                      ? 'font-semibold text-zinc-900'
+                      : 'text-zinc-600'
                   }`}
                 >
                   <span>{DAY_LABEL[day]}</span>

@@ -41,23 +41,23 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
 
   if (!stats || reviews.length === 0) {
     return (
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5">
         <LeaveReviewForm restaurantId={restaurantId} />
-        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avis clients</h3>
+        <h3 className="font-bold text-zinc-900 mb-4">Avis clients</h3>
         <p className="text-sm text-zinc-400">Aucun avis pour le moment.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
+    <div className="bg-white rounded-2xl border border-zinc-100 p-5">
       <LeaveReviewForm restaurantId={restaurantId} />
-      <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avis clients</h3>
+      <h3 className="font-bold text-zinc-900 mb-4">Avis clients</h3>
 
       {/* Stats globales */}
-      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-zinc-100 dark:border-dark-border">
+      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-zinc-100">
         <div className="text-center">
-          <div className="text-4xl font-black text-zinc-900 dark:text-zinc-100">
+          <div className="text-4xl font-black text-zinc-900">
             {stats.averageRating.toFixed(1)}
           </div>
           <div className="flex justify-center mt-1">
@@ -79,7 +79,7 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
             return (
               <div key={star} className="flex items-center gap-2">
                 <span className="text-xs text-zinc-400 w-2">{star}</span>
-                <div className="flex-1 h-1.5 bg-zinc-100 dark:bg-dark-surface rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-amber-400 rounded-full"
                     style={{ width: `${pct}%` }}
@@ -97,10 +97,10 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
           <div key={review.id} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-xs font-bold text-primary-600 dark:text-primary-400">
+                <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center text-xs font-bold text-primary-600">
                   {review.user ? getInitials(review.user.nom) : '?'}
                 </div>
-                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                <span className="text-sm font-medium text-zinc-800">
                   {review.user?.nom ?? 'Client'}
                 </span>
               </div>
@@ -114,7 +114,7 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
               </div>
             </div>
             {review.comment && (
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-3">{review.comment}</p>
+              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-3">{review.comment}</p>
             )}
             <span className="text-xs text-zinc-400">{formatRelativeTime(review.createdAt)}</span>
           </div>

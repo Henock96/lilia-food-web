@@ -62,9 +62,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               richColors
               toastOptions={{
                 style: { fontFamily: 'var(--font-sans)' },
-                classNames: {
-                  toast: 'dark:!bg-dark-card dark:!border-dark-border dark:!text-zinc-100',
-                },
               }}
             />
           </Providers>
