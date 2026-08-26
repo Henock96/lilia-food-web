@@ -41,16 +41,16 @@ export function OrderStatusStepper({ status, className }: OrderStatusStepperProp
               <div className={cn(
                 'w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 transition-all duration-300',
                 done
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-cream-200 text-charcoal-400 border-2 border-charcoal-100',
-                current && 'shadow-[0_0_0_4px_rgba(232,84,31,.2)]',
+                  ? 'bg-tomato-600 text-white'
+                  : 'bg-cream-200 text-ink-500 border-2 border-cream-300',
+                current && 'shadow-[0_0_0_4px_rgba(210,55,26,.2)]',
               )}>
                 {done && i < currentStep ? '✓' : i + 1}
               </div>
               {i < STEPS.length - 1 && (
                 <div className={cn(
                   'flex-1 h-0.5 mx-1 transition-all duration-300',
-                  i < currentStep ? 'bg-primary-500' : 'bg-charcoal-100',
+                  i < currentStep ? 'bg-tomato-600' : 'bg-cream-300',
                 )} />
               )}
             </div>
@@ -66,7 +66,7 @@ export function OrderStatusStepper({ status, className }: OrderStatusStepperProp
             className={cn(
               'text-[9px] font-medium flex-1 transition-colors',
               i === 0 ? 'text-left' : i === STEPS.length - 1 ? 'text-right' : 'text-center',
-              i <= currentStep ? 'text-primary-500 font-semibold' : 'text-charcoal-400',
+              i <= currentStep ? 'text-tomato-600 font-semibold' : 'text-ink-500',
             )}
           >
             {step.label}
