@@ -21,7 +21,6 @@ export function Header() {
   const pathname = usePathname();
   const { user, token, firebaseDisplayName, firebasePhotoUrl } = useAuthStore();
   const { itemCount, setItemCount, toggleCart } = useCartStore();
-  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Ferme le menu mobile à chaque changement de route (reset pendant le render).
@@ -40,21 +39,9 @@ export function Header() {
     }
   }, [cart, setItemCount]);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-
   return (
     <motion.header
-      className={cn(
-        'fixed inset-x-0 top-0 z-50 transition-all duration-300',
-        scrolled
-          ? 'border-b border-white/10 bg-[var(--noir-900)]/80 backdrop-blur-xl'
-          : 'border-b border-transparent bg-transparent',
-      )}
+      className="sticky top-0 z-50 border-b border-cream-300 bg-cream-100"
       initial={{ y: -80 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -63,14 +50,11 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="group flex items-center gap-2.5" aria-label="Lilia Food — Accueil">
-            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl ring-1 ring-white/15 transition-transform group-hover:scale-105">
+            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl transition-transform group-hover:scale-105">
               <Image src="/logo.jpg" alt="" width={72} height={72} className="h-full w-full object-cover" />
             </span>
-            <span
-              className="text-xl font-bold tracking-tight text-white"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              Lilia<span className="text-ember"> Food</span>
+            <span className="font-display text-xl font-extrabold tracking-tight text-ink-900">
+              Lilia<span className="text-tomato-600"> Food</span>
             </span>
           </Link>
 
@@ -83,17 +67,11 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'relative rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                    active ? 'text-white' : 'text-white/60 hover:text-white',
+                    'rounded-full px-4 py-2 text-sm transition-colors',
+                    active ? 'font-semibold text-ink-900' : 'text-ink-500 hover:text-ink-900',
                   )}
                 >
                   {link.label}
-                  {active && (
-                    <motion.span
-                      layoutId="nav-indicator"
-                      className="absolute inset-0 -z-10 rounded-full bg-white/10"
-                    />
-                  )}
                 </Link>
               );
             })}
@@ -103,7 +81,7 @@ export function Header() {
           <div className="flex items-center gap-1.5">
             <button
               onClick={toggleCart}
-              className="relative rounded-full p-2.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              className="relative rounded-full p-2.5 text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900"
               aria-label={`Panier${itemCount > 0 ? ` (${itemCount} article${itemCount > 1 ? 's' : ''})` : ''}`}
             >
               <ShoppingCart className="h-5 w-5" />
@@ -115,7 +93,7 @@ export function Header() {
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                    className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--ember-500)] text-xs font-bold text-white"
+                    className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-tomato-600 text-xs font-bold text-white"
                   >
                     {itemCount > 9 ? '9+' : itemCount}
                   </motion.span>
@@ -126,7 +104,7 @@ export function Header() {
             {token ? (
               <Link
                 href="/profil"
-                className="flex items-center gap-2 rounded-full px-2 py-1.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                className="flex items-center gap-2 rounded-full px-2 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900"
                 aria-label="Mon profil"
               >
                 {(user?.imageUrl ?? firebasePhotoUrl) ? (
@@ -135,11 +113,11 @@ export function Header() {
                     alt={user?.nom ?? firebaseDisplayName ?? ''}
                     width={28}
                     height={28}
-                    className="h-7 w-7 rounded-full object-cover ring-2 ring-[var(--ember-400)]/40"
+                    className="h-7 w-7 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ember-500)]/20 ring-2 ring-[var(--ember-400)]/30">
-                    <span className="text-xs font-bold text-[var(--ember-400)]">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-tomato-100">
+                    <span className="text-xs font-bold text-tomato-700">
                       {(user?.nom ?? firebaseDisplayName)?.[0]?.toUpperCase() ?? '·'}
                     </span>
                   </div>
@@ -149,7 +127,7 @@ export function Header() {
             ) : (
               <Link
                 href="/connexion"
-                className="rounded-full bg-[var(--ember-500)] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[var(--ember-500)]/25 transition-colors hover:bg-[var(--ember-400)]"
+                className="rounded-pill bg-tomato-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-tomato-700 hover:shadow-md"
               >
                 Connexion
               </Link>
@@ -157,7 +135,7 @@ export function Header() {
 
             <button
               onClick={() => setMobileOpen((v) => !v)}
-              className="rounded-full p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+              className="rounded-full p-2 text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900 md:hidden"
               aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               aria-expanded={mobileOpen}
             >
@@ -175,7 +153,7 @@ export function Header() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="overflow-hidden border-t border-white/10 bg-[var(--noir-900)]/95 backdrop-blur-xl md:hidden"
+            className="overflow-hidden border-t border-cream-300 bg-cream-100 shadow-md md:hidden"
           >
             <nav className="flex flex-col gap-1 px-4 py-3" aria-label="Menu mobile">
               {navLinks.map((link) => (
@@ -184,10 +162,10 @@ export function Header() {
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    'rounded-xl px-4 py-3 text-sm font-medium transition-colors',
+                    'rounded-xl px-4 py-3 text-sm transition-colors',
                     pathname.startsWith(link.href)
-                      ? 'bg-white/10 text-white'
-                      : 'text-white/70 hover:bg-white/5 hover:text-white',
+                      ? 'bg-cream-200 font-semibold text-ink-900'
+                      : 'text-ink-500 hover:bg-cream-200 hover:text-ink-900',
                   )}
                 >
                   {link.label}
