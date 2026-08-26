@@ -31,7 +31,7 @@
 **Créés**
 | Fichier | Responsabilité |
 |---|---|
-| `apps/web/lib/hero-slides.ts` | Fonction pure `selectHeroSlides()` : filtre, trie et limite les vendeurs éligibles au hero. Aucune dépendance React. |
+| `apps/web/lib/hero-slides.ts` | Fonction pure `selectHeroSlides()` : filtre, trie et limite les vendeurs éligibles au hero. Réutilise `coverImage()` de @lilia/utils. Aucune dépendance React. |
 | `apps/web/lib/hero-slides.test.ts` | Tests unitaires de `selectHeroSlides()`. |
 | `apps/web/components/home/hero-slider.tsx` | Le hero : photo de fond, titre fixe, cartes vendeurs. Remplace `hero-section.tsx`. |
 | `apps/web/vitest.config.ts` | Configuration Vitest. |
@@ -419,20 +419,30 @@ describe('selectHeroSlides', () => {
     expect(out[0].imageUrl).toBe('https://res.cloudinary.com/x/cover.jpg');
   });
 
-  it('utilise la photo de couverture quand imageUrl est absent', () => {
+  // La galerie Cloudinary prime sur le champ `imageUrl` hérité, qui pointe
+  // souvent vers un hôte tiers non maîtrisé. C'est le comportement de
+  // `coverImage()` de @lilia/utils, déjà employé par les cartes vendeur : le
+  // hero doit afficher la même image que la carte du même vendeur.
+  it('préfère la galerie au champ imageUrl hérité', () => {
     const out = selectHeroSlides([
       vendor({
-        imageUrl: null,
+        imageUrl: 'https://un-site-tiers.example/photo.jpg',
         // `vendor()` accepte déjà Partial<Restaurant> et applique `as Restaurant`
         // en sortie : pas de cast supplémentaire ici. Si le type GalleryImage
         // exige d'autres champs, les compléter plutôt que d'élargir le cast.
         photos: [
-          { id: 'p1', url: 'https://cdn/second.jpg', isCover: false },
-          { id: 'p2', url: 'https://cdn/cover.jpg', isCover: true },
+          { id: 'p1', url: 'https://res.cloudinary.com/x/grillades.jpg', isCover: true },
         ] as Restaurant['photos'],
       }),
     ]);
-    expect(out[0].imageUrl).toBe('https://cdn/cover.jpg');
+    expect(out[0].imageUrl).toBe('https://res.cloudinary.com/x/grillades.jpg');
+  });
+
+  it('retombe sur imageUrl quand la galerie est vide', () => {
+    const out = selectHeroSlides([
+      vendor({ imageUrl: 'https://un-site-tiers.example/photo.jpg', photos: [] }),
+    ]);
+    expect(out[0].imageUrl).toBe('https://un-site-tiers.example/photo.jpg');
   });
 
   it('place les vendeurs ouverts avant les fermés', () => {
@@ -464,6 +474,7 @@ Créer `apps/web/lib/hero-slides.ts` :
 
 ```ts
 import type { Restaurant } from '@lilia/types';
+import { coverImage } from '@lilia/utils';
 
 /** Vendeur affiché dans le hero de la home. */
 export interface HeroSlide {
@@ -479,13 +490,6 @@ export interface HeroSlide {
 /** Nombre maximum de slides — au-delà, plus personne ne les regarde. */
 const MAX_SLIDES = 5;
 
-/** Photo de couverture du vendeur, ou première photo disponible. */
-function coverOf(r: Restaurant): string | null {
-  if (r.imageUrl) return r.imageUrl;
-  const photos = r.photos ?? [];
-  return photos.find((p) => p.isCover)?.url ?? photos[0]?.url ?? null;
-}
-
 /**
  * Sélectionne les vendeurs éligibles au hero : actifs, approuvés, et dotés
  * d'une photo. Les vendeurs ouverts passent devant.
@@ -496,13 +500,13 @@ function coverOf(r: Restaurant): string | null {
  */
 export function selectHeroSlides(restaurants: Restaurant[]): HeroSlide[] {
   return restaurants
-    .filter((r) => r.isActive && r.adminApproved !== false && coverOf(r) !== null)
+    .filter((r) => r.isActive && r.adminApproved !== false && coverImage(r) !== null)
     .sort((a, b) => Number(b.isOpen) - Number(a.isOpen))
     .slice(0, MAX_SLIDES)
     .map((r) => ({
       id: r.id,
       nom: r.nom,
-      imageUrl: coverOf(r) as string,
+      imageUrl: coverImage(r) as string,
       adresse: r.adresse,
       isOpen: r.isOpen,
       delay: `${r.estimatedDeliveryTimeMin}–${r.estimatedDeliveryTimeMax} min`,
