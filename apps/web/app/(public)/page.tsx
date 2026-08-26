@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { HeroSection } from '@/components/home/hero-section';
+import { HeroSlider } from '@/components/home/hero-slider';
 import { CategoryRail } from '@/components/home/category-rail';
 import { PromoStrip } from '@/components/home/promo-strip';
 import { FeaturedRestaurants } from '@/components/home/featured-restaurants';
@@ -7,6 +7,9 @@ import { HowItWorks } from '@/components/home/how-it-works';
 import { Testimonials } from '@/components/home/testimonials';
 import { BecomePartner } from '@/components/home/become-partner';
 import { AppDownloadBanner } from '@/components/home/app-download-banner';
+import { getVendors } from '@/lib/vendors';
+import { selectHeroSlides } from '@/lib/hero-slides';
+import { getHeroMode } from '@/lib/hero-mode';
 
 function FeaturedFallback() {
   return (
@@ -23,11 +26,19 @@ function FeaturedFallback() {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Récupérés une seule fois : le hero et FeaturedRestaurants partagent
+  // getVendors() ('use cache'), donc pas de second appel réseau à /vendors.
+  const restaurants = await getVendors();
+  const heroSlides = selectHeroSlides(restaurants);
+  // Seule la photo du premier slide sert de fond au premier affichage :
+  // c'est la seule mesurée pour décider photo vs aplat.
+  const heroMode = await getHeroMode(heroSlides[0]?.imageUrl);
+
   return (
     <div className="bg-[var(--noir-900)]">
       {/* Statique — mis en cache */}
-      <HeroSection />
+      <HeroSlider slides={heroSlides} mode={heroMode} />
       <CategoryRail />
       <PromoStrip />
 

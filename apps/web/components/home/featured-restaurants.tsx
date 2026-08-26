@@ -1,23 +1,13 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { apiClientRaw } from '@lilia/api-client';
-import type { Restaurant } from '@lilia/types';
 import { VendorGrid } from '@/components/restaurants/vendor-grid';
+import { getVendors } from '@/lib/vendors';
 
 /**
- * Section « Les plus courus » — vendeurs en vedette. Consomme le marketplace
- * `/vendors` (déjà filtré adminApproved + isActive côté backend, LIL-119).
+ * Section « Les plus courus » — vendeurs en vedette. `getVendors()` est
+ * partagée avec le hero de la home (`app/(public)/page.tsx`) : un seul
+ * appel réseau à `/vendors`, mémoïsé par `'use cache'`.
  */
-async function getVendors(): Promise<Restaurant[]> {
-  'use cache';
-  try {
-    const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=12');
-    return res.data ?? [];
-  } catch {
-    return [];
-  }
-}
-
 export async function FeaturedRestaurants() {
   const restaurants = await getVendors();
   const featured = restaurants.slice(0, 6);
