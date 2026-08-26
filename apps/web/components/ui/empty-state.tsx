@@ -15,13 +15,13 @@ export function EmptyState({ icon, title, subtitle, action, className }: EmptySt
       className,
     )}>
       {icon && (
-        <div className="w-20 h-20 rounded-full bg-primary-500/10 flex items-center justify-center mb-2 text-4xl text-primary-500/60">
+        <div className="w-20 h-20 rounded-full bg-cream-200 flex items-center justify-center mb-2 text-4xl text-ink-300">
           {icon}
         </div>
       )}
-      <p className="text-lg font-bold text-charcoal-700">{title}</p>
+      <p className="text-lg font-bold text-ink-900">{title}</p>
       {subtitle && (
-        <p className="text-[13px] text-charcoal-400 leading-relaxed max-w-[260px]">{subtitle}</p>
+        <p className="text-[13px] text-ink-500 leading-relaxed max-w-[260px]">{subtitle}</p>
       )}
       {action && <div className="mt-1">{action}</div>}
     </div>
@@ -39,7 +39,7 @@ export function ErrorState({ onRetry, action, ...props }: ErrorStateProps) {
       action={action ?? (onRetry && (
         <button
           onClick={onRetry}
-          className="mt-2 px-5 py-2 text-sm font-semibold text-primary-500 border-[1.5px] border-primary-500 rounded-pill hover:bg-primary-500/8 transition-colors"
+          className="mt-2 px-5 py-2 text-sm font-semibold text-tomato-700 border-[1.5px] border-tomato-600 rounded-pill hover:bg-tomato-100 transition-colors"
         >
           Réessayer
         </button>
