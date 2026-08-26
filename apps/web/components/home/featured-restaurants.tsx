@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { VendorCard } from '@/components/restaurants/vendor-card';
+import { EmptyVendorSlot } from '@/components/restaurants/empty-vendor-slot';
 import { getVendors } from '@/lib/vendors';
 
 /**
@@ -10,10 +11,11 @@ import { getVendors } from '@/lib/vendors';
  *
  * Le catalogue de production ne compte qu'un seul vendeur : une grille de 4
  * cases dont 3 resteraient blanches lirait comme un site cassé. On complète
- * donc toujours jusqu'à 4 emplacements, en pointillés au-delà des vendeurs
- * réels — un service qui démarre, pas un bug. On ne délègue plus à
- * `VendorGrid` ici : son propre état vide (« Aucun restaurant disponible »)
- * ferait doublon avec ces emplacements explicites.
+ * donc toujours jusqu'à 4 emplacements avec `EmptyVendorSlot` (pointillés),
+ * partagé avec `VendorGrid` (/restaurants) pour ne pas dupliquer ce motif —
+ * un service qui démarre, pas un bug. On ne délègue pas à `VendorGrid` ici :
+ * son propre état vide (« Aucun restaurant disponible ») ferait doublon avec
+ * ces emplacements explicites.
  */
 export async function FeaturedRestaurants() {
   const restaurants = await getVendors();
@@ -50,13 +52,7 @@ export async function FeaturedRestaurants() {
             <VendorCard key={r.id} restaurant={r} />
           ))}
           {Array.from({ length: Math.max(0, 4 - featured.length) }).map((_, i) => (
-            <div
-              key={`empty-${i}`}
-              aria-hidden
-              className="grid min-h-[10.5rem] place-items-center rounded-xl border-[1.5px] border-dashed border-cream-300 bg-cream-200 text-[11.5px] text-ink-500"
-            >
-              {i === 0 ? 'Prochain vendeur ici' : ''}
-            </div>
+            <EmptyVendorSlot key={`empty-${i}`} label={i === 0 ? 'Prochain vendeur ici' : undefined} />
           ))}
         </div>
 

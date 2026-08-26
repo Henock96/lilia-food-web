@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { apiClientRaw } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { RestaurantsFilters } from '@/components/restaurants/restaurants-filters';
+import { RestaurantCardSkeleton } from '@/components/ui';
 
 export const metadata: Metadata = {
   title: 'Vendeurs',
@@ -14,58 +15,64 @@ export const metadata: Metadata = {
  * LIL-119 : on consomme le marketplace `/vendors`. Le backend filtre déjà
  * `adminApproved=true AND isActive=true`. Filtrage par `vendorType` client-side
  * via les chips (cf. RestaurantsFilters).
+ *
+ * Volontairement sans `'use cache'` : cette fonction n'a qu'un seul appelant
+ * (cette page), donc aucun dédoublonnage inter-appel à en tirer — contrairement
+ * à `lib/vendors.ts`, partagé par la home. En échange, un échec réseau reste un
+ * échec à *chaque* tentative plutôt que de figer un résultat vide en cache :
+ * condition nécessaire pour que le bouton « Réessayer » (RestaurantsFilters →
+ * VendorGrid, via `router.refresh()`) relance une vraie requête réseau.
  */
-async function getVendors(): Promise<Restaurant[]> {
-  'use cache';
+async function getVendors(): Promise<{ vendors: Restaurant[]; failed: boolean }> {
   try {
     const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=50');
-    return res.data;
+    return { vendors: res.data ?? [], failed: false };
   } catch {
-    return [];
+    return { vendors: [], failed: true };
   }
 }
 
-function FiltersFallback() {
+function PageSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-72 rounded-[1.5rem] border border-white/8 bg-white/[0.03]" />
-      ))}
+    <div className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 lg:px-8">
+      <div className="h-9 w-64 animate-pulse rounded-lg bg-cream-200" />
+      <div className="mt-3 h-4 w-80 animate-pulse rounded-lg bg-cream-200" />
+      <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <RestaurantCardSkeleton key={i} />
+        ))}
+      </div>
     </div>
   );
 }
 
-export default async function RestaurantsPage() {
-  const restaurants = await getVendors();
+/**
+ * Chargée dans un unique `<Suspense>` (header + filtres) : le compteur du
+ * sous-titre dépend des mêmes données que la grille, pas la peine de deux
+ * frontières de streaming distinctes pour une seule requête.
+ */
+async function RestaurantsContent() {
+  const { vendors: restaurants, failed } = await getVendors();
 
   return (
-    <div className="grain noir-canvas min-h-screen">
-      {/* En-tête immersif */}
-      <div className="relative overflow-hidden pt-28 pb-10">
-        <div aria-hidden className="ember-glow absolute -right-20 top-0 h-80 w-80 opacity-60" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-ember">
-            <span className="h-px w-6 bg-[var(--ember-400)]/60" aria-hidden />
-            La marketplace
-          </span>
-          <h1
-            className="mt-3 text-4xl font-bold leading-tight text-white sm:text-5xl"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Tous les vendeurs <span className="text-ember italic">de Brazza.</span>
-          </h1>
-          <p className="mt-3 text-white/55">
-            {restaurants.length} vendeur{restaurants.length > 1 ? 's' : ''} ouvert
-            {restaurants.length > 1 ? 's' : ''} · restaurants, cuisines maison, boulangeries & boissons
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 lg:px-8">
+      <h1 className="font-display text-3xl font-extrabold text-ink-900">Tous les vendeurs</h1>
+      <p className="mt-2 text-sm text-ink-500">
+        {restaurants.length} vendeur{restaurants.length > 1 ? 's' : ''} ouvert
+        {restaurants.length > 1 ? 's' : ''} · restaurants, cuisines maison, boulangeries & boissons
+      </p>
 
-      <div className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <Suspense fallback={<FiltersFallback />}>
-          <RestaurantsFilters restaurants={restaurants} />
-        </Suspense>
+      <div className="mt-8">
+        <RestaurantsFilters restaurants={restaurants} failed={failed} />
       </div>
     </div>
+  );
+}
+
+export default function RestaurantsPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <RestaurantsContent />
+    </Suspense>
   );
 }

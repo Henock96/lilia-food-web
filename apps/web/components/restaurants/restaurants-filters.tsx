@@ -9,6 +9,9 @@ import { VendorTypeChips } from './vendor-type-chips';
 
 interface RestaurantsFiltersProps {
   restaurants: Restaurant[];
+  /** La requête `/vendors` a échoué côté serveur : on saute les filtres et on
+   * délègue directement à `VendorGrid` son état d'échec + retry. */
+  failed?: boolean;
 }
 
 const VALID_VENDOR_TYPES: VendorType[] = [
@@ -26,7 +29,7 @@ function parseVendorType(raw: string | null): VendorType | null {
   return null;
 }
 
-export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
+export function RestaurantsFilters({ restaurants, failed = false }: RestaurantsFiltersProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -82,6 +85,14 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
     });
   }, [restaurants, search, showOpenOnly, vendorType]);
 
+  // Pointillés « Prochain vendeur ici » uniquement sur la vue non filtrée —
+  // sur un résultat de recherche/filtre, ça n'aurait pas de sens.
+  const hasActiveFilter = Boolean(search.trim()) || showOpenOnly || vendorType !== null;
+
+  if (failed) {
+    return <VendorGrid restaurants={[]} failed />;
+  }
+
   return (
     <>
       {/* Chips marketplace (LIL-119) */}
@@ -94,18 +105,18 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
       {/* Barre de filtres */}
       <div className="mb-10 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-300" />
           <input
             type="text"
             value={search}
             onChange={(e) => updateSearch(e.target.value)}
             placeholder="Rechercher un vendeur, une cuisine, un plat…"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-10 text-sm text-white placeholder:text-white/35 transition-all focus:border-[var(--ember-400)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--ember-500)]/20"
+            className="w-full rounded-2xl border border-cream-300 bg-white py-3 pl-11 pr-10 text-sm text-ink-900 placeholder:text-ink-300 transition-colors focus:border-tomato-500 focus:outline-none focus:ring-2 focus:ring-tomato-100"
           />
           {search && (
             <button
               onClick={() => updateSearch('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-300 transition-colors hover:text-ink-700"
               aria-label="Effacer la recherche"
             >
               <X className="h-4 w-4" />
@@ -115,34 +126,34 @@ export function RestaurantsFilters({ restaurants }: RestaurantsFiltersProps) {
 
         <button
           onClick={() => setShowOpenOnly((v) => !v)}
-          className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 rounded-2xl border-[1.5px] px-4 py-3 text-sm font-medium transition-colors ${
             showOpenOnly
-              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-              : 'border-white/10 bg-white/5 text-white/65 hover:border-white/20 hover:text-white'
+              ? 'border-success bg-success/10 text-success'
+              : 'border-cream-300 bg-white text-ink-700 hover:border-tomato-600 hover:text-tomato-600'
           }`}
         >
-          <span className={`h-2 w-2 rounded-full ${showOpenOnly ? 'bg-emerald-400' : 'bg-white/30'}`} />
+          <span className={`h-2 w-2 rounded-full ${showOpenOnly ? 'bg-success' : 'bg-ink-300'}`} />
           Ouverts maintenant
         </button>
       </div>
 
       {/* Résultats */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/8 bg-white/[0.02] py-20 text-center">
-          <Search className="mb-4 h-12 w-12 text-white/20" />
-          <p className="font-semibold text-white">
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-cream-300 bg-white py-20 text-center">
+          <Search className="mb-4 h-12 w-12 text-ink-300" />
+          <p className="font-semibold text-ink-900">
             {search ? `Aucun résultat pour « ${search} »` : 'Aucun vendeur pour ce filtre'}
           </p>
-          <p className="mt-1 text-sm text-white/45">Essaie une autre recherche ou un autre type.</p>
+          <p className="mt-1 text-sm text-ink-500">Essaie une autre recherche ou un autre type.</p>
         </div>
       ) : (
         <>
           {(search || showOpenOnly) && (
-            <p className="mb-4 text-sm text-white/45">
+            <p className="mb-4 text-sm text-ink-500">
               {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
             </p>
           )}
-          <VendorGrid restaurants={filtered} />
+          <VendorGrid restaurants={filtered} minSlots={hasActiveFilter ? undefined : 4} />
         </>
       )}
     </>

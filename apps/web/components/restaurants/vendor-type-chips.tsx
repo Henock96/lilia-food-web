@@ -2,7 +2,7 @@
 
 import type { VendorType } from '@lilia/types';
 import { cn } from '@lilia/utils';
-import { VENDOR_TYPE_EMOJI, VENDOR_TYPE_LABELS } from './vendor-type-badge';
+import { VENDOR_TYPE_LABELS } from './vendor-type-badge';
 
 /**
  * Chips horizontaux pour filtrer le marketplace par type de vendeur
@@ -24,17 +24,11 @@ interface VendorTypeChipsProps {
 export function VendorTypeChips({ selected, onChange }: VendorTypeChipsProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Chip
-        label="Tous"
-        emoji="✨"
-        active={selected === null}
-        onClick={() => onChange(null)}
-      />
+      <Chip label="Tous" active={selected === null} onClick={() => onChange(null)} />
       {FILTERABLE_TYPES.map((type) => (
         <Chip
           key={type}
           label={VENDOR_TYPE_LABELS[type]}
-          emoji={VENDOR_TYPE_EMOJI[type]}
           active={selected === type}
           onClick={() => onChange(type)}
         />
@@ -45,12 +39,10 @@ export function VendorTypeChips({ selected, onChange }: VendorTypeChipsProps) {
 
 function Chip({
   label,
-  emoji,
   active,
   onClick,
 }: {
   label: string;
-  emoji: string;
   active: boolean;
   onClick: () => void;
 }) {
@@ -59,13 +51,12 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-sm font-medium transition-all',
+        'inline-flex items-center whitespace-nowrap rounded-pill border-[1.5px] px-3.5 py-2 text-sm font-medium transition-colors',
         active
-          ? 'border-[var(--ember-500)] bg-[var(--ember-500)] text-white shadow-lg shadow-[var(--ember-500)]/25'
-          : 'border-white/10 bg-white/5 text-white/65 hover:border-[var(--ember-400)]/40 hover:text-white',
+          ? 'border-tomato-600 bg-tomato-600 text-white'
+          : 'border-cream-300 bg-cream-100 text-ink-700 hover:border-tomato-600 hover:text-tomato-600',
       )}
     >
-      <span aria-hidden>{emoji}</span>
       {label}
     </button>
   );
