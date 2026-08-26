@@ -47,6 +47,18 @@ describe('selectHeroSlides', () => {
     expect(out[0].nom).toBe('Chez Maman Lili');
     expect(out[0].delay).toBe('15–20 min');
     expect(out[0].imageUrl).toBe('https://res.cloudinary.com/x/cover.jpg');
+    expect(out[0].adresse).toBe('15, Rue Banziris Poto-Poto');
+    expect(out[0].isOpen).toBe(true);
+  });
+
+  // Les vendeurs créés avant le workflow d'approbation (LIL-111) n'ont pas de
+  // valeur pour `adminApproved` : `undefined` doit être traité comme approuvé,
+  // pas comme rejeté. Ce test verrouille le comportement de `!== false` :
+  // si quelqu'un resserre un jour ce filtre en `=== true`, ce test échoue au
+  // lieu de vider silencieusement le hero en production.
+  it('retient un vendeur dont adminApproved est indéfini', () => {
+    const out = selectHeroSlides([vendor({ adminApproved: undefined })]);
+    expect(out).toHaveLength(1);
   });
 
   // La galerie Cloudinary prime sur le champ `imageUrl` hérité, qui pointe
@@ -83,8 +95,37 @@ describe('selectHeroSlides', () => {
     expect(out.map((s) => s.id)).toEqual(['ouvert', 'ferme']);
   });
 
-  it('limite à cinq slides', () => {
+  it('limite à cinq slides et conserve les cinq premiers dans l’ordre', () => {
     const many = Array.from({ length: 9 }, (_, i) => vendor({ id: `v${i}` }));
-    expect(selectHeroSlides(many)).toHaveLength(5);
+    const out = selectHeroSlides(many);
+    expect(out).toHaveLength(5);
+    expect(out.map((s) => s.id)).toEqual(['v0', 'v1', 'v2', 'v3', 'v4']);
+  });
+
+  // Le tri par ouverture doit s'appliquer avant le plafond à cinq : un
+  // vendeur fermé ne doit jamais prendre la place d'un vendeur ouvert, même
+  // s'il apparaît avant lui dans la liste d'origine.
+  it('les vendeurs ouverts passent devant avant que le plafond ne s’applique', () => {
+    const list = [
+      vendor({ id: 'ferme1', isOpen: false }),
+      vendor({ id: 'ferme2', isOpen: false }),
+      vendor({ id: 'ferme3', isOpen: false }),
+      vendor({ id: 'ouvert1', isOpen: true }),
+      vendor({ id: 'ouvert2', isOpen: true }),
+      vendor({ id: 'ouvert3', isOpen: true }),
+      vendor({ id: 'ouvert4', isOpen: true }),
+      vendor({ id: 'ouvert5', isOpen: true }),
+      vendor({ id: 'ouvert6', isOpen: true }),
+    ];
+    const out = selectHeroSlides(list);
+    expect(out).toHaveLength(5);
+    expect(out.every((s) => s.isOpen)).toBe(true);
+    expect(out.map((s) => s.id)).toEqual([
+      'ouvert1',
+      'ouvert2',
+      'ouvert3',
+      'ouvert4',
+      'ouvert5',
+    ]);
   });
 });
