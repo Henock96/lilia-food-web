@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
       // Avatars Google (sign-in Firebase Google provider).
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      // Champ `imageUrl` legacy du vendeur « Chez Maman Lili ». Autorisé à la
+      // demande du founder pour que son image s'affiche. À retirer dès que ce
+      // vendeur aura une photo hébergée sur Cloudinary : cette URL pointe vers
+      // le serveur d'un tiers, donc l'image peut disparaître ou changer sans
+      // préavis, et nous n'en maîtrisons ni la disponibilité ni les droits.
+      { protocol: 'https', hostname: 'sogood.paris' },
       // Visuels marketing utilisés dans hero-section.
       { protocol: 'https', hostname: 'images.unsplash.com' },
       // Avatars de démo (testimonials home) — contenu placeholder.
