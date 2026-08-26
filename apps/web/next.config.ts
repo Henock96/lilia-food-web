@@ -23,6 +23,12 @@ const nextConfig: NextConfig = {
       // le serveur d'un tiers, donc l'image peut disparaître ou changer sans
       // préavis, et nous n'en maîtrisons ni la disponibilité ni les droits.
       { protocol: 'https', hostname: 'sogood.paris' },
+      // Champ `imageUrl` legacy du produit « Eau Minerale Vival ». C'est un lien
+      // de miniature Google Images : il expirera de lui-même, Google ne garantit
+      // aucune pérennité sur ces URLs. Autorisé à la demande du founder pour
+      // débloquer l'affichage ; la vraie correction est de remplacer l'image du
+      // produit côté admin, après quoi cette entrée doit disparaître.
+      { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
       // Visuels marketing utilisés dans hero-section.
       { protocol: 'https', hostname: 'images.unsplash.com' },
       // Avatars de démo (testimonials home) — contenu placeholder.
