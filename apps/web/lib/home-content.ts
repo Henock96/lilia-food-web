@@ -2,7 +2,6 @@ import {
   UtensilsCrossed,
   CookingPot,
   Croissant,
-  CakeSlice,
   CupSoda,
   Wallet,
   ShieldCheck,
@@ -13,7 +12,7 @@ import {
 import type { VendorType } from '@lilia/types';
 
 /**
- * Contenu éditorial de la home « Lilia Noir ».
+ * Contenu éditorial de la home.
  * Les catégories pointent vers /restaurants?vendorType=… (filtre marketplace
  * LIL-119). GROCERY est volontairement exclu tant que le catalogue épicerie
  * n'est pas activé, comme dans VendorTypeChips.
@@ -24,56 +23,15 @@ export interface HomeCategory {
   label: string;
   tagline: string;
   icon: LucideIcon;
-  image: string;
-  accent: string; // halo couleur
+  /** Aplat de la tuile, tant qu'il n'y a pas de vraie photo. */
+  tone: 'photo' | 'tomato' | 'cream' | 'ink';
 }
 
 export const HOME_CATEGORIES: HomeCategory[] = [
-  {
-    type: 'RESTAURANT',
-    label: 'Restaurants',
-    tagline: 'Les saveurs du quartier',
-    icon: UtensilsCrossed,
-    image:
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1200&auto=format&fit=crop',
-    accent: 'rgba(244,116,48,0.55)',
-  },
-  {
-    type: 'HOME_COOK',
-    label: 'Cuisines maison',
-    tagline: 'Le fait-main, comme à la maison',
-    icon: CookingPot,
-    image:
-      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1200&auto=format&fit=crop',
-    accent: 'rgba(236,72,153,0.5)',
-  },
-  {
-    type: 'BAKERY',
-    label: 'Boulangeries',
-    tagline: 'Pain chaud & viennoiseries',
-    icon: Croissant,
-    image:
-      'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=1200&auto=format&fit=crop',
-    accent: 'rgba(233,184,115,0.55)',
-  },
-  {
-    type: 'BAKERY',
-    label: 'Pâtisseries',
-    tagline: 'Douceurs & gâteaux sur mesure',
-    icon: CakeSlice,
-    image:
-      'https://images.unsplash.com/photo-1488477181946-6428a0291777?q=80&w=1200&auto=format&fit=crop',
-    accent: 'rgba(217,70,239,0.45)',
-  },
-  {
-    type: 'BEVERAGE_SHOP',
-    label: 'Boissons',
-    tagline: 'Jus frais, sodas & eaux',
-    icon: CupSoda,
-    image:
-      'https://images.unsplash.com/photo-1437418747212-8d9709afab22?q=80&w=1200&auto=format&fit=crop',
-    accent: 'rgba(34,211,238,0.5)',
-  },
+  { type: 'RESTAURANT',    label: 'Restaurants',     tagline: 'Les saveurs du quartier',      icon: UtensilsCrossed, tone: 'photo'  },
+  { type: 'HOME_COOK',     label: 'Cuisines maison', tagline: 'Le fait-main du quartier',     icon: CookingPot,      tone: 'tomato' },
+  { type: 'BAKERY',        label: 'Boulangeries',    tagline: 'Pain chaud dès 6h',            icon: Croissant,       tone: 'cream'  },
+  { type: 'BEVERAGE_SHOP', label: 'Boissons',        tagline: 'Fraîches, livrées',            icon: CupSoda,        tone: 'ink'    },
 ];
 
 export interface HomePromo {
