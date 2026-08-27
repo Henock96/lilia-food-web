@@ -101,15 +101,15 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
 
   if (isDisabledByGate) {
     return (
-      <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
-        <div className="rounded-full bg-zinc-200 p-2 shrink-0">
-          <Lock className="w-4 h-4 text-zinc-500" />
+      <div className="bg-cream-100 border border-cream-300 rounded-2xl p-4 mb-5 flex items-start gap-3">
+        <div className="rounded-full bg-cream-300 p-2 shrink-0">
+          <Lock className="w-4 h-4 text-ink-500" />
         </div>
         <div>
-          <p className="text-sm font-medium text-zinc-700">
+          <p className="text-sm font-medium text-ink-700">
             Laisser un avis
           </p>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <p className="text-xs text-ink-500 mt-0.5">
             {reason ?? 'Vous devez avoir commandé dans ce restaurant pour laisser un avis.'}
           </p>
         </div>
@@ -121,9 +121,9 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
   const deleting = deleteMut.isPending;
 
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-4 mb-5">
+    <div className="bg-white border border-cream-300 rounded-2xl p-4 mb-5">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-zinc-900">
+        <h4 className="text-sm font-semibold text-ink-900">
           {isEditing ? 'Votre avis' : 'Laisser un avis'}
         </h4>
         {isEditing && (
@@ -158,7 +158,7 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
                 className={`w-6 h-6 transition-colors ${
                   filled
                     ? 'text-amber-500 fill-amber-500'
-                    : 'text-zinc-300 fill-transparent'
+                    : 'text-ink-300 fill-transparent'
                 }`}
               />
             </button>
@@ -171,10 +171,10 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
         onChange={(e) => setComment(e.target.value.slice(0, MAX_COMMENT))}
         placeholder="Partagez votre expérience (optionnel)"
         rows={3}
-        className="w-full px-3 py-2 text-sm rounded-xl border border-zinc-200 bg-white text-zinc-900 placeholder-zinc-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none resize-none"
+        className="w-full px-3 py-2 text-sm rounded-xl border border-cream-300 bg-white text-ink-900 placeholder-ink-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none resize-none"
       />
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-ink-500">
           {comment.length}/{MAX_COMMENT}
         </span>
         <button

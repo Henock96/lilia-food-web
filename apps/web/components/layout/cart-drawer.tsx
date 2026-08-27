@@ -53,12 +53,12 @@ export function CartDrawer() {
             className="fixed right-0 top-0 h-full w-full max-w-sm bg-white z-50 shadow-2xl flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cream-200">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-primary-500" />
-                <h2 className="font-bold text-zinc-900 text-lg">Mon panier</h2>
+                <ShoppingCart className="w-5 h-5 text-tomato-700" />
+                <h2 className="font-bold text-ink-900 text-lg">Mon panier</h2>
                 {items.length > 0 && (
-                  <span className="text-xs font-semibold bg-primary-100 text-primary-600 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold bg-tomato-100 text-tomato-700 px-2 py-0.5 rounded-full">
                     {items.length}
                   </span>
                 )}
@@ -66,7 +66,7 @@ export function CartDrawer() {
               <button
                 onClick={closeCart}
                 aria-label="Fermer le panier"
-                className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-full transition-colors"
+                className="p-2 text-ink-500 hover:text-ink-700 hover:bg-cream-200 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -77,16 +77,16 @@ export function CartDrawer() {
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
                   {/* Empty state illustration */}
-                  <div className="w-20 h-20 bg-zinc-100 rounded-3xl flex items-center justify-center">
-                    <ShoppingCart className="w-8 h-8 text-zinc-300" />
+                  <div className="w-20 h-20 bg-cream-200 rounded-3xl flex items-center justify-center">
+                    <ShoppingCart className="w-8 h-8 text-ink-300" />
                   </div>
                   <div>
-                    <p className="font-semibold text-zinc-800">Votre panier est vide</p>
-                    <p className="text-zinc-500 text-sm mt-1">Ajoutez des plats depuis un restaurant</p>
+                    <p className="font-semibold text-ink-900">Votre panier est vide</p>
+                    <p className="text-ink-500 text-sm mt-1">Ajoutez des plats depuis un restaurant</p>
                   </div>
                   <button
                     onClick={() => { closeCart(); router.push('/restaurants'); }}
-                    className="px-5 py-2.5 bg-primary-500 text-white text-sm font-medium rounded-2xl hover:bg-primary-600 transition-colors active:scale-95"
+                    className="px-5 py-2.5 bg-tomato-600 text-white text-sm font-medium rounded-2xl hover:bg-tomato-700 transition-colors active:scale-95"
                   >
                     Voir les restaurants
                   </button>
@@ -99,7 +99,7 @@ export function CartDrawer() {
                         key={item.id}
                         layout
                         exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0 }}
-                        className="flex items-center gap-3 bg-zinc-50 rounded-2xl p-3"
+                        className="flex items-center gap-3 bg-cream-100 rounded-2xl p-3"
                       >
                         {item.product?.imageUrl && (
                           <Image
@@ -111,11 +111,11 @@ export function CartDrawer() {
                           />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-zinc-900 truncate">{item.product?.nom}</p>
+                          <p className="text-sm font-semibold text-ink-900 truncate">{item.product?.nom}</p>
                           {item.variant?.label && (
-                            <p className="text-xs text-zinc-400">{item.variant.label}</p>
+                            <p className="text-xs text-ink-500">{item.variant.label}</p>
                           )}
-                          <p className="text-sm font-bold text-primary-600 mt-0.5">
+                          <p className="text-sm font-bold text-tomato-700 mt-0.5">
                             {formatCurrency((item.variant?.prix ?? 0) * item.quantite)}
                           </p>
                         </div>
@@ -123,17 +123,17 @@ export function CartDrawer() {
                           <button
                             aria-label="Diminuer la quantité"
                             onClick={() => item.quantite === 1 ? removeItem.mutate(item.id) : updateItem.mutate({ itemId: item.id, quantite: item.quantite - 1 })}
-                            className="w-6 h-6 bg-white border border-zinc-200 hover:bg-zinc-100 rounded-full flex items-center justify-center transition-colors active:scale-90"
+                            className="w-6 h-6 bg-white border border-cream-300 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
-                            {item.quantite === 1 ? <Trash2 className="w-3 h-3 text-rose-500" /> : <Minus className="w-3 h-3 text-zinc-600" />}
+                            {item.quantite === 1 ? <Trash2 className="w-3 h-3 text-rose-500" /> : <Minus className="w-3 h-3 text-ink-700" />}
                           </button>
-                          <span className="w-5 text-center text-sm font-bold text-zinc-900">{item.quantite}</span>
+                          <span className="w-5 text-center text-sm font-bold text-ink-900">{item.quantite}</span>
                           <button
                             aria-label="Augmenter la quantité"
                             onClick={() => updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })}
-                            className="w-6 h-6 bg-primary-100 hover:bg-primary-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
+                            className="w-6 h-6 bg-tomato-100 hover:bg-tomato-100 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
-                            <Plus className="w-3 h-3 text-primary-600" />
+                            <Plus className="w-3 h-3 text-tomato-700" />
                           </button>
                         </div>
                       </motion.div>
@@ -145,14 +145,14 @@ export function CartDrawer() {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="px-5 py-4 border-t border-zinc-100 bg-white">
+              <div className="px-5 py-4 border-t border-cream-200 bg-white">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-zinc-500">Sous-total</span>
-                  <span className="font-bold text-zinc-900">{formatCurrency(subTotal)}</span>
+                  <span className="text-sm text-ink-500">Sous-total</span>
+                  <span className="font-bold text-ink-900">{formatCurrency(subTotal)}</span>
                 </div>
                 <button
                   onClick={handleCheckout}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-primary-200/50 active:scale-[0.98]"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100/50 active:scale-[0.98]"
                 >
                   Voir le panier
                   <ArrowRight className="w-4 h-4" />

@@ -187,12 +187,12 @@ export default function InscriptionPage() {
       animate="animate"
       className="w-full max-w-sm"
     >
-      <div className="bg-white rounded-3xl shadow-xl border border-zinc-100 p-8">
+      <div className="bg-white rounded-3xl shadow-xl border border-cream-200 p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-900 mb-1">
+          <h1 className="text-2xl font-bold text-ink-900 mb-1">
             Créer un compte 🍽️
           </h1>
-          <p className="text-zinc-500 text-sm">
+          <p className="text-ink-500 text-sm">
             Rejoignez Lilia Food et commandez dès maintenant
           </p>
         </div>
@@ -201,16 +201,16 @@ export default function InscriptionPage() {
         <button
           onClick={handleGoogle}
           disabled={googleLoading || loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-all mb-5 disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-cream-300 rounded-2xl text-sm font-medium text-ink-700 hover:bg-cream-100 hover:border-ink-300 transition-all mb-5 disabled:opacity-60"
         >
           <GoogleIcon />
           {googleLoading ? 'Connexion…' : 'Continuer avec Google'}
         </button>
 
         <div className="flex items-center gap-3 mb-5">
-          <div className="flex-1 h-px bg-zinc-200" />
-          <span className="text-xs text-zinc-400">ou</span>
-          <div className="flex-1 h-px bg-zinc-200" />
+          <div className="flex-1 h-px bg-cream-300" />
+          <span className="text-xs text-ink-500">ou</span>
+          <div className="flex-1 h-px bg-cream-300" />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -222,14 +222,14 @@ export default function InscriptionPage() {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 aria-label="Choisir une photo de profil"
-                className="w-20 h-20 rounded-full border-2 border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center overflow-hidden hover:border-primary-400 transition-colors group"
+                className="w-20 h-20 rounded-full border-2 border-dashed border-ink-300 bg-cream-100 flex items-center justify-center overflow-hidden hover:border-tomato-500 transition-colors group"
               >
                 {avatarPreview ? (
                   // Aperçu local (blob: via createObjectURL) — non optimisable par next/image.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarPreview} alt="Aperçu" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-zinc-400 group-hover:text-primary-500 transition-colors">
+                  <div className="flex flex-col items-center gap-1 text-ink-500 group-hover:text-tomato-700 transition-colors">
                     <Camera className="w-6 h-6" />
                     <span className="text-[10px] font-medium">Photo</span>
                   </div>
@@ -240,7 +240,7 @@ export default function InscriptionPage() {
                   type="button"
                   onClick={removeAvatar}
                   aria-label="Retirer la photo"
-                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-zinc-800 text-white rounded-full flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
+                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-ink-900 text-white rounded-full flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -258,11 +258,11 @@ export default function InscriptionPage() {
           {/* ── Prénom + Nom ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label className="block text-sm font-medium text-ink-700 mb-1.5">
                 Prénom
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
                 <input
                   type="text"
                   value={prenom}
@@ -270,12 +270,12 @@ export default function InscriptionPage() {
                   placeholder="Jean"
                   required
                   autoComplete="given-name"
-                  className="w-full pl-9 pr-3 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                  className="w-full pl-9 pr-3 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label className="block text-sm font-medium text-ink-700 mb-1.5">
                 Nom
               </label>
               <input
@@ -285,37 +285,37 @@ export default function InscriptionPage() {
                 placeholder="Dupont"
                 required
                 autoComplete="family-name"
-                className="w-full px-3 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full px-3 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
               />
             </div>
           </div>
 
           {/* ── Téléphone ── */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+            <label className="block text-sm font-medium text-ink-700 mb-1.5">
               Téléphone{' '}
-              <span className="text-zinc-400 font-normal">(optionnel)</span>
+              <span className="text-ink-500 font-normal">(optionnel)</span>
             </label>
             <div className="relative">
-              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
               <input
                 type="tel"
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
                 placeholder="+242 06 000 0000"
                 autoComplete="tel"
-                className="w-full pl-10 pr-4 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
               />
             </div>
           </div>
 
           {/* ── Email ── */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+            <label className="block text-sm font-medium text-ink-700 mb-1.5">
               Email
             </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
               <input
                 type="email"
                 value={email}
@@ -323,18 +323,18 @@ export default function InscriptionPage() {
                 placeholder="votre@email.com"
                 required
                 autoComplete="email"
-                className="w-full pl-10 pr-4 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
               />
             </div>
           </div>
 
           {/* ── Mot de passe ── */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+            <label className="block text-sm font-medium text-ink-700 mb-1.5">
               Mot de passe
             </label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -343,12 +343,12 @@ export default function InscriptionPage() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full pl-10 pr-10 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full pl-10 pr-10 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700 transition-colors"
                 aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -358,12 +358,12 @@ export default function InscriptionPage() {
 
           {/* ── Code de parrainage ── */}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+            <label className="block text-sm font-medium text-ink-700 mb-1.5">
               Code de parrainage{' '}
-              <span className="text-zinc-400 font-normal">(optionnel)</span>
+              <span className="text-ink-500 font-normal">(optionnel)</span>
             </label>
             <div className="relative">
-              <Gift className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              <Gift className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
               <input
                 type="text"
                 value={referralCode}
@@ -371,7 +371,7 @@ export default function InscriptionPage() {
                 placeholder="Ex: ABC12345"
                 maxLength={12}
                 autoComplete="off"
-                className="w-full pl-10 pr-4 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
               />
             </div>
             {referralCode && (
@@ -385,7 +385,7 @@ export default function InscriptionPage() {
           <button
             type="submit"
             disabled={isDisabled}
-            className="flex items-center justify-center gap-2 w-full py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-primary-200 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+            className="flex items-center justify-center gap-2 w-full py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
           >
             <AnimatePresence mode="wait">
               {loading ? (
@@ -415,9 +415,9 @@ export default function InscriptionPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-zinc-500 mt-6">
+        <p className="text-center text-sm text-ink-500 mt-6">
           Déjà un compte ?{' '}
-          <Link href="/connexion" className="text-primary-600 font-medium hover:underline">
+          <Link href="/connexion" className="text-tomato-700 font-medium hover:underline">
             Se connecter
           </Link>
         </p>

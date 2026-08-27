@@ -13,19 +13,19 @@ interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  primary:   'bg-tomato-600/12 text-tomato-600',
+  primary:   'bg-tomato-600/12 text-tomato-700',
   success:   'bg-[#27A660]/12 text-[#27A660]',
   warning:   'bg-[#D4970A]/12 text-[#D4970A]',
   danger:    'bg-[#D63F28]/12 text-[#D63F28]',
   info:      'bg-[#2B4A6B]/12 text-[#2B4A6B]',
   neutral:   'bg-cream-200 text-ink-700',
   open:      'bg-success text-white',
-  closed:    'bg-ink-300 text-white',
+  closed:    'bg-ink-500 text-white',
   pending:   'bg-[#D4970A]/12 text-[#D4970A]',
   confirmed: 'bg-[#2B4A6B]/12 text-[#2B4A6B]',
-  preparing: 'bg-tomato-600/12 text-tomato-600',
+  preparing: 'bg-tomato-600/12 text-tomato-700',
   ready:     'bg-[#27A660]/12 text-[#1A8A4A]',
-  'en-route':'bg-tomato-600/12 text-tomato-600',
+  'en-route':'bg-tomato-600/12 text-tomato-700',
   delivered: 'bg-[#27A660]/15 text-[#1A8A4A]',
   cancelled: 'bg-[#D63F28]/12 text-[#D63F28]',
 };

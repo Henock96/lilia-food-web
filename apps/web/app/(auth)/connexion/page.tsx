@@ -100,68 +100,68 @@ function ConnexionForm() {
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-zinc-100 p-8">
+    <div className="bg-white rounded-3xl shadow-xl border border-cream-200 p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-900 mb-1">Bon retour 👋</h1>
-        <p className="text-zinc-500 text-sm">Connectez-vous à votre compte Lilia Food</p>
+        <h1 className="text-2xl font-bold text-ink-900 mb-1">Bon retour 👋</h1>
+        <p className="text-ink-500 text-sm">Connectez-vous à votre compte Lilia Food</p>
       </div>
 
       <button
         onClick={handleGoogle}
         disabled={googleLoading}
-        className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-all mb-5 disabled:opacity-60"
+        className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-cream-300 rounded-2xl text-sm font-medium text-ink-700 hover:bg-cream-100 hover:border-ink-300 transition-all mb-5 disabled:opacity-60"
       >
         <GoogleIcon />
         {googleLoading ? 'Connexion...' : 'Continuer avec Google'}
       </button>
 
       <div className="flex items-center gap-3 mb-5">
-        <div className="flex-1 h-px bg-zinc-200" />
-        <span className="text-xs text-zinc-400">ou</span>
-        <div className="flex-1 h-px bg-zinc-200" />
+        <div className="flex-1 h-px bg-cream-300" />
+        <span className="text-xs text-ink-500">ou</span>
+        <div className="flex-1 h-px bg-cream-300" />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1.5">Email</label>
+          <label className="block text-sm font-medium text-ink-700 mb-1.5">Email</label>
           <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="votre@email.com"
               required
-              className="w-full pl-10 pr-4 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+              className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
             />
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-sm font-medium text-zinc-700">Mot de passe</label>
+            <label className="block text-sm font-medium text-ink-700">Mot de passe</label>
             <button
               type="button"
               onClick={() => { setResetEmail(email); setShowReset(true); }}
-              className="text-xs text-primary-600 hover:underline"
+              className="text-xs text-tomato-700 hover:underline"
             >
               Mot de passe oublié ?
             </button>
           </div>
           <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full pl-10 pr-10 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+              className="w-full pl-10 pr-10 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700 transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -171,7 +171,7 @@ function ConnexionForm() {
         <button
           type="submit"
           disabled={loading || !email || !password}
-          className="flex items-center justify-center gap-2 w-full py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-primary-200 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+          className="flex items-center justify-center gap-2 w-full py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
         >
           {loading ? (
             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -184,9 +184,9 @@ function ConnexionForm() {
         </button>
       </form>
 
-      <p className="text-center text-sm text-zinc-500 mt-6">
+      <p className="text-center text-sm text-ink-500 mt-6">
         Pas encore de compte ?{' '}
-        <Link href="/inscription" className="text-primary-600 font-medium hover:underline">
+        <Link href="/inscription" className="text-tomato-700 font-medium hover:underline">
           S&apos;inscrire
         </Link>
       </p>
@@ -196,17 +196,17 @@ function ConnexionForm() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowReset(false)} />
           <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-zinc-900">Réinitialiser le mot de passe</h2>
-              <button type="button" onClick={() => setShowReset(false)} className="text-zinc-400 hover:text-zinc-700">
+              <h2 className="text-sm font-semibold text-ink-900">Réinitialiser le mot de passe</h2>
+              <button type="button" onClick={() => setShowReset(false)} className="text-ink-500 hover:text-ink-700">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-ink-500 mb-4">
               Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
             </p>
             <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
                 <input
                   type="email"
                   value={resetEmail}
@@ -214,21 +214,21 @@ function ConnexionForm() {
                   placeholder="votre@email.com"
                   required
                   autoFocus
-                  className="w-full pl-10 pr-4 py-3 border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                  className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                 />
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowReset(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-cream-300 text-ink-700 hover:bg-cream-100 transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={resetLoading || !resetEmail}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors disabled:opacity-60"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-tomato-600 hover:bg-tomato-700 text-white transition-colors disabled:opacity-60"
                 >
                   {resetLoading ? 'Envoi…' : 'Envoyer'}
                 </button>
@@ -251,7 +251,7 @@ export default function ConnexionPage() {
     >
       <Suspense
         fallback={
-          <div className="bg-white rounded-3xl shadow-xl border border-zinc-100 p-8">
+          <div className="bg-white rounded-3xl shadow-xl border border-cream-200 p-8">
             <div className="skeleton h-8 w-48 mb-4" />
             <div className="skeleton h-12 w-full rounded-2xl mb-4" />
             <div className="skeleton h-12 w-full rounded-2xl mb-4" />
