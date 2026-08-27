@@ -30,18 +30,24 @@ export function EmptyState({ icon, title, subtitle, action, className }: EmptySt
 
 interface ErrorStateProps extends EmptyStateProps {
   onRetry?: () => void;
+  /** Réessai en cours (ex. `useTransition`) : bouton désactivé et libellé
+   * différent, pour éviter les clics multiples pendant un cold start backend.
+   * Couleurs pleines (pas d'opacité réduite sur le texte). */
+  retrying?: boolean;
 }
 
-export function ErrorState({ onRetry, action, ...props }: ErrorStateProps) {
+export function ErrorState({ onRetry, retrying, action, ...props }: ErrorStateProps) {
   return (
     <EmptyState
       {...props}
       action={action ?? (onRetry && (
         <button
           onClick={onRetry}
-          className="mt-2 px-5 py-2 text-sm font-semibold text-tomato-700 border-[1.5px] border-tomato-600 rounded-pill hover:bg-tomato-100 transition-colors"
+          disabled={retrying}
+          aria-busy={retrying}
+          className="mt-2 px-5 py-2 text-sm font-semibold rounded-pill border-[1.5px] transition-colors border-tomato-600 text-tomato-700 hover:bg-tomato-100 disabled:cursor-not-allowed disabled:border-cream-300 disabled:bg-cream-100 disabled:text-ink-500 disabled:hover:bg-cream-100"
         >
-          Réessayer
+          {retrying ? 'Nouvel essai…' : 'Réessayer'}
         </button>
       ))}
     />

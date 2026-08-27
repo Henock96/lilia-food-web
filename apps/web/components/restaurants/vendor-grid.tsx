@@ -1,11 +1,13 @@
 'use client';
 
+import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { UtensilsCrossed } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
 import { containerVariants } from '@lilia/motion';
 import { ErrorState } from '@/components/ui';
+import { retryVendors } from '@/lib/actions/vendors';
 import { VendorCard } from './vendor-card';
 import { EmptyVendorSlot } from './empty-vendor-slot';
 
@@ -26,13 +28,28 @@ interface VendorGridProps {
 export function VendorGrid({ restaurants, emptyHint, failed = false, minSlots }: VendorGridProps) {
   const reduced = useReducedMotion();
   const router = useRouter();
+  const [isRetrying, startRetry] = useTransition();
+
+  // `retryVendors()` invalide le cache serveur (`revalidateTag('vendors')`)
+  // avant `router.refresh()` : sans ça, un simple refresh pourrait resservir
+  // une entrée déjà en cache. `useTransition` donne un état `pending` visible
+  // (bouton désactivé + libellé) pendant tout le cold start éventuel du
+  // backend, pour éviter que l'utilisateur ne reclique et n'envoie plusieurs
+  // requêtes en parallèle vers un service déjà à la peine.
+  function handleRetry() {
+    startRetry(async () => {
+      await retryVendors();
+      router.refresh();
+    });
+  }
 
   if (failed) {
     return (
       <ErrorState
         title="Impossible de charger les vendeurs"
         subtitle="Vérifie ta connexion et réessaie."
-        onRetry={() => router.refresh()}
+        onRetry={handleRetry}
+        retrying={isRetrying}
         className="rounded-3xl border border-cream-300 bg-white py-20"
       />
     );

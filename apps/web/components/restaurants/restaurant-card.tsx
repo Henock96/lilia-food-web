@@ -21,6 +21,11 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const reduced = useReducedMotion();
   // Timestamp figé au montage : évite un appel impur à Date.now() pendant le render.
   const [now] = useState(() => Date.now());
+  // `coverImage()` peut renvoyer une URL périmée (ex. lien tiers documenté
+  // comme périssable dans next.config.ts) : si <Image> échoue au chargement,
+  // on bascule sur le même aplat à initiale que « pas d'image du tout »,
+  // jamais l'icône de lien cassé.
+  const [imgError, setImgError] = useState(false);
   const { token } = useAuthStore();
   const { data: favorites } = useFavorites(token);
   const { data: popularList } = usePopularRestaurants();
@@ -64,7 +69,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       >
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-cream-200">
-          {cover ? (
+          {cover && !imgError ? (
             <Image
               src={cover}
               alt={restaurant.nom}
@@ -77,6 +82,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               placeholder="blur"
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-cream-200">

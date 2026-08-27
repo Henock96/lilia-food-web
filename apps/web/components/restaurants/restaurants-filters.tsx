@@ -128,7 +128,7 @@ export function RestaurantsFilters({ restaurants, failed = false }: RestaurantsF
           onClick={() => setShowOpenOnly((v) => !v)}
           className={`flex items-center gap-2 rounded-2xl border-[1.5px] px-4 py-3 text-sm font-medium transition-colors ${
             showOpenOnly
-              ? 'border-success bg-success/10 text-success'
+              ? 'border-success bg-white text-success'
               : 'border-cream-300 bg-white text-ink-700 hover:border-tomato-600 hover:text-tomato-600'
           }`}
         >
@@ -153,7 +153,9 @@ export function RestaurantsFilters({ restaurants, failed = false }: RestaurantsF
               {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
             </p>
           )}
-          <VendorGrid restaurants={filtered} minSlots={hasActiveFilter ? undefined : 4} />
+          {/* 3, pas 4 : la grille de cette page est en lg:grid-cols-3 (celle
+              de la home, en 4 colonnes, justifie son propre 4). */}
+          <VendorGrid restaurants={filtered} minSlots={hasActiveFilter ? undefined : 3} />
         </>
       )}
     </>
