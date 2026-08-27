@@ -53,19 +53,19 @@ export function OperatingHoursList({ hours }: OperatingHoursListProps) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 text-sm text-zinc-700 hover:text-zinc-900"
+        className="w-full flex items-center justify-between gap-2 text-sm text-ink-700 hover:text-ink-900"
         aria-expanded={expanded}
       >
         <span className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-zinc-400" />
+          <Clock className="w-4 h-4 text-ink-500" />
           <span className="font-medium">
             {todayHours ? `Aujourd'hui : ${renderHours(todayHours)}` : "Horaires d'ouverture"}
           </span>
         </span>
         {expanded ? (
-          <ChevronUp className="w-4 h-4 text-zinc-400" />
+          <ChevronUp className="w-4 h-4 text-ink-500" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-zinc-400" />
+          <ChevronDown className="w-4 h-4 text-ink-500" />
         )}
       </button>
 
@@ -86,8 +86,8 @@ export function OperatingHoursList({ hours }: OperatingHoursListProps) {
                   key={day}
                   className={`flex justify-between text-sm ${
                     isToday
-                      ? 'font-semibold text-zinc-900'
-                      : 'text-zinc-600'
+                      ? 'font-semibold text-ink-900'
+                      : 'text-ink-700'
                   }`}
                 >
                   <span>{DAY_LABEL[day]}</span>

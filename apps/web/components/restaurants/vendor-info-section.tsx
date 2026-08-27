@@ -33,13 +33,13 @@ export function VendorInfoSection({ restaurant }: VendorInfoSectionProps) {
   if (!story && hours.length === 0 && !since && !showBadge) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-6">
+    <div className="bg-white rounded-2xl border border-cream-300 p-5 mb-6">
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {showBadge && restaurant.vendorType && (
           <VendorTypeBadge vendorType={restaurant.vendorType} />
         )}
         {since && (
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-ink-500">
             {vendorTypeLabel && !showBadge ? `${vendorTypeLabel} · ` : ''}
             Sur Lilia depuis {since}
           </span>
@@ -53,7 +53,7 @@ export function VendorInfoSection({ restaurant }: VendorInfoSectionProps) {
       )}
 
       {hours.length > 0 && (
-        <div className="pt-3 border-t border-zinc-100">
+        <div className="pt-3 border-t border-cream-300">
           <OperatingHoursList hours={hours} />
         </div>
       )}

@@ -20,7 +20,7 @@ export function ExpandableBio({ story, collapseThreshold = DEFAULT_THRESHOLD }: 
 
   return (
     <div>
-      <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">
+      <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">
         {displayed}
       </p>
       {needsToggle && (
@@ -28,7 +28,7 @@ export function ExpandableBio({ story, collapseThreshold = DEFAULT_THRESHOLD }: 
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"
+          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-tomato-700 hover:text-ink-900"
         >
           {expanded ? (
             <>Réduire <ChevronUp className="w-3.5 h-3.5" /></>

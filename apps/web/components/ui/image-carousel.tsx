@@ -30,8 +30,15 @@ export function ImageCarousel({
 }: ImageCarouselProps) {
   const [index, setIndex] = useState(0);
   const startX = useRef<number | null>(null);
+  // Une image de galerie vendeur peut mourir (URL tierce périssable —
+  // cf. commentaires next.config.ts) : si TOUTES les images échouent au
+  // chargement, on bascule sur le même fallback que « pas d'image du tout »
+  // (aplat à initiale côté appelant), jamais l'icône de lien cassé. Même
+  // traitement que `restaurant-card.tsx` / `vendor-card.tsx`.
+  const [broken, setBroken] = useState<Set<number>>(() => new Set());
 
   if (images.length === 0) return <>{fallback ?? null}</>;
+  if (broken.size >= images.length) return <>{fallback ?? null}</>;
 
   const count = images.length;
   const go = (i: number) => setIndex(((i % count) + count) % count);
@@ -69,6 +76,9 @@ export function ImageCarousel({
               className="object-cover"
               priority={priority && i === 0}
               sizes={sizes}
+              onError={() =>
+                setBroken((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
+              }
             />
           </div>
         ))}
