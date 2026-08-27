@@ -17,10 +17,22 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
       // Avatars Google (sign-in Firebase Google provider).
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      // Visuels marketing utilisés dans hero-section.
-      { protocol: 'https', hostname: 'images.unsplash.com' },
-      // Avatars de démo (testimonials home) — contenu placeholder.
-      { protocol: 'https', hostname: 'i.pravatar.cc' },
+      // Champ `imageUrl` legacy du vendeur « Chez Maman Lili ». Autorisé à la
+      // demande du founder pour que son image s'affiche. À retirer dès que ce
+      // vendeur aura une photo hébergée sur Cloudinary : cette URL pointe vers
+      // le serveur d'un tiers, donc l'image peut disparaître ou changer sans
+      // préavis, et nous n'en maîtrisons ni la disponibilité ni les droits.
+      { protocol: 'https', hostname: 'sogood.paris' },
+      { protocol: 'https', hostname: 'kelianfood.com' },
+      { protocol: 'https', hostname: 'static.750g.com' },
+      { protocol: 'https', hostname: 'upload.wikimedia.org' },
+      { protocol: 'https', hostname: 'www.magasin-stalingrad.com' },
+      // Champ `imageUrl` legacy du produit « Eau Minerale Vival ». C'est un lien
+      // de miniature Google Images : il expirera de lui-même, Google ne garantit
+      // aucune pérennité sur ces URLs. Autorisé à la demande du founder pour
+      // débloquer l'affichage ; la vraie correction est de remplacer l'image du
+      // produit côté admin, après quoi cette entrée doit disparaître.
+      { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
     ],
   },
   env: {

@@ -10,7 +10,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         <Header />
       </Suspense>
       <CartDrawer />
-      <main className="min-h-screen pt-16">{children}</main>
+      <main className="min-h-screen">{children}</main>
       <Suspense>
         <Footer />
       </Suspense>

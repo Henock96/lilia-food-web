@@ -1,69 +1,67 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { apiClientRaw } from '@lilia/api-client';
-import type { Restaurant } from '@lilia/types';
-import { VendorGrid } from '@/components/restaurants/vendor-grid';
+import { VendorCard } from '@/components/restaurants/vendor-card';
+import { EmptyVendorSlot } from '@/components/restaurants/empty-vendor-slot';
+import { getVendors } from '@/lib/vendors';
 
 /**
- * Section « Les plus courus » — vendeurs en vedette. Consomme le marketplace
- * `/vendors` (déjà filtré adminApproved + isActive côté backend, LIL-119).
+ * Section « Les plus courus » — vendeurs en vedette. `getVendors()` est
+ * partagée avec le hero de la home (`app/(public)/page.tsx`) : un seul
+ * appel réseau à `/vendors`, mémoïsé par `'use cache'`.
+ *
+ * Le catalogue de production ne compte qu'un seul vendeur : une grille de 4
+ * cases dont 3 resteraient blanches lirait comme un site cassé. On complète
+ * donc toujours jusqu'à 4 emplacements avec `EmptyVendorSlot` (pointillés),
+ * partagé avec `VendorGrid` (/restaurants) pour ne pas dupliquer ce motif —
+ * un service qui démarre, pas un bug. On ne délègue pas à `VendorGrid` ici :
+ * son propre état vide (« Aucun restaurant disponible ») ferait doublon avec
+ * ces emplacements explicites.
  */
-async function getVendors(): Promise<Restaurant[]> {
-  'use cache';
-  try {
-    const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=12');
-    return res.data ?? [];
-  } catch {
-    return [];
-  }
-}
-
 export async function FeaturedRestaurants() {
   const restaurants = await getVendors();
-  const featured = restaurants.slice(0, 6);
+  const featured = restaurants.slice(0, 4);
 
   return (
-    <section className="grain noir-canvas relative overflow-hidden py-20 lg:py-28">
+    <section className="py-16 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-ember">
-              <span className="h-px w-6 bg-[var(--ember-400)]/60" aria-hidden />
-              Les plus courus
-            </span>
-            <h2
-              className="mt-3 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-[2.75rem]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              Ils font saliver{' '}
-              <span className="text-ember italic">tout Brazza.</span>
+            <h2 className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl">
+              Ils font saliver tout Brazza
             </h2>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-white/55">
+            <p className="mt-2 text-sm text-ink-500">
               {restaurants.length > 0
-                ? `${restaurants.length} vendeurs ouverts en ce moment, prêts à te livrer.`
+                ? `${restaurants.length} vendeur${restaurants.length > 1 ? 's' : ''} ouvert${
+                    restaurants.length > 1 ? 's' : ''
+                  } en ce moment, prêt${restaurants.length > 1 ? 's' : ''} à te livrer.`
                 : 'Les meilleurs vendeurs de la ville, sélectionnés pour toi.'}
             </p>
           </div>
 
           <Link
             href="/restaurants"
-            className="group hidden shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/5 px-5 py-2.5 text-sm font-medium text-white/80 transition-all hover:border-[var(--ember-400)]/50 hover:text-white sm:inline-flex"
+            className="group hidden shrink-0 items-center gap-2 rounded-pill border-[1.5px] border-cream-300 bg-white px-5 py-2.5 text-sm font-semibold text-ink-700 transition-colors hover:border-tomato-500 hover:text-tomato-700 sm:inline-flex"
           >
             Voir tout
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
-        <div className="mt-12">
-          <VendorGrid restaurants={featured} />
+        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {featured.map((r) => (
+            <VendorCard key={r.id} restaurant={r} />
+          ))}
+          {Array.from({ length: Math.max(0, 4 - featured.length) }).map((_, i) => (
+            <EmptyVendorSlot key={`empty-${i}`} label={i === 0 ? 'Prochain vendeur ici' : undefined} />
+          ))}
         </div>
 
-        <div className="mt-10 text-center sm:hidden">
+        <div className="mt-8 text-center sm:hidden">
           <Link
             href="/restaurants"
-            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--ember-500)] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--ember-400)]"
+            className="inline-flex items-center gap-2 rounded-pill bg-tomato-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-tomato-700"
           >
-            Voir tous les restaurants
+            Voir tous les vendeurs
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

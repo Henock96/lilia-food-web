@@ -21,15 +21,15 @@ export function QuantityStepper({ value, onChange, min = 1, max = 99, className 
           'w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-150',
           'text-lg font-bold border-none',
           value <= min
-            ? 'bg-cream-200 text-charcoal-400 cursor-not-allowed dark:bg-dark-muted'
-            : 'bg-primary-500/15 text-primary-500 hover:bg-primary-500/25 cursor-pointer',
+            ? 'bg-cream-200 text-ink-500 cursor-not-allowed'
+            : 'bg-tomato-600/15 text-tomato-600 hover:bg-tomato-600/25 cursor-pointer',
         )}
         aria-label="Diminuer"
       >
         −
       </button>
 
-      <span className="text-[17px] font-bold text-charcoal-700 dark:text-charcoal-50 min-w-[24px] text-center tabular-nums">
+      <span className="text-[17px] font-bold text-ink-900 min-w-[24px] text-center tabular-nums">
         {value}
       </span>
 
@@ -41,8 +41,8 @@ export function QuantityStepper({ value, onChange, min = 1, max = 99, className 
           'w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-150',
           'text-lg font-bold border-none text-white',
           value >= max
-            ? 'bg-charcoal-200 cursor-not-allowed dark:bg-dark-border'
-            : 'bg-primary-500 hover:bg-primary-600 cursor-pointer',
+            ? 'bg-ink-300 cursor-not-allowed'
+            : 'bg-tomato-600 hover:bg-tomato-700 cursor-pointer',
         )}
         aria-label="Augmenter"
       >

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -21,6 +21,11 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const reduced = useReducedMotion();
   // Timestamp figé au montage : évite un appel impur à Date.now() pendant le render.
   const [now] = useState(() => Date.now());
+  // `coverImage()` peut renvoyer une URL périmée (ex. lien tiers documenté
+  // comme périssable dans next.config.ts) : si <Image> échoue au chargement,
+  // on bascule sur le même aplat à initiale que « pas d'image du tout »,
+  // jamais l'icône de lien cassé.
+  const [imgError, setImgError] = useState(false);
   const { token } = useAuthStore();
   const { data: favorites } = useFavorites(token);
   const { data: popularList } = usePopularRestaurants();
@@ -33,6 +38,10 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const isNew = restaurant.createdAt
     ? (now - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= 7
     : false;
+
+  // Un seul badge superposé sur la photo — priorité Nouveau > Populaire > Rapide
+  // (cf. brief refonte : plus d'empilement rose/orange avec emoji).
+  const overlayBadge = isNew ? 'Nouveau' : isPopular ? 'Populaire' : isFastDelivery ? 'Rapide' : null;
 
   function handleFavorite(e: React.MouseEvent) {
     e.preventDefault();
@@ -52,19 +61,15 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   }
 
   return (
-    <motion.div
-      variants={reduced ? {} : cardVariants}
-      whileHover={reduced ? {} : { y: -4, transition: { type: 'spring', stiffness: 300, damping: 20 } }}
-      whileTap={reduced ? {} : buttonTap}
-    >
+    <motion.div variants={reduced ? {} : cardVariants} whileTap={reduced ? {} : buttonTap}>
       <Link
         href={`/restaurants/${restaurant.id}`}
-        className="group block bg-white dark:bg-dark-card rounded-2xl overflow-hidden border border-charcoal-100 dark:border-dark-border hover:border-charcoal-200 dark:hover:border-charcoal-600 hover:shadow-md dark:hover:shadow-black/30 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-primary-500"
+        className="group block overflow-hidden rounded-xl border border-cream-300 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tomato-500"
         aria-label={`${restaurant.nom} — ${restaurant.isOpen ? 'Ouvert' : 'Fermé'}`}
       >
         {/* Image */}
-        <div className="relative h-48 overflow-hidden bg-charcoal-50 dark:bg-dark-surface">
-          {cover ? (
+        <div className="relative h-48 overflow-hidden bg-cream-200">
+          {cover && !imgError ? (
             <Image
               src={cover}
               alt={restaurant.nom}
@@ -73,14 +78,17 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
               // l'optimiseur next/image (allowlist stricte conservée pour les
               // visuels curés). Voir choix LIL-107/108/109.
               unoptimized
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               placeholder="blur"
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+              onError={() => setImgError(true)}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-100 dark:from-dark-surface dark:to-dark-card">
-              <span className="text-5xl" role="img" aria-label="Restaurant">🍽️</span>
+            <div className="flex h-full w-full items-center justify-center bg-cream-200">
+              <span className="font-display text-2xl text-ink-300" aria-hidden>
+                {restaurant.nom.charAt(0).toUpperCase()}
+              </span>
             </div>
           )}
 
@@ -88,7 +96,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           <div className="absolute top-3 left-3 flex items-center gap-1.5">
             <span className={cn(
               'px-2.5 py-1 text-xs font-semibold rounded-full',
-              restaurant.isOpen ? 'bg-[#27A660] text-white' : 'bg-charcoal-700/80 text-white',
+              restaurant.isOpen ? 'bg-success text-white' : 'bg-ink-500 text-white',
             )}>
               {restaurant.isOpen ? 'Ouvert' : 'Fermé'}
             </span>
@@ -100,43 +108,31 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           {/* Bouton favori */}
           <button
             onClick={handleFavorite}
-            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-white/90 dark:bg-dark-card/90 rounded-full shadow-sm hover:scale-110 transition-transform"
+            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-white/90 rounded-full shadow-sm hover:scale-110 transition-transform"
             aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
             <Heart
               className={cn(
                 'w-4 h-4 transition-colors',
-                isFavorite ? 'fill-primary-500 text-primary-500' : 'text-charcoal-400',
+                isFavorite ? 'fill-tomato-600 text-tomato-600' : 'text-ink-300',
               )}
             />
           </button>
 
-          {/* Badges visuels bas-gauche */}
-          {(isNew || isFastDelivery || isPopular) && (
-            <div className="absolute bottom-3 left-3 flex gap-1 flex-wrap">
-              {isNew && (
-                <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">
-                  Nouveau
-                </span>
-              )}
-              {isFastDelivery && (
-                <span className="px-2 py-0.5 bg-primary-500 text-white text-xs font-bold rounded-full">
-                  ⚡ Rapide
-                </span>
-              )}
-              {isPopular && (
-                <span className="px-2 py-0.5 bg-rose-500 text-white text-xs font-bold rounded-full">
-                  🔥 Populaire
-                </span>
-              )}
+          {/* Badge unique bas-gauche (Nouveau > Populaire > Rapide) — jamais empilé */}
+          {overlayBadge && (
+            <div className="absolute bottom-3 left-3">
+              <span className="rounded-pill bg-ink-900/80 px-2 py-0.5 text-[10px] font-bold text-white">
+                {overlayBadge}
+              </span>
             </div>
           )}
 
-          {/* Spécialités — masquées si badges présents pour éviter le chevauchement */}
-          {!isNew && !isFastDelivery && !isPopular && restaurant.specialties && restaurant.specialties.length > 0 && (
+          {/* Spécialités — masquées si un badge est présent pour éviter le chevauchement */}
+          {!overlayBadge && restaurant.specialties && restaurant.specialties.length > 0 && (
             <div className="absolute bottom-3 left-3 flex flex-wrap gap-1">
               {restaurant.specialties.slice(0, 2).map((s) => (
-                <span key={s.id} className="px-2 py-0.5 bg-black/50 text-white text-xs rounded-full backdrop-blur-sm">
+                <span key={s.id} className="rounded-pill bg-ink-900/70 px-2 py-0.5 text-[11px] text-white">
                   {s.name}
                 </span>
               ))}
@@ -147,25 +143,25 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
         {/* Content */}
         <div className="p-4">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="font-bold text-charcoal-700 dark:text-charcoal-50 text-base leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-1">
+            <h3 className="font-display font-bold text-ink-900 text-base leading-snug line-clamp-1">
               {restaurant.nom}
             </h3>
             {restaurant.averageRating && (
               <div className="flex items-center gap-1 flex-shrink-0" aria-label={`Note: ${restaurant.averageRating.toFixed(1)}`}>
                 <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" aria-hidden />
-                <span className="text-sm font-semibold text-charcoal-600 dark:text-charcoal-300">
+                <span className="text-sm font-semibold text-ink-700">
                   {restaurant.averageRating.toFixed(1)}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-1 text-charcoal-400 dark:text-charcoal-400 text-xs mb-3">
+          <div className="flex items-center gap-1 text-[11px] text-ink-500 mb-3">
             <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden />
             <span className="line-clamp-1">{restaurant.adresse}</span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-charcoal-400 dark:text-charcoal-400">
+          <div className="flex items-center gap-4 text-[11px] text-ink-500">
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" aria-hidden />
               {formatDeliveryTime(restaurant.estimatedDeliveryTimeMin, restaurant.estimatedDeliveryTimeMax)}
@@ -175,7 +171,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
               {restaurant.fixedDeliveryFee === 0 ? 'Livraison gratuite' : formatCurrency(restaurant.fixedDeliveryFee)}
             </span>
             {restaurant.minimumOrderAmount > 0 && (
-              <span className="text-charcoal-400 dark:text-charcoal-500">
+              <span className="text-ink-500">
                 Min. {formatCurrency(restaurant.minimumOrderAmount)}
               </span>
             )}

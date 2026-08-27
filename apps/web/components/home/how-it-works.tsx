@@ -1,81 +1,70 @@
-'use client';
+import Image from 'next/image';
 
-import { motion, useReducedMotion } from 'framer-motion';
-import { Search, ShoppingBag, Bike } from 'lucide-react';
-import { SectionHeading } from './_ui';
-
-const EASE = [0.22, 1, 0.36, 1] as const;
-
-const steps = [
+const STEPS = [
   {
-    icon: Search,
     title: 'Choisis ton vendeur',
-    description: 'Parcours restaurants, cuisines maison, boulangeries et boissons près de chez toi.',
-    step: '01',
+    description: 'Parcoure les restaurants, cuisines maison et boulangeries de ton quartier. Filtre par type de cuisine, consulte les menus et les avis — trouve ton plat en quelques secondes.',
+    image: '/how-it-works/step1.jpeg',
+    color: 'bg-cream-100',
   },
   {
-    icon: ShoppingBag,
-    title: 'Compose ta commande',
-    description: 'Ajoute tes plats au panier, applique un code promo, paie par MTN MoMo ou Airtel.',
-    step: '02',
+    title: 'Paie en Mobile Money',
+    description: 'Pas de carte bancaire ? Pas de problème. Paye directement avec MTN MoMo ou Airtel Money. Le paiement est sécurisé et confirmé en quelques secondes.',
+    image: '/how-it-works/step2.png',
+    color: 'bg-tomato-50',
   },
   {
-    icon: Bike,
-    title: 'Reçois, c’est chaud',
-    description: 'Suis ton livreur en temps réel et cumule des points fidélité à chaque commande.',
-    step: '03',
+    title: 'On te livre',
+    description: "Un livreur récupère ta commande et l'apporte directement chez toi. Suis ta commande en temps réel, de la préparation jusqu'à ta porte — livraison en 15 à 30 minutes.",
+    image: '/how-it-works/step4.jpeg',
+    color: 'bg-cream-200',
   },
 ];
 
 export function HowItWorks() {
-  const reduced = useReducedMotion();
-
   return (
-    <section className="relative overflow-hidden bg-[var(--noir-850)] py-20 lg:py-28">
+    <section className="bg-cream-200 py-12 lg:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="Simple comme bonjour"
-          title="Trois gestes,"
-          accent="et c’est servi."
-          align="center"
-        />
+        <div className="text-center">
+          <h2 className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl">
+            Comment ça marche ?
+          </h2>
+          <p className="mt-2 text-sm text-ink-500">
+            Trois étapes simples pour te faire livrer.
+          </p>
+        </div>
 
-        <div className="relative mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
-          {/* trait de liaison */}
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 top-9 hidden h-px bg-gradient-to-r from-transparent via-white/12 to-transparent md:block"
-          />
-
-          {steps.map((s, i) => (
-            <motion.div
-              key={s.step}
-              initial={reduced ? {} : { opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: i * 0.12, ease: EASE }}
-              className="group relative flex flex-col items-center text-center"
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
+          {STEPS.map((step, i) => (
+            <div
+              key={step.title}
+              className={`group overflow-hidden rounded-2xl ${step.color} transition-shadow hover:shadow-lg`}
             >
-              <div className="relative mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center">
-                <span className="ember-glow absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                <span className="glass-noir relative flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl text-[var(--ember-400)] transition-transform duration-300 group-hover:-translate-y-1">
-                  <s.icon className="h-7 w-7" aria-hidden />
-                </span>
-                <span
-                  className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ember-500)] text-xs font-bold text-white"
-                  aria-hidden
-                >
-                  {s.step}
+              {/* Image */}
+              <div className="relative h-52 overflow-hidden sm:h-56">
+                <Image
+                  src={step.image}
+                  alt={step.title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                {/* Numéro badge */}
+                <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-tomato-600 text-sm font-extrabold text-white shadow-md">
+                  {i + 1}
                 </span>
               </div>
-              <h3
-                className="text-xl font-bold text-white"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {s.title}
-              </h3>
-              <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/55">{s.description}</p>
-            </motion.div>
+
+              {/* Texte */}
+              <div className="p-5">
+                <h3 className="font-display text-base font-bold text-ink-900">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                  {step.description}
+                </p>
+              </div>
+            </div>
           ))}
         </div>
       </div>

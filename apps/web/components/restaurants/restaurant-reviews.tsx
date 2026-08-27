@@ -41,34 +41,34 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
 
   if (!stats || reviews.length === 0) {
     return (
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
+      <div className="bg-white rounded-2xl border border-cream-300 p-5">
         <LeaveReviewForm restaurantId={restaurantId} />
-        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avis clients</h3>
-        <p className="text-sm text-zinc-400">Aucun avis pour le moment.</p>
+        <h3 className="font-bold text-ink-900 mb-4">Avis clients</h3>
+        <p className="text-sm text-ink-500">Aucun avis pour le moment.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-5">
+    <div className="bg-white rounded-2xl border border-cream-300 p-5">
       <LeaveReviewForm restaurantId={restaurantId} />
-      <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Avis clients</h3>
+      <h3 className="font-bold text-ink-900 mb-4">Avis clients</h3>
 
       {/* Stats globales */}
-      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-zinc-100 dark:border-dark-border">
+      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-cream-300">
         <div className="text-center">
-          <div className="text-4xl font-black text-zinc-900 dark:text-zinc-100">
+          <div className="text-4xl font-black text-ink-900">
             {stats.averageRating.toFixed(1)}
           </div>
           <div className="flex justify-center mt-1">
             {[1, 2, 3, 4, 5].map((i) => (
               <Star
                 key={i}
-                className={`w-3.5 h-3.5 ${i <= Math.round(stats.averageRating) ? 'text-amber-500 fill-amber-500' : 'text-zinc-200 fill-zinc-200'}`}
+                className={`w-3.5 h-3.5 ${i <= Math.round(stats.averageRating) ? 'text-warning fill-warning' : 'text-cream-300 fill-cream-300'}`}
               />
             ))}
           </div>
-          <div className="text-xs text-zinc-400 mt-1">{stats.totalReviews} avis</div>
+          <div className="text-xs text-ink-500 mt-1">{stats.totalReviews} avis</div>
         </div>
 
         {/* Barres de répartition */}
@@ -78,10 +78,10 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
             const pct = stats.totalReviews > 0 ? (count / stats.totalReviews) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400 w-2">{star}</span>
-                <div className="flex-1 h-1.5 bg-zinc-100 dark:bg-dark-surface rounded-full overflow-hidden">
+                <span className="text-xs text-ink-500 w-2">{star}</span>
+                <div className="flex-1 h-1.5 bg-cream-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-amber-400 rounded-full"
+                    className="h-full bg-warning rounded-full"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -97,10 +97,10 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
           <div key={review.id} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-xs font-bold text-primary-600 dark:text-primary-400">
+                <div className="w-7 h-7 rounded-full bg-tomato-100 flex items-center justify-center text-xs font-bold text-tomato-700">
                   {review.user ? getInitials(review.user.nom) : '?'}
                 </div>
-                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                <span className="text-sm font-medium text-ink-900">
                   {review.user?.nom ?? 'Client'}
                 </span>
               </div>
@@ -108,15 +108,15 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Star
                     key={i}
-                    className={`w-3 h-3 ${i <= review.rating ? 'text-amber-500 fill-amber-500' : 'text-zinc-200 fill-zinc-200'}`}
+                    className={`w-3 h-3 ${i <= review.rating ? 'text-warning fill-warning' : 'text-cream-300 fill-cream-300'}`}
                   />
                 ))}
               </div>
             </div>
             {review.comment && (
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed line-clamp-3">{review.comment}</p>
+              <p className="text-xs text-ink-700 leading-relaxed line-clamp-3">{review.comment}</p>
             )}
-            <span className="text-xs text-zinc-400">{formatRelativeTime(review.createdAt)}</span>
+            <span className="text-xs text-ink-500">{formatRelativeTime(review.createdAt)}</span>
           </div>
         ))}
       </div>

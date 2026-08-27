@@ -16,11 +16,12 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:   'bg-primary-500 text-white hover:bg-primary-600 shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0',
-  secondary: 'border-[1.5px] border-primary-500 text-primary-500 hover:bg-primary-500/8',
-  ghost:     'bg-cream-200 text-charcoal-500 hover:bg-charcoal-100 dark:bg-dark-muted dark:text-charcoal-300 dark:hover:bg-dark-border',
+  // bg-tomato-600 (et non 500) : c'est le seul rouge qui passe 4,5:1 avec du blanc
+  primary:   'bg-tomato-600 text-white hover:bg-tomato-700 shadow-sm hover:shadow-md',
+  secondary: 'border-[1.5px] border-tomato-600 text-tomato-700 hover:bg-tomato-100',
+  ghost:     'bg-cream-200 text-ink-700 hover:bg-cream-300',
   danger:    'bg-danger text-white hover:opacity-90',
-  muted:     'bg-cream-200 text-charcoal-400 hover:bg-charcoal-100 dark:bg-dark-muted dark:text-charcoal-400',
+  muted:     'bg-cream-200 text-ink-500 hover:bg-cream-300',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -44,7 +45,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           sizeClasses[size],
           fullWidth && 'w-full',
           isDisabled && 'opacity-45 cursor-not-allowed pointer-events-none',
-          'active:scale-[0.97]',
           className,
         )}
         {...props}

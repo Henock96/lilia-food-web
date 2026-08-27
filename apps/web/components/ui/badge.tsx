@@ -13,21 +13,21 @@ interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  primary:   'bg-primary-500/12 text-primary-500',
-  success:   'bg-[#27A660]/12 text-[#27A660] dark:text-[#4DC280] dark:bg-[#4DC280]/12',
-  warning:   'bg-[#D4970A]/12 text-[#D4970A] dark:text-[#F5C44A] dark:bg-[#F5C44A]/12',
-  danger:    'bg-[#D63F28]/12 text-[#D63F28] dark:text-[#F4826E] dark:bg-[#F4826E]/12',
-  info:      'bg-[#2B4A6B]/12 text-[#2B4A6B] dark:text-[#6A9ABF] dark:bg-[#6A9ABF]/12',
-  neutral:   'bg-cream-200 text-charcoal-500 dark:bg-dark-muted dark:text-charcoal-300',
-  open:      'bg-[#27A660]/15 text-[#1A8A4A] dark:text-[#4DC280] dark:bg-[#4DC280]/15',
-  closed:    'bg-[#D63F28]/12 text-[#D63F28] dark:text-[#F4826E] dark:bg-[#F4826E]/12',
-  pending:   'bg-[#D4970A]/12 text-[#D4970A] dark:text-[#F5C44A] dark:bg-[#F5C44A]/12',
-  confirmed: 'bg-[#2B4A6B]/12 text-[#2B4A6B] dark:text-[#6A9ABF] dark:bg-[#6A9ABF]/12',
-  preparing: 'bg-primary-500/12 text-primary-500',
-  ready:     'bg-[#27A660]/12 text-[#1A8A4A] dark:text-[#4DC280]',
-  'en-route':'bg-primary-500/12 text-primary-500',
-  delivered: 'bg-[#27A660]/15 text-[#1A8A4A] dark:text-[#4DC280]',
-  cancelled: 'bg-[#D63F28]/12 text-[#D63F28] dark:text-[#F4826E]',
+  primary:   'bg-tomato-600/12 text-tomato-700',
+  success:   'bg-[#27A660]/12 text-[#27A660]',
+  warning:   'bg-[#D4970A]/12 text-[#D4970A]',
+  danger:    'bg-[#D63F28]/12 text-[#D63F28]',
+  info:      'bg-[#2B4A6B]/12 text-[#2B4A6B]',
+  neutral:   'bg-cream-200 text-ink-700',
+  open:      'bg-success text-white',
+  closed:    'bg-ink-500 text-white',
+  pending:   'bg-[#D4970A]/12 text-[#D4970A]',
+  confirmed: 'bg-[#2B4A6B]/12 text-[#2B4A6B]',
+  preparing: 'bg-tomato-600/12 text-tomato-700',
+  ready:     'bg-[#27A660]/12 text-[#1A8A4A]',
+  'en-route':'bg-tomato-600/12 text-tomato-700',
+  delivered: 'bg-[#27A660]/15 text-[#1A8A4A]',
+  cancelled: 'bg-[#D63F28]/12 text-[#D63F28]',
 };
 
 export function Badge({ label, variant = 'neutral', dot, className }: BadgeProps) {

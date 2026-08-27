@@ -238,7 +238,7 @@ export default function PanierPage() {
       animate="animate"
       className="max-w-4xl mx-auto px-4 sm:px-6 py-10 min-h-screen"
     >
-      <h1 className="text-2xl font-bold text-zinc-900 mb-8" style={{ fontFamily: 'var(--font-display)' }}>
+      <h1 className="text-2xl font-bold text-ink-900 mb-8" style={{ fontFamily: 'var(--font-display)' }}>
         Mon panier
       </h1>
 
@@ -248,16 +248,16 @@ export default function PanierPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center py-24 flex flex-col items-center gap-4"
         >
-          <div className="w-20 h-20 bg-zinc-100 rounded-3xl flex items-center justify-center">
-            <ShoppingCart className="w-10 h-10 text-zinc-400" />
+          <div className="w-20 h-20 bg-cream-200 rounded-3xl flex items-center justify-center">
+            <ShoppingCart className="w-10 h-10 text-ink-500" />
           </div>
           <div>
-            <p className="font-semibold text-zinc-800 text-lg">Votre panier est vide</p>
-            <p className="text-zinc-500 text-sm mt-1">Ajoutez des plats depuis un restaurant</p>
+            <p className="font-semibold text-ink-900 text-lg">Votre panier est vide</p>
+            <p className="text-ink-500 text-sm mt-1">Ajoutez des plats depuis un restaurant</p>
           </div>
           <Link
             href="/restaurants"
-            className="mt-2 px-6 py-3 bg-primary-500 text-white font-medium rounded-2xl hover:bg-primary-600 transition-colors"
+            className="mt-2 px-6 py-3 bg-tomato-600 text-white font-medium rounded-2xl hover:bg-tomato-700 transition-colors"
           >
             Voir les restaurants
           </Link>
@@ -275,7 +275,7 @@ export default function PanierPage() {
                     variants={cardVariants}
                     exit={{ opacity: 0, x: -20, height: 0 }}
                     layout
-                    className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4 flex items-center gap-4"
+                    className="bg-white rounded-2xl border border-cream-200 p-4 flex items-center gap-4"
                   >
                     {item.product?.imageUrl && (
                       <Image
@@ -287,11 +287,11 @@ export default function PanierPage() {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm truncate">{item.product?.nom}</p>
+                      <p className="font-semibold text-ink-900 text-sm truncate">{item.product?.nom}</p>
                       {item.variant?.label && (
-                        <p className="text-xs text-zinc-400">{item.variant.label}</p>
+                        <p className="text-xs text-ink-500">{item.variant.label}</p>
                       )}
-                      <p className="font-bold text-primary-600 text-sm mt-0.5">
+                      <p className="font-bold text-tomato-700 text-sm mt-0.5">
                         {formatCurrency((item.variant?.prix ?? 0) * item.quantite)}
                       </p>
                     </div>
@@ -304,20 +304,20 @@ export default function PanierPage() {
                             updateItem.mutate({ itemId: item.id, quantite: item.quantite - 1 });
                           }
                         }}
-                        className="w-7 h-7 bg-zinc-100 hover:bg-zinc-200 rounded-full flex items-center justify-center transition-colors"
+                        className="w-7 h-7 bg-cream-200 hover:bg-cream-300 rounded-full flex items-center justify-center transition-colors"
                       >
                         {item.quantite === 1 ? (
                           <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                         ) : (
-                          <Minus className="w-3.5 h-3.5 text-zinc-600" />
+                          <Minus className="w-3.5 h-3.5 text-ink-700" />
                         )}
                       </button>
-                      <span className="w-6 text-center font-semibold text-sm text-zinc-900">{item.quantite}</span>
+                      <span className="w-6 text-center font-semibold text-sm text-ink-900">{item.quantite}</span>
                       <button
                         onClick={() => updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })}
-                        className="w-7 h-7 bg-primary-100 hover:bg-primary-200 rounded-full flex items-center justify-center transition-colors"
+                        className="w-7 h-7 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors"
                       >
-                        <Plus className="w-3.5 h-3.5 text-primary-600" />
+                        <Plus className="w-3.5 h-3.5 text-tomato-700" />
                       </button>
                     </div>
                   </motion.div>
@@ -326,16 +326,16 @@ export default function PanierPage() {
             </motion.div>
 
             {/* Delivery mode */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Mode de réception</p>
+            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+              <p className="text-sm font-medium text-ink-700 mb-3">Mode de réception</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setIsDelivery(true)}
                   className={cn(
                     'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
                     isDelivery
-                      ? 'border-primary-300 bg-primary-50 text-primary-700'
-                      : 'border-zinc-200 text-zinc-500 hover:border-zinc-300',
+                      ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
+                      : 'border-cream-300 text-ink-500 hover:border-ink-300',
                   )}
                 >
                   <Bike className="w-5 h-5" />
@@ -346,8 +346,8 @@ export default function PanierPage() {
                   className={cn(
                     'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
                     !isDelivery
-                      ? 'border-primary-300 bg-primary-50 text-primary-700'
-                      : 'border-zinc-200 text-zinc-500 hover:border-zinc-300',
+                      ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
+                      : 'border-cream-300 text-ink-500 hover:border-ink-300',
                   )}
                 >
                   <Store className="w-5 h-5" />
@@ -363,13 +363,13 @@ export default function PanierPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white rounded-2xl border border-zinc-100 p-4 overflow-hidden"
+                  className="bg-white rounded-2xl border border-cream-200 p-4 overflow-hidden"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-zinc-700">Adresse de livraison</p>
+                    <p className="text-sm font-medium text-ink-700">Adresse de livraison</p>
                     <button
                       onClick={() => setShowAddressForm((v) => !v)}
-                      className="flex items-center gap-1 text-xs text-primary-600 font-medium hover:text-primary-700"
+                      className="flex items-center gap-1 text-xs text-tomato-700 font-medium hover:text-ink-900"
                     >
                       <PlusIcon className="w-3.5 h-3.5" />
                       Nouvelle adresse
@@ -386,21 +386,21 @@ export default function PanierPage() {
                           className={cn(
                             'flex items-start gap-3 p-3 rounded-xl border text-left transition-all',
                             selectedAdresseId === adresse.id
-                              ? 'border-primary-300 bg-primary-50'
-                              : 'border-zinc-200 hover:border-zinc-300',
+                              ? 'border-tomato-500 bg-tomato-100'
+                              : 'border-cream-300 hover:border-ink-300',
                           )}
                         >
                           <div className={cn(
                             'w-4 h-4 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center',
-                            selectedAdresseId === adresse.id ? 'border-primary-500' : 'border-zinc-300',
+                            selectedAdresseId === adresse.id ? 'border-tomato-500' : 'border-ink-300',
                           )}>
                             {selectedAdresseId === adresse.id && (
-                              <div className="w-2 h-2 bg-primary-500 rounded-full" />
+                              <div className="w-2 h-2 bg-tomato-600 rounded-full" />
                             )}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-zinc-800">{adresse.rue}</p>
-                            <p className="text-xs text-zinc-500">{adresse.ville}{adresse.quartier ? ` — ${adresse.quartier.nom}` : ''}</p>
+                            <p className="text-sm font-medium text-ink-900">{adresse.rue}</p>
+                            <p className="text-xs text-ink-500">{adresse.ville}{adresse.quartier ? ` — ${adresse.quartier.nom}` : ''}</p>
                           </div>
                           {adresse.isDefault && (
                             <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
@@ -413,7 +413,7 @@ export default function PanierPage() {
                   )}
 
                   {adresses.length === 0 && !showAddressForm && (
-                    <p className="text-sm text-zinc-400 text-center py-2">
+                    <p className="text-sm text-ink-500 text-center py-2">
                       Aucune adresse enregistrée — ajoutez-en une
                     </p>
                   )}
@@ -425,12 +425,12 @@ export default function PanierPage() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="flex flex-col gap-2 pt-3 border-t border-zinc-100 overflow-hidden"
+                        className="flex flex-col gap-2 pt-3 border-t border-cream-200 overflow-hidden"
                       >
                         <select
                           value={newQuartierId}
                           onChange={(e) => setNewQuartierId(e.target.value)}
-                          className="w-full text-sm border border-zinc-200 bg-white text-zinc-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                          className="w-full text-sm border border-cream-300 bg-white text-ink-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                         >
                           <option value="">Quartier (optionnel)</option>
                           {quartiers.map((q) => (
@@ -442,19 +442,19 @@ export default function PanierPage() {
                           value={newRue}
                           onChange={(e) => setNewRue(e.target.value)}
                           placeholder="Rue / Précision (ex: Rue Mfilou, face pharmacie)"
-                          className="w-full text-sm border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                          className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                         />
                         <div className="flex gap-2">
                           <button
                             onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); }}
-                            className="flex-1 py-2 text-sm text-zinc-500 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
+                            className="flex-1 py-2 text-sm text-ink-500 border border-cream-300 rounded-xl hover:bg-cream-100 transition-colors"
                           >
                             Annuler
                           </button>
                           <button
                             onClick={handleSaveAddress}
                             disabled={!newRue.trim() || savingAddress}
-                            className="flex-1 py-2 text-sm bg-primary-500 text-white font-medium rounded-xl hover:bg-primary-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-1"
+                            className="flex-1 py-2 text-sm bg-tomato-600 text-white font-medium rounded-xl hover:bg-tomato-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-1"
                           >
                             {savingAddress ? (
                               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -471,8 +471,8 @@ export default function PanierPage() {
             </AnimatePresence>
 
             {/* Contact phone — obligatoire pour le paiement manuel MTN/Airtel */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+              <label className="block text-sm font-medium text-ink-700 mb-2">
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
                   Numéro de contact <span className="text-rose-500">*</span>
@@ -486,10 +486,10 @@ export default function PanierPage() {
                 placeholder="+242 06 XXX XX XX"
                 aria-invalid={phoneError}
                 className={cn(
-                  'w-full text-sm border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 transition-all',
+                  'w-full text-sm border bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 transition-all',
                   phoneError
-                    ? 'border-rose-300 dark:border-rose-500/50 focus:ring-rose-500/20 focus:border-rose-400'
-                    : 'border-zinc-200 dark:border-dark-border focus:ring-primary-500/20 focus:border-primary-400',
+                    ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-400'
+                    : 'border-cream-300 focus:ring-tomato-500/20 focus:border-tomato-500',
                 )}
               />
               {phoneError ? (
@@ -497,21 +497,21 @@ export default function PanierPage() {
                   Format invalide — utilisez +242 06 XX XX XX XX (MTN/Airtel Congo)
                 </p>
               ) : (
-                <p className="text-xs text-zinc-400 mt-1.5">
+                <p className="text-xs text-ink-500 mt-1.5">
                   Le livreur et l&apos;agent paiement vous joindront sur ce numéro
                 </p>
               )}
             </div>
 
             {/* Notes */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Note pour le restaurant</label>
+            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+              <label className="block text-sm font-medium text-ink-700 mb-2">Note pour le restaurant</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ex: sans piment, sans oignon..."
                 rows={2}
-                className="w-full text-sm border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-surface text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
               />
             </div>
           </div>
@@ -519,23 +519,23 @@ export default function PanierPage() {
           {/* Right — promo, payment, total */}
           <div className="flex flex-col gap-4">
             {/* Promo code */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Code promo</label>
+            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+              <label className="block text-sm font-medium text-ink-700 mb-2">Code promo</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-500" />
                   <input
                     type="text"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     placeholder="BIENVENUE500"
-                    className="w-full pl-8 pr-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
+                    className="w-full pl-8 pr-3 py-2.5 text-sm border border-cream-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                   />
                 </div>
                 <button
                   onClick={handleValidatePromo}
                   disabled={!promoCode || promoLoading}
-                  className="px-3 py-2.5 bg-primary-500 text-white text-sm font-medium rounded-xl hover:bg-primary-600 transition-colors disabled:opacity-60"
+                  className="px-3 py-2.5 bg-tomato-600 text-white text-sm font-medium rounded-xl hover:bg-tomato-700 transition-colors disabled:opacity-60"
                 >
                   {promoLoading ? '...' : 'OK'}
                 </button>
@@ -548,8 +548,8 @@ export default function PanierPage() {
             </div>
 
             {/* Paiement */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Mode de paiement</p>
+            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+              <p className="text-sm font-medium text-ink-700 mb-3">Mode de paiement</p>
               <div className="flex flex-col gap-2">
                 {([
                   { method: 'MTN_MOMO', label: 'MTN Mobile Money', color: 'bg-yellow-400', number: process.env.NEXT_PUBLIC_MTN_NUMBER },
@@ -561,30 +561,30 @@ export default function PanierPage() {
                     className={cn(
                       'flex items-center gap-3 p-3 rounded-xl border text-sm transition-all text-left',
                       paymentMethod === method
-                        ? 'border-primary-300 bg-primary-50 text-primary-700'
-                        : 'border-zinc-200 text-zinc-600 hover:border-zinc-300',
+                        ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
+                        : 'border-cream-300 text-ink-700 hover:border-ink-300',
                     )}
                   >
-                    <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', paymentMethod === method ? 'border-primary-500' : 'border-zinc-300')}>
-                      {paymentMethod === method && <div className="w-2 h-2 bg-primary-500 rounded-full" />}
+                    <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', paymentMethod === method ? 'border-tomato-500' : 'border-ink-300')}>
+                      {paymentMethod === method && <div className="w-2 h-2 bg-tomato-600 rounded-full" />}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={cn('w-2 h-2 rounded-full shrink-0', color)} />
                       <span>{label}</span>
                     </div>
                     {number && paymentMethod === method && (
-                      <span className="ml-auto text-xs font-mono text-zinc-500">{number}</span>
+                      <span className="ml-auto text-xs font-mono text-ink-500">{number}</span>
                     )}
                   </button>
                 ))}
               </div>
 
               {/* Instructions de paiement */}
-              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl">
-                <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 mb-1">
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-xs font-semibold text-amber-800 mb-1">
                   Instructions de paiement
                 </p>
-                <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                <p className="text-xs text-amber-700 leading-relaxed">
                   Envoyez le montant total au numéro{' '}
                   <span className="font-bold font-mono">
                     {paymentMethod === 'MTN_MOMO'
@@ -598,23 +598,23 @@ export default function PanierPage() {
 
             {/* Points fidélité toggle */}
             {loyaltyPoints >= 100 && (
-              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                  <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
                     <Zap className="w-4 h-4 text-amber-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    <p className="text-sm font-semibold text-amber-800">
                       {loyaltyPoints} points disponibles
                     </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <p className="text-xs text-amber-600">
                       = {formatCurrency(loyaltyPoints * 5)} de réduction
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setUseLoyaltyPoints((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${useLoyaltyPoints ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-zinc-600'}`}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${useLoyaltyPoints ? 'bg-amber-500' : 'bg-cream-300'}`}
                 >
                   <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${useLoyaltyPoints ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </button>
@@ -623,30 +623,30 @@ export default function PanierPage() {
 
             {/* Section preorder */}
             {cartIsPreorder && (
-              <motion.div variants={cardVariants} className="bg-white dark:bg-dark-card rounded-2xl border border-orange-200 dark:border-orange-800 p-4">
+              <motion.div variants={cardVariants} className="bg-white rounded-2xl border border-orange-200 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CalendarIcon className="w-5 h-5 text-orange-600" />
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  <h3 className="font-semibold text-ink-900">
                     Date et heure de retrait
-                    <span className="ml-2 text-xs font-normal text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded">
+                    <span className="ml-2 text-xs font-normal text-orange-700 bg-orange-100 px-2 py-0.5 rounded">
                       Requis
                     </span>
                   </h3>
                 </div>
 
                 {scheduledFor ? (
-                  <div className="flex items-center justify-between gap-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 bg-orange-50 rounded-xl px-4 py-3">
                     <div>
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      <p className="font-semibold text-ink-900">
                         {formatScheduledForFr(scheduledFor)}
                       </p>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                      <p className="text-xs text-ink-700 mt-0.5">
                         Préavis vendeur : {leadHours}h
                       </p>
                     </div>
                     <button
                       onClick={() => setPickerOpen(true)}
-                      className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium"
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                     >
                       Modifier
                     </button>
@@ -654,13 +654,13 @@ export default function PanierPage() {
                 ) : (
                   <button
                     onClick={() => setPickerOpen(true)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 font-medium hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-orange-300 text-orange-700 font-medium hover:bg-orange-50"
                   >
                     Choisir un créneau
                   </button>
                 )}
 
-                <div className="mt-3 flex gap-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                <div className="mt-3 flex gap-2 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <p>
                     Le vendeur peut annuler jusqu&apos;à J-1. Remboursement sous 48h.
@@ -670,18 +670,18 @@ export default function PanierPage() {
             )}
 
             {/* Total */}
-            <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-100 dark:border-dark-border p-4">
+            <div className="bg-white rounded-2xl border border-cream-200 p-4">
               <div className="flex flex-col gap-2 text-sm">
-                <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                <div className="flex justify-between text-ink-700">
                   <span>Sous-total</span>
                   <span>{formatCurrency(subTotal)}</span>
                 </div>
                 {isDelivery && (
-                  <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                  <div className="flex justify-between text-ink-700">
                     <span>Livraison</span>
                     {deliveryDiscount > 0 ? (
                       <span className="flex items-center gap-1.5">
-                        <span className="line-through text-zinc-400">{formatCurrency(deliveryFee)}</span>
+                        <span className="line-through text-ink-500">{formatCurrency(deliveryFee)}</span>
                         <span className="text-emerald-600 font-medium">Gratuit</span>
                       </span>
                     ) : (
@@ -689,7 +689,7 @@ export default function PanierPage() {
                     )}
                   </div>
                 )}
-                <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                <div className="flex justify-between text-ink-700">
                   <span>Frais de service</span>
                   <span>{formatCurrency(serviceFee)}</span>
                 </div>
@@ -705,8 +705,8 @@ export default function PanierPage() {
                     <span>-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
                 )}
-                <div className="h-px bg-zinc-100 dark:bg-dark-border my-1" />
-                <div className="flex justify-between font-bold text-zinc-900 dark:text-zinc-100 text-base">
+                <div className="h-px bg-cream-200 my-1" />
+                <div className="flex justify-between font-bold text-ink-900 text-base">
                   <span>Total</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
@@ -729,7 +729,7 @@ export default function PanierPage() {
               <button
                 onClick={handleCheckout}
                 disabled={checkoutLoading || isEmpty || !phoneIsValid || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
-                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-primary-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (
                   <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

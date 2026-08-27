@@ -16,7 +16,7 @@ export default function GlobalError({
 
   return (
     <html lang="fr">
-      <body className="min-h-screen bg-zinc-50 dark:bg-dark-bg flex items-center justify-center px-4" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <body className="min-h-screen bg-cream-100 flex items-center justify-center px-4" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div className="max-w-md w-full text-center">
           <div className="flex justify-center mb-8">
             <svg viewBox="0 0 200 200" className="w-44 h-44" fill="none" aria-hidden>
@@ -35,23 +35,23 @@ export default function GlobalError({
           <h1 className="text-4xl font-black text-danger mb-2" style={{ fontFamily: 'Georgia, serif' }}>
             Oups !
           </h1>
-          <h2 className="text-xl font-bold text-zinc-800 mb-3">
+          <h2 className="text-xl font-bold text-ink-900 mb-3">
             Une erreur est survenue
           </h2>
-          <p className="text-zinc-500 mb-8 text-sm leading-relaxed">
+          <p className="text-ink-500 mb-8 text-sm leading-relaxed">
             Quelque chose s&apos;est mal passé de notre côté. Nos équipes sont sur le coup.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={reset}
-              className="px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-primary-200/50"
+              className="px-6 py-3 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-tomato-100/50"
             >
               Réessayer
             </button>
             <Link
               href="/"
-              className="px-6 py-3 bg-white border border-zinc-200 text-zinc-700 font-semibold rounded-2xl hover:bg-zinc-50 transition-all"
+              className="px-6 py-3 bg-white border border-cream-300 text-ink-700 font-semibold rounded-2xl hover:bg-cream-100 transition-all"
             >
               Accueil
             </Link>

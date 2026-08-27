@@ -1,116 +1,68 @@
 /* Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=Inter:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap");
 
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
-
 @theme {
-  /* ── Orange brand Lilia ── */
-  --color-primary-50:  #FFF4EF;
-  --color-primary-100: #FFE4D3;
-  --color-primary-200: #FFC5A1;
-  --color-primary-300: #FF9E6A;
-  --color-primary-400: #F47430;
-  --color-primary-500: #E8541F;
-  --color-primary-600: #C8421A;
-  --color-primary-700: #9E3012;
-  --color-primary-800: #742009;
+  /* ── Rouge tomate du logo ──
+     Trois nuances imposées par le contraste, pas par l'esthétique :
+     500 = aplats et gros titres (3,5:1 sur crème — pas de texte courant)
+     600 = fond de bouton à texte blanc (4,9:1)
+     700 = texte rouge sur crème (5,6:1)                              */
+  --color-tomato-500: #D04C35;
+  --color-tomato-600: #D2371A;
+  --color-tomato-700: #B8300F;
+  --color-tomato-100: #FBD9D1;
 
-  /* ── Cream ── */
-  --color-cream-50:  #FFFDF9;
-  --color-cream-100: #FAF5EE;
-  --color-cream-200: #F3E8D8;
-  --color-cream-300: #E8D5BC;
+  /* ── Crème ── */
+  --color-cream-100: #FDF4E8;
+  --color-cream-200: #F6E7D2;
+  --color-cream-300: #EBD9BF;
 
-  /* ── Charcoal ── */
-  --color-charcoal-50:  #F6F4F2;
-  --color-charcoal-100: #E9E4DF;
-  --color-charcoal-200: #CEC7BF;
-  --color-charcoal-300: #ABA39A;
-  --color-charcoal-400: #7A726A;
-  --color-charcoal-500: #4D4540;
-  --color-charcoal-600: #352E2A;
-  --color-charcoal-700: #1C1815;
-  --color-charcoal-800: #0F0D0B;
+  /* ── Encre ── */
+  --color-ink-900: #1C1815;
+  --color-ink-700: #3B342E;
+  --color-ink-500: #6B615A;
+  --color-ink-300: #A79C92;
 
-  /* ── Blue encre ── */
-  --color-blue-400: #3D6F96;
-  --color-blue-500: #2B4A6B;
-  --color-blue-300: #6A9ABF;
-
-  /* ── Sémantiques feedback ── */
-  --color-success:  #27A660;
-  --color-warning:  #D4970A;
-  --color-danger:   #D63F28;
-  --color-info:     #2B4A6B;
-
-  /* ── Dark mode surfaces ── */
-  --color-dark-bg:      #0F0D0B;
-  --color-dark-surface: #1C1815;
-  --color-dark-card:    #252018;
-  --color-dark-muted:   #2A2318;
-  --color-dark-border:  #352E2A;
+  /* ── Sémantiques ──
+     Le danger est volontairement plus sombre et plus froid que le rouge
+     de marque : sans cet écart, « Commander » et « Paiement refusé » se
+     confondent.                                                        */
+  --color-success: #0F7B4A;
+  --color-warning: #A96A00;
+  --color-danger:  #B3261E;
 
   /* ── Typographie ── */
-  --font-display: "Fraunces", "Georgia", serif;
-  --font-sans:    "Inter", "system-ui", sans-serif;
-  --font-mono:    "Fira Code", monospace;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
 
-  /* ── Animations ── */
-  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ── Ombres ── */
+  --shadow-sm: 0 1px 3px rgba(28,24,21,.07), 0 1px 2px rgba(28,24,21,.04);
+  --shadow-md: 0 4px 16px rgba(28,24,21,.09), 0 2px 6px rgba(28,24,21,.05);
+  --shadow-lg: 0 8px 32px rgba(28,24,21,.13);
 
-  /* ── Shadows ── */
-  --shadow-sm: 0 1px 3px rgba(28,24,21,.06), 0 1px 2px rgba(28,24,21,.04);
-  --shadow-md: 0 4px 16px rgba(28,24,21,.08), 0 2px 6px rgba(28,24,21,.05);
-  --shadow-lg: 0 8px 32px rgba(28,24,21,.12), 0 4px 12px rgba(28,24,21,.06);
-  --shadow-xl: 0 16px 48px rgba(28,24,21,.16);
-
-  /* legacy aliases (keep existing components working) */
-  --shadow-card:       var(--shadow-sm);
-  --shadow-card-hover: var(--shadow-md);
+  --radius-pill: 999px;
 }
 
-/* ── Semantic CSS vars (light) ─────────────────────── */
+/* ── Semantic CSS vars ──────────────────────────────── */
 :root {
-  --bg-primary:      #FAF5EE;
-  --bg-secondary:    #FFFFFF;
-  --bg-elevated:     #FFFFFF;
-  --bg-muted:        #F3E8D8;
-  --bg-overlay:      rgba(28,24,21,.5);
-  --text-primary:    #1C1815;
-  --text-secondary:  #4D4540;
-  --text-muted:      #7A726A;
-  --text-inverse:    #FFFFFF;
-  --action-primary:  #E8541F;
-  --action-hover:    #C8421A;
-  --border:          #E9E4DF;
-  --border-focus:    #E8541F;
-  --success:         #27A660;
-  --warning:         #D4970A;
-  --danger:          #D63F28;
-  --info:            #2B4A6B;
-}
-
-/* ── Semantic CSS vars (dark) ──────────────────────── */
-.dark {
-  --bg-primary:      #0F0D0B;
-  --bg-secondary:    #1C1815;
-  --bg-elevated:     #252018;
-  --bg-muted:        #2A2318;
-  --bg-overlay:      rgba(0,0,0,.7);
-  --text-primary:    #F6F4F2;
-  --text-secondary:  #CEC7BF;
-  --text-muted:      #7A726A;
-  --text-inverse:    #1C1815;
-  --action-primary:  #F47430;
-  --action-hover:    #FF9E6A;
-  --border:          #352E2A;
-  --border-focus:    #F47430;
-  --success:         #4DC280;
-  --warning:         #F5C44A;
-  --danger:          #F4826E;
-  --info:            #6A9ABF;
+  --bg-primary:     #FDF4E8;
+  --bg-secondary:   #FFFFFF;
+  --bg-elevated:    #FFFFFF;
+  --bg-muted:       #F6E7D2;
+  --bg-overlay:     rgba(28,24,21,.55);
+  --text-primary:   #1C1815;
+  --text-secondary: #6B615A;
+  --text-muted:     #A79C92;
+  --text-inverse:   #FDF4E8;
+  --action-primary: #d04c35;
+  --action-hover:   #B8300F;
+  --border:         #EBD9BF;
+  --border-focus:   #EF4423;
+  --success:        #0F7B4A;
+  --warning:        #A96A00;
+  --danger:         #B3261E;
 }
 
 /* ── Base ─────────────────────────────────────────── */
@@ -144,11 +96,6 @@ body {
   border-radius: 0.5rem;
 }
 
-.dark .skeleton {
-  background: linear-gradient(90deg, #2a2418 25%, #352e1e 50%, #2a2418 75%);
-  background-size: 200% 100%;
-}
-
 /* ── Animations ───────────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(24px); }
@@ -160,7 +107,7 @@ body {
   50%       { opacity: .6; transform: scale(1.3); }
 }
 
-.reveal { animation: fadeInUp 0.5s var(--ease-out-expo) both; }
+.reveal { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* ── Focus ring ───────────────────────────────────── */
 :focus-visible {
@@ -171,10 +118,8 @@ body {
 /* ── Scrollbar ────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CEC7BF; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #ABA39A; }
-.dark ::-webkit-scrollbar-thumb { background: #352E2A; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #4D4540; }
+::-webkit-scrollbar-thumb { background: #EBD9BF; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #A79C92; }
 
 /* ── Line clamp ───────────────────────────────────── */
 .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
@@ -197,74 +142,7 @@ body {
 /* ── Hero badge pulse ─────────────────────────────── */
 .pulse-dot { animation: pulse-dot 2s infinite; }
 
-/* ═══════════════════════════════════════════════════ */
-/*  LILIA NOIR — Refonte premium sombre gourmet         */
-/* ═══════════════════════════════════════════════════ */
-
-/* Palette dédiée aux sections art-dirigées (indépendante du toggle) */
-:root {
-  --noir-900: #0B0907;  /* fond le plus profond */
-  --noir-850: #110D0A;
-  --noir-800: #16110D;  /* surface */
-  --noir-700: #1F1812;  /* carte */
-  --noir-600: #2A2118;  /* carte élevée */
-  --noir-line: #322A20; /* bordures chaudes */
-  --ember-400: #F47430;
-  --ember-500: #E8541F;
-  --gold-400: #E9B873;
-}
-
-/* Texte dégradé braise → or (titres accent) */
-.text-ember {
-  background-image: linear-gradient(120deg, #FF9E6A 0%, #F47430 38%, #E9B873 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Surface verre sombre */
-.glass-noir {
-  background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-/* Halo orange diffus — décor */
-.ember-glow {
-  background: radial-gradient(circle at center, rgba(244,116,48,0.45) 0%, rgba(244,116,48,0.12) 35%, transparent 70%);
-  filter: blur(36px);
-}
-
-/* Liseré dégradé sur cartes (masque conique via bordure) */
-.ring-ember {
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.06),
-    0 24px 60px -20px rgba(0,0,0,0.8),
-    0 0 48px -24px rgba(244,116,48,0.55);
-}
-
-/* Grain premium — overlay texture */
-.grain::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-}
-
-/* Dégradé d'accroche radial pour fonds de section */
-.noir-canvas {
-  background:
-    radial-gradient(120% 80% at 15% -10%, rgba(244,116,48,0.16) 0%, transparent 45%),
-    radial-gradient(90% 70% at 95% 0%, rgba(233,184,115,0.10) 0%, transparent 50%),
-    var(--noir-900);
-}
-
-/* Marquee défilant (rails catégories / promos) */
+/* ── Marquee défilant (rails catégories / promos) ──── */
 @keyframes marquee-x {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -278,21 +156,3 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .marquee-track { animation: none; }
 }
-
-/* Étoile/scintillement lent pour halos */
-@keyframes ember-breathe {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50%      { opacity: 0.9;  transform: scale(1.08); }
-}
-.ember-breathe { animation: ember-breathe 6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .ember-breathe { animation: none; }
-}
-
-/* Indice de scroll */
-@keyframes scroll-cue {
-  0%   { transform: translateY(0); opacity: 0; }
-  35%  { opacity: 1; }
-  100% { transform: translateY(10px); opacity: 0; }
-}
-.scroll-cue { animation: scroll-cue 1.8s ease-in-out infinite; }
