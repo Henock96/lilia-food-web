@@ -299,7 +299,7 @@ export default function ProfilPage() {
           </div>
           <button
             onClick={() => setShowAddressForm((v) => !v)}
-            className="flex items-center gap-1 text-xs text-tomato-700 font-medium hover:text-tomato-700 transition-colors"
+            className="flex items-center gap-1 text-xs text-tomato-700 font-medium hover:text-ink-900 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             Ajouter
@@ -533,7 +533,7 @@ export default function ProfilPage() {
               <Package className="w-3.5 h-3.5 text-ink-500" />
               <span className="text-xs font-semibold text-ink-500 uppercase tracking-wide">Commandes récentes</span>
             </div>
-            <Link href="/commandes" className="text-xs text-tomato-700 font-medium hover:text-tomato-700">
+            <Link href="/commandes" className="text-xs text-tomato-700 font-medium hover:text-ink-900">
               Tout voir
             </Link>
           </div>

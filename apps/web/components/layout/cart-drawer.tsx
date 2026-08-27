@@ -131,7 +131,7 @@ export function CartDrawer() {
                           <button
                             aria-label="Augmenter la quantité"
                             onClick={() => updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })}
-                            className="w-6 h-6 bg-tomato-100 hover:bg-tomato-100 rounded-full flex items-center justify-center transition-colors active:scale-90"
+                            className="w-6 h-6 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
                             <Plus className="w-3 h-3 text-tomato-700" />
                           </button>

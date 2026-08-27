@@ -315,7 +315,7 @@ export default function PanierPage() {
                       <span className="w-6 text-center font-semibold text-sm text-ink-900">{item.quantite}</span>
                       <button
                         onClick={() => updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })}
-                        className="w-7 h-7 bg-tomato-100 hover:bg-tomato-100 rounded-full flex items-center justify-center transition-colors"
+                        className="w-7 h-7 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5 text-tomato-700" />
                       </button>
@@ -369,7 +369,7 @@ export default function PanierPage() {
                     <p className="text-sm font-medium text-ink-700">Adresse de livraison</p>
                     <button
                       onClick={() => setShowAddressForm((v) => !v)}
-                      className="flex items-center gap-1 text-xs text-tomato-700 font-medium hover:text-tomato-700"
+                      className="flex items-center gap-1 text-xs text-tomato-700 font-medium hover:text-ink-900"
                     >
                       <PlusIcon className="w-3.5 h-3.5" />
                       Nouvelle adresse

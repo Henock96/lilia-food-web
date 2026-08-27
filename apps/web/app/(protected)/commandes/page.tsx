@@ -101,7 +101,7 @@ export default function CommandesPage() {
                     <button
                       onClick={(e) => handleReorder(e, order.id)}
                       disabled={reorder.isPending}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-tomato-100 text-tomato-700 hover:bg-tomato-100 rounded-xl text-xs font-medium transition-colors shrink-0"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-tomato-100 text-tomato-700 hover:bg-cream-200 rounded-xl text-xs font-medium transition-colors shrink-0"
                     >
                       <RotateCcw className="w-3 h-3" />
                       Recommander
