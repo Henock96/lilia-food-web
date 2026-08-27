@@ -1,39 +1,44 @@
-import type { Restaurant } from '@lilia/types';
-import { coverImage } from '@lilia/utils';
+import 'server-only';
+import { apiClientRaw } from '@lilia/api-client';
+import type { Banner } from '@lilia/types';
 
-/** Vendeur affiché dans le hero de la home. */
-export interface HeroSlide {
+/** Bannière promotionnelle affichée dans le hero de la home. */
+export interface HeroBannerSlide {
   id: string;
-  nom: string;
+  title: string;
   imageUrl: string;
-  adresse: string;
-  isOpen: boolean;
-  /** Fourchette de livraison prête à afficher, ex. « 15–20 min ». */
-  delay: string;
+  description: string;
+  linkUrl: string;
+  displayOrder: number;
 }
 
 /** Nombre maximum de slides — au-delà, plus personne ne les regarde. */
 const MAX_SLIDES = 5;
 
 /**
- * Sélectionne les vendeurs éligibles au hero : actifs, approuvés, et dotés
- * d'une photo. Les vendeurs ouverts passent devant.
+ * Récupère les bannières actives depuis le backend et les mappe en slides
+ * prêts à afficher dans le hero. Les bannières sont triées par `displayOrder`
+ * côté backend, on se contente de limiter à {@link MAX_SLIDES}.
  *
- * Retourner moins de 2 slides est un cas normal, pas une erreur : au
- * lancement le catalogue ne compte qu'un vendeur. C'est à l'appelant de
- * basculer en affichage statique — voir HeroSlider.
+ * Retourner 0 slide est un cas normal : aucun banner configuré dans l'admin.
+ * C'est à l'appelant de gérer le cas vide (aplat, pas de rotation).
  */
-export function selectHeroSlides(restaurants: Restaurant[]): HeroSlide[] {
-  return restaurants
-    .filter((r) => r.isActive && r.adminApproved !== false && coverImage(r) !== null)
-    .sort((a, b) => Number(b.isOpen) - Number(a.isOpen))
-    .slice(0, MAX_SLIDES)
-    .map((r) => ({
-      id: r.id,
-      nom: r.nom,
-      imageUrl: coverImage(r) as string,
-      adresse: r.adresse,
-      isOpen: r.isOpen,
-      delay: `${r.estimatedDeliveryTimeMin}–${r.estimatedDeliveryTimeMax} min`,
-    }));
+export async function fetchBanners(): Promise<HeroBannerSlide[]> {
+  try {
+    const res = await apiClientRaw<{ data: Banner[] }>('/banners');
+    return (res.data ?? [])
+      .filter((b) => b.isActive)
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .slice(0, MAX_SLIDES)
+      .map((b) => ({
+        id: b.id,
+        title: b.title ?? "T'as faim ? On te livre !",
+        imageUrl: b.imageUrl,
+        description: b.description ?? '',
+        linkUrl: b.linkUrl ?? '/restaurants',
+        displayOrder: b.displayOrder,
+      }));
+  } catch {
+    return [];
+  }
 }

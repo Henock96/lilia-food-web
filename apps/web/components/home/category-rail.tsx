@@ -1,29 +1,12 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';
 import { HOME_CATEGORIES, type HomeCategory } from '@/lib/home-content';
 
 /**
- * Aplats de couleur en attendant de vraies photos de vendeurs (cf.
- * `lib/home-content.ts`). Une seule tuile en rouge : le hero juste au-dessus
- * est déjà un aplat rouge (`bg-tomato-600`, cf. `hero-slider.tsx` quand
- * aucune photo n'est assez grande) — enchaîner deux blocs rouges pleine
- * largeur ferait lire la page comme un unique bandeau uniforme. Les trois
- * autres tuiles (cream-300, cream-200, ink-900) cassent le rouge et donnent
- * un rythme clair/clair/sombre avant les cartes vendeur.
- *
- * `tomato-600`, pas `tomato-500` : `#EF4423` est explicitement interdit pour
- * du texte courant (contraste ~3,8:1 avec du blanc, sous le seuil AA de
- * 4,5:1). `tomato-600` (#D2371A) atteint 4,88:1 avec du blanc plein — c'est
- * pourquoi la tagline de cette tuile n'a PAS l'opacity-80 des trois autres :
- * une opacité réduite sur un aplat coloré redescendrait sous le seuil.
+ * Tuiles catégorie avec image de fond + overlay sombre pour la lisibilité.
+ * L'icône reste visible en haut à gauche, le label et la tagline en bas.
  */
-const toneClasses: Record<HomeCategory['tone'], string> = {
-  photo: 'bg-cream-300 text-ink-900',
-  tomato: 'bg-tomato-600 text-white',
-  cream: 'bg-cream-200 text-ink-900',
-  ink: 'bg-ink-900 text-cream-100',
-};
-
 export function CategoryRail() {
   return (
     <section className="py-12 lg:py-16">
@@ -52,13 +35,25 @@ export function CategoryRail() {
               key={c.type}
               href={`/restaurants?vendorType=${c.type}`}
               aria-label={`${c.label} — ${c.tagline}`}
-              className={`flex h-28 flex-col justify-end rounded-xl p-3 transition-opacity hover:opacity-90 ${toneClasses[c.tone]}`}
+              className="group relative flex h-32 flex-col justify-end overflow-hidden rounded-xl p-3 transition-opacity hover:opacity-90"
             >
-              <c.icon className="mb-auto h-5 w-5" aria-hidden />
-              <span className="font-display font-bold text-sm">{c.label}</span>
-              <span className={`text-[11px] ${c.tone === 'tomato' ? '' : 'opacity-80'}`}>
-                {c.tagline}
-              </span>
+              <Image
+                src={c.image}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 50vw, 25vw"
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-ink-900/80 via-ink-900/30 to-transparent" />
+              <div className="relative">
+                <c.icon className="mb-auto h-5 w-5 text-white/80" aria-hidden />
+                <span className="font-display font-bold text-sm text-white">
+                  {c.label}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-white/80">
+                  {c.tagline}
+                </span>
+              </div>
             </Link>
           ))}
         </div>

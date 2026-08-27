@@ -10,11 +10,13 @@ const NAV = [
   { href: '/commandes', label: 'Mes commandes' },
   { href: '/favoris', label: 'Mes favoris' },
   { href: '/inscription?role=vendor', label: 'Devenir partenaire' },
+  { href: '/support', label: 'Support' },
 ];
 
 const LEGAL = [
   { href: '/confidentialite', label: 'Confidentialité' },
   { href: '/conditions', label: "Conditions d'utilisation" },
+  { href: '/privacy-policy-cgu', label: 'Privacy & CGU' },
 ];
 
 export function Footer() {

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   openGraph: {
     title: 'Lilia Food — Livraison de repas à Brazzaville',
-    description: 'Commandez depuis les meilleurs restaurants de Brazzaville. Livraison rapide, paiement MTN MoMo.',
+    description: 'Commandez depuis les meilleurs restaurants de Brazzaville au Congo. Livraison rapide, paiement MTN MoMo.',
     url: SITE_URL,
     siteName: 'Lilia Food',
     locale: 'fr_CG',
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Lilia Food',
-    description: 'Livraison de repas à Brazzaville',
+    description: 'Livraison de repas à Brazzaville au Congo',
   },
   appleWebApp: {
     capable: true,

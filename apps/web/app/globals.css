@@ -9,7 +9,7 @@
      500 = aplats et gros titres (3,5:1 sur crème — pas de texte courant)
      600 = fond de bouton à texte blanc (4,9:1)
      700 = texte rouge sur crème (5,6:1)                              */
-  --color-tomato-500: #EF4423;
+  --color-tomato-500: #D04C35;
   --color-tomato-600: #D2371A;
   --color-tomato-700: #B8300F;
   --color-tomato-100: #FBD9D1;
@@ -56,7 +56,7 @@
   --text-secondary: #6B615A;
   --text-muted:     #A79C92;
   --text-inverse:   #FDF4E8;
-  --action-primary: #D2371A;
+  --action-primary: #d04c35;
   --action-hover:   #B8300F;
   --border:         #EBD9BF;
   --border-focus:   #EF4423;

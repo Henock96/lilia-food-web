@@ -21,11 +21,13 @@ export interface HomeCategory {
   icon: LucideIcon;
   /** Aplat de la tuile, tant qu'il n'y a pas de vraie photo. */
   tone: 'photo' | 'tomato' | 'cream' | 'ink';
+  /** Image de fond de la tuile (chemin relatif depuis public/). */
+  image: string;
 }
 
 export const HOME_CATEGORIES: HomeCategory[] = [
-  { type: 'RESTAURANT',    label: 'Restaurants',     tagline: 'Les saveurs du quartier',      icon: UtensilsCrossed, tone: 'photo'  },
-  { type: 'HOME_COOK',     label: 'Cuisines maison', tagline: 'Le fait-main du quartier',     icon: CookingPot,      tone: 'tomato' },
-  { type: 'BAKERY',        label: 'Boulangeries',    tagline: 'Pain chaud dès 6h',            icon: Croissant,       tone: 'cream'  },
-  { type: 'BEVERAGE_SHOP', label: 'Boissons',        tagline: 'Fraîches, livrées',            icon: CupSoda,        tone: 'ink'    },
+  { type: 'RESTAURANT',    label: 'Restaurants',     tagline: 'Les saveurs du quartier',      icon: UtensilsCrossed, tone: 'photo',  image: '/categories/cat1.jpeg'  },
+  { type: 'HOME_COOK',     label: 'Cuisines maison', tagline: 'Le fait-main du quartier',     icon: CookingPot,      tone: 'tomato', image: '/categories/cat2.jpeg' },
+  { type: 'BAKERY',        label: 'Boulangeries',    tagline: 'Pain chaud dès 6h',            icon: Croissant,       tone: 'cream',  image: '/categories/cat3.jpeg'  },
+  { type: 'BEVERAGE_SHOP', label: 'Boissons',        tagline: 'Fraîches, livrées',            icon: CupSoda,        tone: 'ink',    image: '/categories/cat4.jpeg'      },
 ];
