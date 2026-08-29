@@ -12,7 +12,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const restaurants = await apiClient<Restaurant[]>('/restaurants');
+    // `GET /restaurants` est paginé depuis l'audit du 28/08/2026 (il servait
+    // tout le catalogue avec spécialités, horaires et galeries — plusieurs Mo
+    // par appel). Le sitemap, lui, doit lister TOUS les vendeurs : on parcourt
+    // donc les pages jusqu'à épuisement.
+    const restaurants = await fetchAllRestaurants();
     const restaurantRoutes: MetadataRoute.Sitemap = restaurants.map((r) => ({
       url: `${BASE_URL}/restaurants/${r.id}`,
       lastModified: new Date(r.updatedAt),
@@ -23,4 +27,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     return staticRoutes;
   }
+}
+
+/** Nombre maximum de pages parcourues — garde-fou contre une boucle infinie. */
+const MAX_SITEMAP_PAGES = 50;
+const PAGE_SIZE = 100;
+
+async function fetchAllRestaurants(): Promise<Restaurant[]> {
+  const all: Restaurant[] = [];
+
+  for (let page = 1; page <= MAX_SITEMAP_PAGES; page++) {
+    const batch = await apiClient<Restaurant[]>(
+      `/restaurants?page=${page}&limit=${PAGE_SIZE}`,
+    );
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+
+  return all;
 }
