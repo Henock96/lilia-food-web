@@ -1,13 +1,23 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { VendorCard } from '@/components/restaurants/vendor-card';
 import { EmptyVendorSlot } from '@/components/restaurants/empty-vendor-slot';
+import { RestaurantCardSkeleton } from '@/components/ui';
 import { getVendors } from '@/lib/vendors';
 
+/** Nombre d'emplacements affichés, remplis ou non. */
+const SLOTS = 4;
+
+const GRID_CLASSNAME = 'mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4';
+
 /**
- * Section « Les plus courus » — vendeurs en vedette. `getVendors()` est
- * partagée avec le hero de la home (`app/(public)/page.tsx`) : un seul
- * appel réseau à `/vendors`, mémoïsé par `'use cache'`.
+ * Grille des vendeurs — seule partie de la section qui dépend du backend.
+ *
+ * `getVendors()` appelle `connection()` : ce sous-arbre est donc rendu à la
+ * requête, jamais au build. C'est ce qui empêche un backend Render endormi de
+ * faire échouer le déploiement (cf. le commentaire de `lib/vendors.ts`), d'où
+ * le `<Suspense>` obligatoire autour.
  *
  * Le catalogue de production ne compte qu'un seul vendeur : une grille de 4
  * cases dont 3 resteraient blanches lirait comme un site cassé. On complète
@@ -17,10 +27,47 @@ import { getVendors } from '@/lib/vendors';
  * son propre état vide (« Aucun restaurant disponible ») ferait doublon avec
  * ces emplacements explicites.
  */
-export async function FeaturedRestaurants() {
+async function FeaturedGrid() {
   const restaurants = await getVendors();
-  const featured = restaurants.slice(0, 4);
+  const featured = restaurants.slice(0, SLOTS);
 
+  return (
+    <div className={GRID_CLASSNAME}>
+      {featured.map((r) => (
+        <VendorCard key={r.id} restaurant={r} />
+      ))}
+      {Array.from({ length: Math.max(0, SLOTS - featured.length) }).map((_, i) => (
+        <EmptyVendorSlot key={`empty-${i}`} label={i === 0 ? 'Prochain vendeur ici' : undefined} />
+      ))}
+    </div>
+  );
+}
+
+/** Occupe exactement la place de la grille finale — pas de décalage à l'arrivée. */
+function FeaturedGridFallback() {
+  return (
+    <div className={GRID_CLASSNAME}>
+      {Array.from({ length: SLOTS }).map((_, i) => (
+        <RestaurantCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Section « Les plus courus » — vendeurs en vedette.
+ *
+ * La coquille (titre, accroche, liens « Voir tout ») ne dépend d'aucune donnée
+ * et reste prérendue statiquement ; seule la grille est différée.
+ *
+ * L'accroche annonçait auparavant « N vendeurs ouverts en ce moment » en se
+ * contentant de compter les vendeurs *listés*, ouverts ou non — la même
+ * inexactitude que celle corrigée sur `/restaurants`. Le catalogue de
+ * production ne comptant qu'un vendeur, actuellement fermé, la home affirmait
+ * « 1 vendeur ouvert en ce moment » au-dessus d'une carte « Fermé ». On s'en
+ * tient donc à une accroche qui ne prétend rien de vérifiable.
+ */
+export function FeaturedRestaurants() {
   return (
     <section className="py-16 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -30,11 +77,7 @@ export async function FeaturedRestaurants() {
               Ils font saliver tout Brazza
             </h2>
             <p className="mt-2 text-sm text-ink-500">
-              {restaurants.length > 0
-                ? `${restaurants.length} vendeur${restaurants.length > 1 ? 's' : ''} ouvert${
-                    restaurants.length > 1 ? 's' : ''
-                  } en ce moment, prêt${restaurants.length > 1 ? 's' : ''} à te livrer.`
-                : 'Les meilleurs vendeurs de la ville, sélectionnés pour toi.'}
+              Les meilleurs vendeurs de la ville, sélectionnés pour toi.
             </p>
           </div>
 
@@ -47,14 +90,9 @@ export async function FeaturedRestaurants() {
           </Link>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {featured.map((r) => (
-            <VendorCard key={r.id} restaurant={r} />
-          ))}
-          {Array.from({ length: Math.max(0, 4 - featured.length) }).map((_, i) => (
-            <EmptyVendorSlot key={`empty-${i}`} label={i === 0 ? 'Prochain vendeur ici' : undefined} />
-          ))}
-        </div>
+        <Suspense fallback={<FeaturedGridFallback />}>
+          <FeaturedGrid />
+        </Suspense>
 
         <div className="mt-8 text-center sm:hidden">
           <Link
