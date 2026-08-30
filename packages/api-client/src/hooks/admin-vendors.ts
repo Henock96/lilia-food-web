@@ -116,11 +116,19 @@ export function useSuspendVendor(token: string | null) {
  * Réactive un vendeur suspendu (PATCH /admin/vendors/:id/activate).
  * Inverse de `useSuspendVendor` — remet `isActive=true`.
  */
-export function useActivateVendor(token: string | null) {
+/**
+ * Lève une suspension (`isActive = true`).
+ *
+ * La route est passée de `/activate` à `/unsuspend` : `POST .../activate`
+ * publie désormais une boutique dont l'onboarding est terminé. Annuler une
+ * sanction et mettre en ligne sont deux gestes distincts, ils ne pouvaient pas
+ * garder le même nom.
+ */
+export function useUnsuspendVendor(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (vendorId: string) =>
-      apiClient<Restaurant>(`/admin/vendors/${vendorId}/activate`, {
+      apiClient<Restaurant>(`/admin/vendors/${vendorId}/unsuspend`, {
         method: 'PATCH',
         token,
       }),
