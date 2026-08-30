@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
 import { apiClientRaw } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { RestaurantsFilters } from '@/components/restaurants/restaurants-filters';
@@ -46,8 +47,17 @@ async function fetchVendors(): Promise<Restaurant[]> {
  * la frontière `'use cache'` de `fetchVendors` — sans quoi un échec risquerait
  * d'être normalisé en `{ vendors: [], failed: true }` *avant* la mise en
  * cache, ce qui le rendrait, lui, mémoïsable.
+ *
+ * `await connection()` sort cet appel du prerender de build. Le `try/catch`
+ * ci-dessous ne suffisait pas : une rejection levée dans une frontière
+ * `'use cache'` est observée par le prerender lui-même, et faisait échouer la
+ * compilation (« Error occurred prerendering page /restaurants ») dès que le
+ * backend Render répondait autre chose qu'un 200 — ce qui arrive quand il sort
+ * de veille. Un déploiement ne doit pas dépendre de la disponibilité d'un
+ * service tiers. Voir le commentaire jumeau dans `lib/vendors.ts`.
  */
 async function getVendors(): Promise<{ vendors: Restaurant[]; failed: boolean }> {
+  await connection();
   try {
     const vendors = await fetchVendors();
     return { vendors, failed: false };
@@ -85,15 +95,21 @@ function FiltersFallback() {
   );
 }
 
-export default async function RestaurantsPage() {
+/** Accroche générique, affichée tant que le catalogue n'est pas chargé. */
+const GENERIC_SUBTITLE = 'Restaurants, cuisines maison, boulangeries & boissons.';
+
+/**
+ * Partie dépendante du backend : le décompte et la grille filtrable. Rendue à
+ * la requête (cf. `getVendors`), donc obligatoirement sous `<Suspense>`.
+ */
+async function VendorCatalogue() {
   const { vendors: restaurants, failed } = await getVendors();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 lg:px-8">
-      <h1 className="font-display text-3xl font-extrabold text-ink-900">Tous les vendeurs</h1>
+    <>
       <p className="mt-2 text-sm text-ink-500">
         {failed ? (
-          'Restaurants, cuisines maison, boulangeries & boissons.'
+          GENERIC_SUBTITLE
         ) : (
           <>
             {vendorCountLabel(restaurants)} · restaurants, cuisines maison, boulangeries &
@@ -103,10 +119,31 @@ export default async function RestaurantsPage() {
       </p>
 
       <div className="mt-8">
-        <Suspense fallback={<FiltersFallback />}>
-          <RestaurantsFilters restaurants={restaurants} failed={failed} />
-        </Suspense>
+        <RestaurantsFilters restaurants={restaurants} failed={failed} />
       </div>
+    </>
+  );
+}
+
+/** Reprend la structure exacte de `VendorCatalogue` — pas de décalage visuel. */
+function CatalogueFallback() {
+  return (
+    <>
+      <p className="mt-2 text-sm text-ink-500">{GENERIC_SUBTITLE}</p>
+      <div className="mt-8">
+        <FiltersFallback />
+      </div>
+    </>
+  );
+}
+
+export default function RestaurantsPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 lg:px-8">
+      <h1 className="font-display text-3xl font-extrabold text-ink-900">Tous les vendeurs</h1>
+      <Suspense fallback={<CatalogueFallback />}>
+        <VendorCatalogue />
+      </Suspense>
     </div>
   );
 }
