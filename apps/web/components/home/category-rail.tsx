@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';
-import { HOME_CATEGORIES, type HomeCategory } from '@/lib/home-content';
+import { HOME_CATEGORIES } from '@/lib/home-content';
 
 /**
  * Tuiles catégorie avec image de fond + overlay sombre pour la lisibilité.

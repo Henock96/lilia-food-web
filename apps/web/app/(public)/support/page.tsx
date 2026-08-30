@@ -9,11 +9,17 @@ import {
   Clock,
   Send,
 } from 'lucide-react';
+import { BreadcrumbJsonLd, FaqJsonLd } from '@/components/seo/json-ld';
+import { CONTACT } from '@/lib/site';
 
+// Le titre ne porte pas « | Lilia Food » : le template du layout racine
+// (`%s | Lilia Food`) l'ajoute déjà. Le suffixe manuel produisait
+// « Support | Lilia Food | Lilia Food » dans les résultats de recherche.
 export const metadata: Metadata = {
-  title: 'Support | Lilia Food',
+  title: 'Support et FAQ',
   description:
-    'Besoin d\'aide ? Consultez notre FAQ ou contactez-nous par téléphone, email ou WhatsApp.',
+    "Besoin d'aide ? Consultez notre FAQ ou contactez Lilia Food par téléphone, email ou WhatsApp à Brazzaville.",
+  alternates: { canonical: '/support' },
 };
 
 const FAQ_ITEMS = [
@@ -45,33 +51,35 @@ const FAQ_ITEMS = [
   {
     question: 'Comment signaler un problème ?',
     answer:
-      'Contacte-nous par téléphone, email ou WhatsApp. Notre équipe est disponible du lundi au samedi pour t\'aider à résoudre tout problème encounter.',
+      'Contacte-nous par téléphone, email ou WhatsApp. Notre équipe est disponible du lundi au samedi pour t\'aider à résoudre tout problème rencontré.',
   },
 ];
 
+// Coordonnées lues depuis `lib/site.ts` — source unique, partagée avec le
+// footer et les données structurées, pour qu'elles ne puissent plus diverger.
 const CONTACT_INFO = [
   {
     icon: Phone,
     label: 'Téléphone',
-    value: '+242 06 561 42 94',
-    secondary: '+242 05 372 03 93',
-    href: 'tel:+242065614294',
+    value: CONTACT.phonePrimary.display,
+    secondary: CONTACT.phoneSecondary.display,
+    href: `tel:${CONTACT.phonePrimary.e164}`,
     color: 'bg-blue-50 text-blue-600',
   },
   {
     icon: Mail,
     label: 'Email',
-    value: 'contact@liliafood.com',
+    value: CONTACT.email,
     secondary: 'Réponse sous 24h',
-    href: 'mailto:contact@liliafood.com',
+    href: `mailto:${CONTACT.email}`,
     color: 'bg-purple-50 text-purple-600',
   },
   {
     icon: MessageCircle,
     label: 'WhatsApp',
-    value: '+242 06 561 42 94',
+    value: CONTACT.phonePrimary.display,
     secondary: 'Réponse rapide',
-    href: 'https://wa.me/242065614294',
+    href: CONTACT.whatsapp,
     color: 'bg-green-50 text-green-600',
   },
 ];
@@ -93,6 +101,13 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 export default function SupportPage() {
   return (
     <div className="min-h-screen bg-white">
+      <FaqJsonLd items={FAQ_ITEMS} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Accueil', path: '/' },
+          { name: 'Support', path: '/support' },
+        ]}
+      />
       {/* Hero */}
       <section className="bg-cream-100 py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
@@ -169,7 +184,7 @@ export default function SupportPage() {
                 Adresse
               </div>
               <p className="mt-2 text-sm text-ink-500">
-                Brazzaville, Congo
+                {CONTACT.city}, {CONTACT.countryName}
               </p>
             </div>
           </div>
@@ -185,14 +200,14 @@ export default function SupportPage() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <a
-              href="tel:+242065614294"
+              href={`tel:${CONTACT.phonePrimary.e164}`}
               className="inline-flex items-center gap-2 rounded-pill bg-white px-6 py-3 text-sm font-bold text-tomato-700 transition-colors hover:bg-cream-100"
             >
               <Phone className="h-4 w-4" />
               Appeler
             </a>
             <a
-              href="https://wa.me/242065614294"
+              href={CONTACT.whatsapp}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-pill bg-green-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-green-600"

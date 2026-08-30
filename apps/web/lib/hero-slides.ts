@@ -32,7 +32,11 @@ export async function fetchBanners(): Promise<HeroBannerSlide[]> {
       .slice(0, MAX_SLIDES)
       .map((b) => ({
         id: b.id,
-        title: b.title ?? "T'as faim ? On te livre !",
+        // Pas de titre de repli : une bannière sans titre n'en affiche
+        // simplement aucun. Le repli précédent injectait le message de marque
+        // dans le titre de la bannière, ce qui le faisait apparaître deux fois
+        // dans le hero — une fois en sur-titre, une fois dans le `h1`.
+        title: b.title ?? '',
         imageUrl: b.imageUrl,
         description: b.description ?? '',
         linkUrl: b.linkUrl ?? '/restaurants',

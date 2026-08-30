@@ -21,7 +21,6 @@ export function BecomePartner() {
                 fill
                 sizes="(max-width: 1024px) 100vw, 42vw"
                 className="object-cover"
-                priority
               />
               <div className="absolute inset-0 bg-gradient-to-r from-transparent to-tomato-600/30 lg:bg-gradient-to-r lg:from-transparent lg:to-tomato-600" />
             </div>
@@ -55,8 +54,12 @@ export function BecomePartner() {
                 </div>
               </div>
 
+              {/* Pointait vers `/inscription?role=vendor`, un paramètre que la
+                  page d'inscription ignore : le visiteur créait un compte
+                  client. Voir `/devenir-vendeur`. */}
               <Link
-                href="/inscription?role=vendor"
+                href="/devenir-vendeur"
+                data-analytics-id="vendor_cta_click"
                 className="mt-8 inline-flex w-fit items-center gap-2 rounded-pill bg-white px-8 py-3.5 text-base font-extrabold text-tomato-700 transition-colors hover:bg-cream-100"
               >
                 Devenir vendeur

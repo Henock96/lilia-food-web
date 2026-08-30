@@ -4,10 +4,12 @@ import path from 'node:path';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { LegalPage } from '@/components/legal/legal-page';
 
+// Pas de suffixe « | Lilia Food » : le template du layout racine l'ajoute.
 export const metadata: Metadata = {
-  title: 'Politique de Confidentialité | Lilia Food',
+  title: 'Politique de Confidentialité',
   description:
     'Découvrez comment Lilia Food collecte, utilise et protège vos données personnelles.',
+  alternates: { canonical: '/confidentialite' },
 };
 
 export default async function ConfidentialitePage() {

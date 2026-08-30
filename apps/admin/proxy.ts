@@ -27,5 +27,8 @@ export async function proxy(request: NextRequest) {
 export { proxy as middleware };
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
+  // `robots.txt` doit être exclu : toutes les routes étant protégées, le
+  // middleware le redirigeait vers `/connexion`, ce qui le rendait illisible
+  // pour les robots — le fichier existait mais n'était jamais servi.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|api).*)'],
 };

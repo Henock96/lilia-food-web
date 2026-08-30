@@ -8,6 +8,8 @@ import { RestaurantMenu } from '@/components/restaurants/restaurant-menu';
 import { VendorInfoSection } from '@/components/restaurants/vendor-info-section';
 import { RestaurantReviews } from '@/components/restaurants/restaurant-reviews';
 import { ProductCardSkeleton } from '@/components/ui/skeleton';
+import { BreadcrumbJsonLd, VendorJsonLd } from '@/components/seo/json-ld';
+import { SITE_URL } from '@/lib/site';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -25,10 +27,29 @@ async function getRestaurant(id: string): Promise<Restaurant | null> {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const restaurant = await getRestaurant(id);
-  if (!restaurant) return { title: 'Restaurant introuvable' };
+  // Une fiche introuvable ne doit surtout pas être indexée : sans `noindex`,
+  // un vendeur retiré du catalogue laisse une page vide dans l'index.
+  if (!restaurant) {
+    return { title: 'Vendeur introuvable', robots: { index: false, follow: false } };
+  }
+
+  const description = restaurant.adresse
+    ? `Commander chez ${restaurant.nom} à Brazzaville — ${restaurant.adresse}. Livraison et paiement Mobile Money avec Lilia Food.`
+    : `Commander chez ${restaurant.nom} à Brazzaville. Livraison et paiement Mobile Money avec Lilia Food.`;
+
   return {
     title: restaurant.nom,
-    description: `Commander chez ${restaurant.nom} — ${restaurant.adresse}`,
+    description,
+    alternates: { canonical: `/restaurants/${id}` },
+    openGraph: {
+      title: `${restaurant.nom} — Lilia Food`,
+      description,
+      url: `${SITE_URL}/restaurants/${id}`,
+      type: 'website',
+      // La photo du vendeur fait une bien meilleure vignette de partage que
+      // l'image générique du site.
+      ...(restaurant.imageUrl ? { images: [{ url: restaurant.imageUrl }] } : {}),
+    },
   };
 }
 
@@ -40,6 +61,20 @@ export default async function RestaurantPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-cream-100">
+      <VendorJsonLd
+        id={restaurant.id}
+        nom={restaurant.nom}
+        adresse={restaurant.adresse}
+        imageUrl={restaurant.imageUrl}
+        specialties={restaurant.specialties?.map((s) => s.name)}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Accueil', path: '/' },
+          { name: 'Vendeurs', path: '/restaurants' },
+          { name: restaurant.nom, path: `/restaurants/${restaurant.id}` },
+        ]}
+      />
       {/* Hero statique */}
       <RestaurantHero restaurant={restaurant} />
 

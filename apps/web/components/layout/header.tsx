@@ -15,6 +15,7 @@ const navLinks = [
   { href: '/restaurants', label: 'Vendeurs' },
   { href: '/commandes', label: 'Mes commandes' },
   { href: '/favoris', label: 'Favoris' },
+  { href: '/devenir-vendeur', label: 'Devenir vendeur' },
 ];
 
 export function Header() {
@@ -40,12 +41,11 @@ export function Header() {
   }, [cart, setItemCount]);
 
   return (
-    <motion.header
-      className="sticky top-0 z-50 border-b border-cream-300 bg-cream-100"
-      initial={{ y: -80 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-    >
+    // L'en-tête glissait depuis `y: -80` à chaque montage, donc à chaque
+    // navigation : une demi-seconde pendant laquelle le haut de la page est
+    // vide, sur un élément qui doit au contraire être immédiatement stable.
+    // C'est de la décoration payée en confort perçu — supprimée.
+    <header className="sticky top-0 z-50 border-b border-cream-300 bg-cream-100">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -171,10 +171,20 @@ export function Header() {
                   {link.label}
                 </Link>
               ))}
+              {/* Le menu mobile n'offrait aucun accès au support : sur un site
+                  dont l'audience est très majoritairement mobile, l'aide était
+                  atteignable uniquement en faisant défiler jusqu'au footer. */}
+              <Link
+                href="/support"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-4 py-3 text-sm text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900"
+              >
+                Support
+              </Link>
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </header>
   );
 }

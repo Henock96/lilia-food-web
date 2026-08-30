@@ -1,5 +1,11 @@
-/* Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap");
+/* Fonts — chargées via `next/font/google` dans `app/layout.tsx`, plus par un
+   `@import` CSS. L'`@import` créait une chaîne strictement séquentielle
+   HTML → CSS → CSS Google → WOFF2 : les fichiers de police n'étaient
+   découverts qu'après le téléchargement complet de cette feuille de style,
+   donc impossibles à précharger, et aucun `preconnect` ne compensait. Sur une
+   connexion mobile, cela retarde d'autant l'affichage du premier texte mis en
+   forme. `next/font` auto-héberge les polices sur notre propre domaine et les
+   injecte en `preload`. */
 
 @import "tailwindcss";
 
@@ -34,8 +40,8 @@
   --color-danger:  #B3261E;
 
   /* ── Typographie ── */
-  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
 
   /* ── Ombres ── */
   --shadow-sm: 0 1px 3px rgba(28,24,21,.07), 0 1px 2px rgba(28,24,21,.04);
