@@ -6,7 +6,7 @@ import {
   useAdminPendingVendors,
   useApproveVendor,
   useSuspendVendor,
-  useActivateVendor,
+  useUnsuspendVendor,
   useVendorStats,
 } from '@lilia/api-client';
 import type { AdminVendor, VendorType } from '@lilia/types';
@@ -24,9 +24,11 @@ import {
   Clock,
   Package,
   ShoppingBag,
+  Settings2,
   X,
 } from 'lucide-react';
 import { CreateVendorPanel } from './_create-panel';
+import { OnboardingWizard } from './_onboarding-wizard';
 
 /**
  * Page Vendeurs (admin marketplace, LIL-116).
@@ -61,6 +63,9 @@ export default function VendeursPage() {
   const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
   const [createOpen, setCreateOpen] = useState(false);
   const [suspendTarget, setSuspendTarget] = useState<AdminVendor | null>(null);
+  // Vendeur dont on configure l'onboarding. L'état vit en base : fermer le
+  // wizard ne perd rien, et le rouvrir reprend exactement où on en était.
+  const [onboardingTarget, setOnboardingTarget] = useState<AdminVendor | null>(null);
 
   const allVendorsQuery = useAdminVendors(token, {
     vendorType: typeFilter || undefined,
@@ -71,7 +76,7 @@ export default function VendeursPage() {
 
   const approveMutation = useApproveVendor(token);
   const suspendMutation = useSuspendVendor(token);
-  const activateMutation = useActivateVendor(token);
+  const unsuspendMutation = useUnsuspendVendor(token);
 
   const vendors = useMemo<AdminVendor[]>(() => {
     if (tab === 'pending') return pendingQuery.data?.data ?? [];
@@ -98,7 +103,7 @@ export default function VendeursPage() {
   }
 
   function handleActivate(vendor: AdminVendor) {
-    activateMutation.mutate(vendor.id, {
+    unsuspendMutation.mutate(vendor.id, {
       onSuccess: () => toast.success(`${vendor.nom} réactivé`),
       onError: (err: unknown) =>
         toast.error((err as Error).message ?? 'Erreur lors de la réactivation'),
@@ -210,11 +215,12 @@ export default function VendeursPage() {
               onApprove={() => handleApprove(v)}
               onSuspend={() => setSuspendTarget(v)}
               onActivate={() => handleActivate(v)}
+              onConfigure={() => setOnboardingTarget(v)}
               isApproving={
                 approveMutation.isPending && approveMutation.variables === v.id
               }
               isActivating={
-                activateMutation.isPending && activateMutation.variables === v.id
+                unsuspendMutation.isPending && unsuspendMutation.variables === v.id
               }
             />
           ))}
@@ -222,7 +228,20 @@ export default function VendeursPage() {
       )}
 
       {createOpen && (
-        <CreateVendorPanel onClose={() => setCreateOpen(false)} />
+        <CreateVendorPanel
+          onClose={() => setCreateOpen(false)}
+          // Enchaîne directement sur la configuration : créer un vendeur sans
+          // le configurer ne sert à rien, et c'est ce que faisait l'ancien
+          // formulaire en refermant sur une liste.
+          onCreated={(vendor) => setOnboardingTarget(vendor as AdminVendor)}
+        />
+      )}
+
+      {onboardingTarget && (
+        <OnboardingWizard
+          vendor={onboardingTarget}
+          onClose={() => setOnboardingTarget(null)}
+        />
       )}
 
       {suspendTarget && (
@@ -306,6 +325,7 @@ function VendorCard({
   onApprove,
   onSuspend,
   onActivate,
+  onConfigure,
   isApproving,
   isActivating,
 }: {
@@ -313,6 +333,7 @@ function VendorCard({
   onApprove: () => void;
   onSuspend: () => void;
   onActivate: () => void;
+  onConfigure: () => void;
   isApproving: boolean;
   isActivating: boolean;
 }) {
@@ -324,6 +345,10 @@ function VendorCard({
     : 'Restaurant';
   const isPending = vendor.adminApproved === false;
   const isSuspended = vendor.adminApproved === true && vendor.isActive === false;
+  // Une boutique non activée n'est pas visible du client, quel que soit son
+  // état d'approbation : c'est une troisième dimension, pas une nuance des
+  // deux autres.
+  const isDraft = vendor.onboardingStatus && vendor.onboardingStatus !== 'ACTIVATED';
 
   return (
     <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3">
@@ -353,6 +378,11 @@ function VendorCard({
           {isSuspended && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-red-500/10 text-red-400 border-red-500/20">
               Suspendu
+            </span>
+          )}
+          {isDraft && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-blue-500/10 text-blue-400 border-blue-500/20">
+              {vendor.onboardingStatus === 'READY' ? 'Prêt à activer' : 'Configuration'}
             </span>
           )}
         </div>
@@ -388,6 +418,17 @@ function VendorCard({
       </div>
 
       <div className="flex items-center gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+        <button
+          onClick={onConfigure}
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            isDraft
+              ? 'flex-1 bg-primary-500/10 text-primary-500 hover:bg-primary-500/20'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          <Settings2 size={14} />
+          {isDraft ? 'Configurer' : 'Modifier'}
+        </button>
         {isPending && (
           <button
             onClick={onApprove}

@@ -178,6 +178,23 @@ export interface Restaurant {
   preorderLeadHours?: number | null;
   maxOrdersPerDay?: number | null;
   vendorProfile?: VendorProfile | null;
+
+  // Onboarding (août 2026). `onboardingStatus` répond à « sa boutique est-elle
+  // configurée » — question distincte de `adminApproved` (« a-t-il sa place
+  // sur la marketplace ») et de `isActive` (« est-il suspendu »).
+  onboardingStatus?: OnboardingStatus;
+  activatedAt?: string | null;
+  activatedById?: string | null;
+  description?: string | null;
+  email?: string | null;
+  imagePublicId?: string | null;
+  quartierId?: string | null;
+  quartier?: Quartier | null;
+  deliveryInstructions?: string | null;
+  supportsDelivery?: boolean;
+  supportsPickup?: boolean;
+  /** `null` = taux plateforme. Modifiable par l'ADMIN uniquement. */
+  commissionPercent?: number | null;
 }
 
 /** Profil enrichi d'un vendeur (story, certifications, etc.) — LIL-112. */
@@ -774,6 +791,14 @@ export interface AdminVendorFilters {
  * LIL-118 : le user Firebase Auth est créé par le backend depuis email +
  * password. `ownerFirebaseUid` n'est plus dans le DTO.
  */
+/**
+ * @deprecated Utiliser `CreateVendorOnboardingDto` avec `POST /admin/vendors`.
+ *
+ * Ce contrat impose à l'administrateur de choisir le mot de passe du vendeur,
+ * puis de le lui transmettre hors du système. Le nouveau flux envoie une
+ * invitation d'activation : personne d'autre que le vendeur ne connaît son
+ * secret. La route reste servie pour ne rien casser pendant la transition.
+ */
 export interface CreateRestaurantWithOwnerDto {
   email: string;
   password: string;
@@ -791,6 +816,123 @@ export interface CreateRestaurantWithOwnerDto {
   certifications?: string[];
   specialties?: string[];
   productionNote?: string;
+}
+
+// --- Onboarding vendeur (août 2026) ---
+//
+// Un vendeur créé n'est ni prêt ni ouvert. `onboardingStatus` décrit
+// l'avancement de sa configuration, orthogonalement à `adminApproved`
+// (validation marketplace) et `isActive` (suspension).
+
+export type OnboardingStatus = 'DRAFT' | 'READY' | 'ACTIVATED';
+
+export type ReadinessStatus = 'OK' | 'MISSING' | 'INVALID';
+
+/** Une case de la checklist « prêt à vendre », calculée par le backend. */
+export interface ReadinessCheck {
+  /** Identifiant stable : sert à router vers l'étape correspondante. */
+  key:
+    | 'owner'
+    | 'identity'
+    | 'description'
+    | 'logo'
+    | 'cover'
+    | 'location'
+    | 'gps'
+    | 'hours'
+    | 'delivery'
+    | 'commerce'
+    | 'catalog';
+  label: string;
+  status: ReadinessStatus;
+  /** Une case non bloquante manquante n'empêche pas l'activation. */
+  blocking: boolean;
+  detail?: string;
+}
+
+/**
+ * État d'onboarding d'un vendeur.
+ *
+ * ⚠️ Calculé **par le serveur** et affiché tel quel. Ne jamais recalculer
+ * `isReady` côté client : deux implémentations de la même règle divergent, et
+ * c'est celle du serveur qui décide de l'activation.
+ */
+export interface OnboardingReport {
+  restaurantId: string;
+  onboardingStatus: OnboardingStatus;
+  isReady: boolean;
+  /** Progression sur les seules cases bloquantes (0–100). */
+  progress: number;
+  checks: ReadinessCheck[];
+  blockingIssues: string[];
+}
+
+export interface CreateVendorOnboardingDto {
+  vendorType: VendorType;
+  ownerEmail: string;
+  ownerNom: string;
+  ownerPhone: string;
+  nom: string;
+  adresse: string;
+  phone: string;
+  description?: string;
+}
+
+export interface UpdateVendorIdentityDto {
+  nom?: string;
+  description?: string;
+  phone?: string;
+  email?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
+  specialties?: string[];
+}
+
+export interface UpdateVendorLocationDto {
+  adresse?: string;
+  quartierId?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryInstructions?: string;
+}
+
+export interface UpdateVendorDeliveryDto {
+  supportsDelivery?: boolean;
+  supportsPickup?: boolean;
+  deliveryPriceMode?: DeliveryPriceMode;
+  fixedDeliveryFee?: number;
+  estimatedDeliveryTimeMin?: number;
+  estimatedDeliveryTimeMax?: number;
+  deliveryInstructions?: string;
+}
+
+/** ADMIN uniquement — porte la commission, donc la marge de la plateforme. */
+export interface UpdateVendorCommerceDto {
+  commissionPercent?: number | null;
+  minimumOrderAmount?: number;
+  acceptsPreorders?: boolean;
+  preorderLeadHours?: number;
+  maxOrdersPerDay?: number;
+}
+
+/**
+ * Résultat de l'invitation d'activation.
+ *
+ * `activationLink` n'est renseigné **que** si l'e-mail n'est pas parti : c'est
+ * un repli pour que l'administrateur puisse débloquer le vendeur à la main
+ * plutôt que de le laisser sans accès.
+ */
+export interface VendorInvitationResult {
+  emailSent: boolean;
+  smsSent: boolean;
+  activationLink?: string;
+  detail: string;
+}
+
+export interface CreateVendorResponse {
+  vendor: Restaurant;
+  readiness: OnboardingReport | null;
+  invitation?: VendorInvitationResult;
 }
 
 // --- Photo Galleries (E1/E2) ---
