@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, ShoppingCart, Check } from 'lucide-react';
 import type { Restaurant, Product, ProductVariant } from '@lilia/types';
-import { formatCurrency, cn } from '@lilia/utils';
+import { formatCurrency, cn, hasPreorderConflict, isPreorderCart } from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
-import { useAddToCart, useClearCart } from '@lilia/api-client';
+import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
 import { toast } from 'sonner';
+import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
 
 interface RestaurantMenuProps {
   restaurant: Restaurant;
@@ -98,6 +99,8 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   const { openCart } = useCartStore();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
+  const { data: cart } = useCart(token);
+  const [conflictOpen, setConflictOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(product.variants[0]!);
   const [added, setAdded] = useState(false);
 
@@ -110,6 +113,11 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       return;
     }
     if (!selectedVariant) return;
+
+    if (hasPreorderConflict(cart, product)) {
+      setConflictOpen(true);
+      return;
+    }
 
     try {
       await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
@@ -138,6 +146,20 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       } else {
         toast.error(msg || 'Impossible d\'ajouter au panier');
       }
+    }
+  }
+
+  async function handleConfirmConflict() {
+    setConflictOpen(false);
+    if (!selectedVariant) return;
+    try {
+      await clearCart.mutateAsync();
+      await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+      toast.success(`Panier vidé. ${product.nom} ajouté.`);
+    } catch {
+      toast.error('Erreur lors du remplacement du panier');
     }
   }
 
@@ -225,6 +247,13 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
           </motion.button>
         </div>
       </div>
+      <CartModeConflictDialog
+        open={conflictOpen}
+        cartIsPreorder={isPreorderCart(cart)}
+        incomingProductName={product.nom}
+        onConfirm={handleConfirmConflict}
+        onCancel={() => setConflictOpen(false)}
+      />
     </motion.div>
   );
 }

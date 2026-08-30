@@ -1,4 +1,4 @@
-import type { OrderStatus, DayOfWeek } from '@lilia/types';
+import type { OrderStatus, DayOfWeek, Cart, Product } from '@lilia/types';
 
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('fr-FR', {
@@ -139,4 +139,31 @@ export function isValidCongoPhone(phone: string | null | undefined): boolean {
   if (!phone) return false;
   const cleaned = phone.replace(/[\s.\-()]/g, '');
   return /^(?:\+?242|00242)?0[456]\d{7}$/.test(cleaned);
+}
+
+/**
+ * True si au moins un item du panier est madeToOrder (panier preorder).
+ * Retourne false pour cart null/undefined/vide — ajouter un premier item
+ * n'est jamais un conflit.
+ */
+export function isPreorderCart(cart: Cart | null | undefined): boolean {
+  if (!cart?.items?.length) return false;
+  return cart.items.some((it) => it.product?.madeToOrder === true);
+}
+
+/**
+ * True si ajouter `product` au panier crée un conflit de mode :
+ * - le panier a déjà des items madeToOrder et on ajoute un standard
+ * - le panier a déjà des items standard et on ajoute un madeToOrder
+ * Le backend accepte un panier mono-mode uniquement, donc on bloque
+ * côté client avec une dialog "Vider et ajouter / Annuler".
+ */
+export function hasPreorderConflict(
+  cart: Cart | null | undefined,
+  product: Pick<Product, 'madeToOrder'>,
+): boolean {
+  if (!cart?.items?.length) return false;
+  const cartIsPreorder = isPreorderCart(cart);
+  const productIsPreorder = product.madeToOrder === true;
+  return cartIsPreorder !== productIsPreorder;
 }

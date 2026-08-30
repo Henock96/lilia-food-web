@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Restaurant, Review, ReviewStats } from '@lilia/types';
-import { apiClient } from '../client';
+import type { Restaurant, Review, ReviewStats, VendorType } from '@lilia/types';
+import { apiClient, apiClientRaw } from '../client';
 
 export const restaurantKeys = {
   all: ['restaurants'] as const,
@@ -10,6 +10,8 @@ export const restaurantKeys = {
   detail: (id: string) => [...restaurantKeys.all, 'detail', id] as const,
   reviews: (id: string) => [...restaurantKeys.all, 'reviews', id] as const,
   reviewStats: (id: string) => [...restaurantKeys.all, 'review-stats', id] as const,
+  vendors: (vendorType: VendorType | null) =>
+    [...restaurantKeys.all, 'vendors', vendorType] as const,
 };
 
 export function useRestaurants() {
@@ -53,6 +55,29 @@ export function usePopularRestaurants() {
     queryKey: [...restaurantKeys.all, 'popular'] as const,
     queryFn: () => apiClient<Restaurant[]>('/restaurants/popular'),
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * Marketplace public multi-vendeurs (LIL-119). Hit `GET /vendors` qui filtre
+ * déjà adminApproved + isActive côté backend. Passe `vendorType` pour la
+ * facette (HOME_COOK, BAKERY, BEVERAGE_SHOP, etc.). `null` = "Tous".
+ *
+ * Backend renvoie `{ data, meta }` — on extrait juste data ici car le client
+ * web n'utilise pas la pagination (limit=50 suffit pour le MVP marketplace).
+ */
+export function useVendors(vendorType: VendorType | null = null) {
+  return useQuery({
+    queryKey: restaurantKeys.vendors(vendorType),
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '50' });
+      if (vendorType) params.set('vendorType', vendorType);
+      const res = await apiClientRaw<{ data: Restaurant[] }>(
+        `/vendors?${params.toString()}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
   });
 }
 

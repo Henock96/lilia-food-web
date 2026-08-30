@@ -32,6 +32,26 @@ export type DayOfWeek =
   | 'DIMANCHE';
 export type DiscountType = 'FIXED' | 'PERCENT' | 'FREE_DELIVERY';
 
+// --- Multi-vendeurs (LIL-110 → LIL-115) ---
+// Voir docs/MARKETPLACE.md côté backend pour la matrice complète.
+// Pivot lancement : ALCOHOL existe dans l'enum DB mais n'est jamais proposé
+// dans l'UI ni accepté par le validator backend.
+export type VendorType =
+  | 'RESTAURANT'
+  | 'HOME_COOK'
+  | 'BAKERY'
+  | 'BEVERAGE_SHOP'
+  | 'GROCERY';
+
+export type ProductType =
+  | 'FOOD'
+  | 'BEVERAGE'
+  | 'ALCOHOL' // réservé futur — masqué côté UI
+  | 'PASTRY'
+  | 'GROCERY';
+
+export type StockMode = 'DAILY' | 'PERMANENT';
+
 // --- Models ---
 export interface User {
   id: string;
@@ -134,6 +154,27 @@ export interface Restaurant {
   banners?: Banner[];
   averageRating?: number;
   totalReviews?: number;
+  // Multi-vendeurs (LIL-111)
+  vendorType?: VendorType;
+  adminApproved?: boolean;
+  adminApprovedAt?: string | null;
+  adminApprovedById?: string | null;
+  acceptsPreorders?: boolean;
+  preorderLeadHours?: number | null;
+  maxOrdersPerDay?: number | null;
+  vendorProfile?: VendorProfile | null;
+}
+
+/** Profil enrichi d'un vendeur (story, certifications, etc.) — LIL-112. */
+export interface VendorProfile {
+  id: string;
+  restaurantId: string;
+  story: string | null;
+  certifications: string[];
+  specialties: string[];
+  productionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Specialty {
@@ -164,6 +205,14 @@ export interface Product {
   variants: ProductVariant[];
   createdAt: string;
   updatedAt: string;
+  // Multi-vendeurs (LIL-111, LIL-114)
+  productType?: ProductType;
+  stockMode?: StockMode;
+  ingredients?: string | null;
+  shelfLifeDays?: number | null;
+  madeToOrder?: boolean;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
 }
 
 export interface ProductVariant {
@@ -247,6 +296,10 @@ export interface Order {
   promoCodeId: string | null;
   discountAmount: number;
   deleteCommande: boolean;
+  /** LIL-121 : commande pré-commandée (madeToOrder), renseigné par le backend. */
+  isPreorder?: boolean;
+  /** LIL-121 : créneau de retrait/livraison demandé (ISO 8601 UTC). */
+  scheduledFor?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -467,6 +520,8 @@ export interface CreateOrderDto {
   contactPhone?: string;
   promoCode?: string;
   useLoyaltyPoints?: boolean;
+  /** ISO 8601 — date+heure de récupération/livraison pour les commandes preorder. */
+  scheduledFor?: string | null;
 }
 
 export interface CreateAdresseDto {
@@ -631,4 +686,65 @@ export interface PlatformSettings {
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
   updatedAt: string;
+}
+
+// --- Admin marketplace multi-vendeurs (LIL-113) ---
+
+/**
+ * Item d'une vue admin vendeurs (GET /admin/vendors).
+ * Étend Restaurant avec les jointures retournées pour la modération.
+ */
+export interface AdminVendor extends Restaurant {
+  owner: { id: string; email: string | null; nom: string | null; phone: string | null };
+  _count?: { products: number; orders: number };
+}
+
+/** Réponse paginée admin vendeurs : `{ data, meta }` (style /vendors). */
+export interface AdminVendorsPage {
+  data: AdminVendor[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+}
+
+/** Stats marketplace pour l'admin dashboard (GET /dashboard/vendors). */
+export interface VendorStats {
+  total: number;
+  pendingApproval: number;
+  suspended: number;
+  byType: Partial<Record<VendorType, number>>;
+}
+
+/** Filtres acceptés par GET /admin/vendors. */
+export interface AdminVendorFilters {
+  vendorType?: VendorType;
+  adminApproved?: boolean;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Body de POST /admin/restaurants — création vendeur + owner.
+ * Sans `vendorType` → RESTAURANT auto-approuvé (compat. historique).
+ * Avec `vendorType` non-RESTAURANT → adminApproved=false.
+ *
+ * LIL-118 : le user Firebase Auth est créé par le backend depuis email +
+ * password. `ownerFirebaseUid` n'est plus dans le DTO.
+ */
+export interface CreateRestaurantWithOwnerDto {
+  email: string;
+  password: string;
+  nom: string;
+  phone?: string;
+  restaurantNom: string;
+  restaurantAdresse: string;
+  restaurantPhone: string;
+  restaurantImageUrl?: string;
+  vendorType?: VendorType;
+  acceptsPreorders?: boolean;
+  preorderLeadHours?: number;
+  maxOrdersPerDay?: number;
+  story?: string;
+  certifications?: string[];
+  specialties?: string[];
+  productionNote?: string;
 }
