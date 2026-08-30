@@ -74,7 +74,10 @@ describe('fetchBanners', () => {
       data: [banner({ title: null, linkUrl: null, description: null })],
     });
     const out = await fetchBanners();
-    expect(out[0].title).toBe('Lilia Food');
+    // Un titre absent reste absent : le hero n'affiche alors pas de
+    // sur-titre. Le repli sur un texte de marque faisait doublon avec le
+    // `h1`, qui porte déjà ce message.
+    expect(out[0].title).toBe('');
     expect(out[0].linkUrl).toBe('/restaurants');
     expect(out[0].description).toBe('');
   });

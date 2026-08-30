@@ -1,25 +1,50 @@
-'use client';
-
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Phone, Mail, Instagram, Facebook, Send } from 'lucide-react';
+import { cacheLife } from 'next/cache';
+import { MapPin, Phone, Mail, Instagram, Facebook, MessageCircle } from 'lucide-react';
 import { HOME_CATEGORIES } from '@/lib/home-content';
+import { CONTACT, SOCIAL_LINKS } from '@/lib/site';
+
+/**
+ * Ce composant était marqué `'use client'` uniquement pour porter le
+ * `onSubmit` du formulaire newsletter. Ce formulaire ayant été retiré (voir
+ * plus bas), plus rien ici n'a besoin du navigateur : le footer redevient un
+ * Server Component et sort du bundle JavaScript envoyé à chaque visiteur.
+ */
 
 const NAV = [
   { href: '/restaurants', label: 'Tous les vendeurs' },
   { href: '/commandes', label: 'Mes commandes' },
   { href: '/favoris', label: 'Mes favoris' },
-  { href: '/inscription?role=vendor', label: 'Devenir partenaire' },
+  { href: '/devenir-vendeur', label: 'Devenir partenaire' },
   { href: '/support', label: 'Support' },
 ];
 
 const LEGAL = [
   { href: '/confidentialite', label: 'Confidentialité' },
   { href: '/conditions', label: "Conditions d'utilisation" },
-  { href: '/privacy-policy-cgu', label: 'Privacy & CGU' },
 ];
 
-export function Footer() {
+// Une icône n'est rendue que si son URL est réellement renseignée dans
+// `lib/site.ts`. Auparavant les deux pointaient vers `href="#"` : des liens
+// morts, qui font lire le site comme inachevé.
+const SOCIALS = [
+  { icon: Instagram, label: 'Instagram', href: SOCIAL_LINKS.instagram },
+  { icon: Facebook, label: 'Facebook', href: SOCIAL_LINKS.facebook },
+].filter((s): s is { icon: typeof Instagram; label: string; href: string } =>
+  Boolean(s.href),
+);
+
+export async function Footer() {
+  // `'use cache'` est requis, pas décoratif : avec `cacheComponents: true`,
+  // lire l'heure courante (`new Date()`, pour l'année du copyright) dans un
+  // Server Component prérendu est une erreur de build — le résultat serait
+  // figé au moment du build sans que Next puisse le garantir. Marquer le
+  // footer comme composant caché rend cette lecture licite et bornée dans le
+  // temps. `cacheLife('days')` suffit amplement pour une année.
+  'use cache';
+  cacheLife('days');
+
   return (
     <footer className="bg-ink-900 text-cream-100">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -40,20 +65,42 @@ export function Footer() {
             </p>
             <div className="mt-5 flex flex-col gap-2.5 text-sm">
               <span className="flex items-center gap-2.5 text-cream-100/85">
-                <MapPin className="h-4 w-4 shrink-0 text-tomato-500" />Brazzaville, Congo
+                <MapPin className="h-4 w-4 shrink-0 text-tomato-500" />
+                {CONTACT.city}, {CONTACT.countryName}
               </span>
-              <a href="tel:+242067454610" className="flex items-center gap-2.5 text-cream-100/85 transition-colors hover:text-cream-100">
-                <Phone className="h-4 w-4 shrink-0 text-tomato-500" />+242 06 561 42 94 - +242 05 372 03 93
+              {/* Le `href` appelait le 06 745 46 10 alors que le texte affichait
+                  le 06 561 42 94 : on composait un autre numéro que celui lu.
+                  Les deux viennent désormais de la même constante. */}
+              <a
+                href={`tel:${CONTACT.phonePrimary.e164}`}
+                data-analytics-id="phone_click"
+                className="flex items-center gap-2.5 text-cream-100/85 transition-colors hover:text-cream-100"
+              >
+                <Phone className="h-4 w-4 shrink-0 text-tomato-500" />
+                {CONTACT.phonePrimary.display}
               </a>
-              <a href="mailto:contact@liliafood.com" className="flex items-center gap-2.5 text-cream-100/85 transition-colors hover:text-cream-100">
-                <Mail className="h-4 w-4 shrink-0 text-tomato-500" />contact@liliafood.com
+              <a
+                href={`tel:${CONTACT.phoneSecondary.e164}`}
+                data-analytics-id="phone_click"
+                className="flex items-center gap-2.5 text-cream-100/85 transition-colors hover:text-cream-100"
+              >
+                <Phone className="h-4 w-4 shrink-0 text-tomato-500" />
+                {CONTACT.phoneSecondary.display}
+              </a>
+              <a
+                href={`mailto:${CONTACT.email}`}
+                data-analytics-id="contact_click"
+                className="flex items-center gap-2.5 text-cream-100/85 transition-colors hover:text-cream-100"
+              >
+                <Mail className="h-4 w-4 shrink-0 text-tomato-500" />
+                {CONTACT.email}
               </a>
             </div>
           </div>
 
           {/* Catégories */}
           <div>
-            <h4 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Catégories</h4>
+            <h2 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Catégories</h2>
             <ul className="flex flex-col gap-2.5 text-sm text-cream-100/75">
               {HOME_CATEGORIES.map((c) => (
                 <li key={c.label}>
@@ -70,7 +117,7 @@ export function Footer() {
 
           {/* Navigation */}
           <div>
-            <h4 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Navigation</h4>
+            <h2 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Navigation</h2>
             <ul className="flex flex-col gap-2.5 text-sm text-cream-100/75">
               {NAV.map((l) => (
                 <li key={l.href}>
@@ -80,45 +127,41 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Newsletter */}
+          {/* Contact direct — remplace le formulaire newsletter, qui se
+              contentait d'un `preventDefault()` : aucun backend d'inscription
+              n'existe, le visiteur croyait s'abonner sans que rien ne parte. */}
           <div className="col-span-2 md:col-span-1">
-            <h4 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Newsletter</h4>
-            <p className="text-sm text-cream-100/75">Les bons plans gourmands, une fois par semaine.</p>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mt-4 flex items-center gap-2 rounded-xl border border-cream-100/15 bg-cream-100/5 p-1.5"
+            <h2 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Une question ?</h2>
+            <p className="text-sm text-cream-100/75">
+              Notre équipe répond du lundi au samedi, de 8h à 22h.
+            </p>
+            <a
+              href={CONTACT.whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-analytics-id="whatsapp_click"
+              className="mt-4 inline-flex items-center gap-2 rounded-pill bg-tomato-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-tomato-700"
             >
-              <input
-                type="email"
-                required
-                placeholder="ton@email.com"
-                aria-label="Adresse e-mail"
-                className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 text-sm text-cream-100 placeholder:text-cream-100/40 focus:outline-none"
-              />
-              <button
-                type="submit"
-                aria-label="S'inscrire"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tomato-600 text-white transition-colors hover:bg-tomato-700"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </form>
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              Écrire sur WhatsApp
+            </a>
 
-            <div className="mt-5 flex items-center gap-3">
-              {[
-                { icon: Instagram, label: 'Instagram', href: '#' },
-                { icon: Facebook, label: 'Facebook', href: '#' },
-              ].map((s) => (
-                <a
-                  key={s.label}
-                  href={s.href}
-                  aria-label={s.label}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-cream-100/15 bg-cream-100/5 text-cream-100/70 transition-colors hover:border-tomato-500/50 hover:text-cream-100"
-                >
-                  <s.icon className="h-4 w-4" />
-                </a>
-              ))}
-            </div>
+            {SOCIALS.length > 0 && (
+              <div className="mt-5 flex items-center gap-3">
+                {SOCIALS.map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-cream-100/15 bg-cream-100/5 text-cream-100/70 transition-colors hover:border-tomato-500/50 hover:text-cream-100"
+                  >
+                    <s.icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

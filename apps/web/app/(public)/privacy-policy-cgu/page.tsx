@@ -4,10 +4,16 @@ import path from 'node:path';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { LegalPage } from '@/components/legal/legal-page';
 
+// Cette page reprend le contenu déjà publié sur /confidentialite et
+// /conditions. Elle est conservée parce qu'elle sert de destination aux
+// stores et aux SDK tiers, mais elle est passée en `noindex` : trois URLs
+// portant le même texte se cannibalisent dans l'index de Google.
 export const metadata: Metadata = {
-  title: 'Politique de Confidentialité & CGU | Lilia Food',
+  title: 'Politique de Confidentialité & CGU',
   description:
-    'Politique de confidentialité et conditions générales dutilisation de Lilia Food.',
+    "Politique de confidentialité et conditions générales d'utilisation de Lilia Food.",
+  alternates: { canonical: '/privacy-policy-cgu' },
+  robots: { index: false, follow: true },
 };
 
 export default async function PrivacyPolicyCguPage() {

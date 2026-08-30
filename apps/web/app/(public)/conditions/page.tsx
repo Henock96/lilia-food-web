@@ -4,10 +4,12 @@ import path from 'node:path';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { LegalPage } from '@/components/legal/legal-page';
 
+// Pas de suffixe « | Lilia Food » : le template du layout racine l'ajoute.
 export const metadata: Metadata = {
-  title: "Conditions Générales d'Utilisation | Lilia Food",
+  title: "Conditions Générales d'Utilisation",
   description:
     "Consultez les conditions générales d'utilisation de la plateforme Lilia Food.",
+  alternates: { canonical: '/conditions' },
 };
 
 export default async function ConditionsPage() {

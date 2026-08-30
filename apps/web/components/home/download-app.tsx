@@ -1,11 +1,29 @@
 import Image from 'next/image';
+import Link from 'next/link';
+
+/**
+ * URL réelle de l'application cliente sur Google Play.
+ *
+ * Elle pointait auparavant sur `com.lilia.food`, un identifiant qui n'existe
+ * pas : l'`applicationId` déclaré dans `lilia-app/android/app/build.gradle.kts`
+ * est `com.dreesis.lilia.lilia_app`. Le bouton central du site menait donc à
+ * une page d'erreur. Si cet identifiant change côté app, il doit changer ici.
+ */
+const PLAY_STORE_URL =
+  'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app';
 
 /**
  * Section « Télécharger l'app » — inspirée du bandeau Glovo.
- * Fond `tomato-600`, mockup phone à droite, titre + boutons store à gauche.
+ * Fond `tomato-600`, mockup phone à droite, titre + bouton store à gauche.
  *
  * `tomato-600` (#D2371A) atteint 4,88:1 avec du blanc plein — passe le
  * seuil AA pour le paragraphe en 13 px. Pas d'`opacity-*` sur le texte.
+ *
+ * Le bouton App Store a été retiré : l'application n'est pas publiée sur iOS,
+ * et le lien portait un identifiant de gabarit (`id000000000`) qui renvoyait
+ * une erreur. Un bouton store cassé coûte plus cher que son absence — il fait
+ * repartir un visiteur déjà convaincu. À réintroduire le jour de la
+ * publication iOS, avec l'identifiant numérique d'App Store Connect.
  */
 export function DownloadApp() {
   return (
@@ -22,29 +40,13 @@ export function DownloadApp() {
           </p>
 
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-            {/* App Store */}
-            <a
-              href="https://apps.apple.com/app/lilia-food/id000000000"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Télécharger sur l'App Store"
-              className="inline-flex items-center gap-2.5 rounded-xl bg-ink-900 px-5 py-3 text-white transition-colors hover:bg-ink-800"
-            >
-              <svg className="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-              </svg>
-              <div className="flex flex-col leading-tight">
-                <span className="text-[10px] font-medium text-white/70">Télécharger sur</span>
-                <span className="text-sm font-bold">App Store</span>
-              </div>
-            </a>
-
             {/* Google Play */}
             <a
-              href="https://play.google.com/store/apps/details?id=com.lilia.food"
+              href={PLAY_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Disponible sur Google Play"
+              data-analytics-id="app_download_click"
+              aria-label="Télécharger Lilia Food sur Google Play"
               className="inline-flex items-center gap-2.5 rounded-xl bg-ink-900 px-5 py-3 text-white transition-colors hover:bg-ink-800"
             >
               <svg className="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -55,19 +57,35 @@ export function DownloadApp() {
                 <span className="text-sm font-bold">Google Play</span>
               </div>
             </a>
+
+            {/* Sortie de secours pour les visiteurs iOS, qui n'ont aucune app
+                à télécharger : sans ce lien, la section est un cul-de-sac. */}
+            <Link
+              href="/restaurants"
+              data-analytics-id="order_cta_click"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/40 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10"
+            >
+              Ou commander sur le site
+            </Link>
           </div>
+
+          <p className="mt-4 text-xs text-white/75">
+            Application Android disponible. Version iOS en préparation.
+          </p>
         </div>
 
         {/* Mockup phone */}
         <div className="relative h-[20rem] w-[16rem] shrink-0 sm:h-[24rem] sm:w-[19rem]">
           <div className="absolute inset-0 rounded-[2.5rem] bg-ink-900/20" />
+          {/* Pas de `priority` : cette image est en bas de page. Le préchargement
+              la mettait en concurrence avec la bannière du hero, qui est la
+              véritable LCP. */}
           <Image
             src="/phone-mockup1.png"
-            alt="L&apos;application Lilia Food sur un téléphone"
+            alt="L&apos;application Lilia Food affichée sur un téléphone"
             fill
-            sizes="300px"
+            sizes="(max-width: 640px) 256px, 304px"
             className="object-contain drop-shadow-2xl"
-            priority
           />
         </div>
       </div>

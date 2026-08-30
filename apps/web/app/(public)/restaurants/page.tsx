@@ -1,15 +1,16 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cacheTag } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { apiClientRaw } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { RestaurantsFilters } from '@/components/restaurants/restaurants-filters';
 import { RestaurantCardSkeleton } from '@/components/ui';
 
 export const metadata: Metadata = {
-  title: 'Vendeurs',
+  title: 'Vendeurs à Brazzaville',
   description:
-    'Découvrez tous les restaurants, cuisines maison, boulangeries et boutiques de boissons disponibles à Brazzaville.',
+    'Découvrez tous les restaurants, cuisines maison, boulangeries et boutiques de boissons disponibles à Brazzaville. Commandez et faites-vous livrer.',
+  alternates: { canonical: '/restaurants' },
 };
 
 /**
@@ -31,6 +32,10 @@ export const metadata: Metadata = {
 async function fetchVendors(): Promise<Restaurant[]> {
   'use cache';
   cacheTag('vendors');
+  // Borne la fraîcheur : sans `cacheLife`, l'entrée ne dépendait que d'une
+  // invalidation explicite, et un vendeur qui ouvrait pouvait rester affiché
+  // fermé pendant des jours.
+  cacheLife('minutes');
   const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=50');
   return res.data ?? [];
 }
@@ -49,6 +54,25 @@ async function getVendors(): Promise<{ vendors: Restaurant[]; failed: boolean }>
   } catch {
     return { vendors: [], failed: true };
   }
+}
+
+/**
+ * Décrit le catalogue sans le travestir.
+ *
+ * L'ancienne formulation annonçait « N vendeurs ouverts » en se contentant de
+ * compter les vendeurs *listés* : la page affichait donc « 1 vendeur ouvert »
+ * au-dessus d'une carte portant le badge « Fermé ». On distingue désormais le
+ * nombre de vendeurs référencés de ceux réellement ouverts à l'instant T.
+ */
+function vendorCountLabel(restaurants: Restaurant[]): string {
+  const total = restaurants.length;
+  const open = restaurants.filter((r) => r.isOpen).length;
+  const plural = total > 1 ? 's' : '';
+
+  if (total === 0) return 'Aucun vendeur pour le moment';
+  if (open === 0) return `${total} vendeur${plural} · aucun ouvert en ce moment`;
+  if (open === total) return `${total} vendeur${plural} ouvert${plural}`;
+  return `${total} vendeur${plural} · ${open} ouvert${open > 1 ? 's' : ''} en ce moment`;
 }
 
 function FiltersFallback() {
@@ -72,8 +96,8 @@ export default async function RestaurantsPage() {
           'Restaurants, cuisines maison, boulangeries & boissons.'
         ) : (
           <>
-            {restaurants.length} vendeur{restaurants.length > 1 ? 's' : ''} ouvert
-            {restaurants.length > 1 ? 's' : ''} · restaurants, cuisines maison, boulangeries & boissons
+            {vendorCountLabel(restaurants)} · restaurants, cuisines maison, boulangeries &
+            boissons
           </>
         )}
       </p>
