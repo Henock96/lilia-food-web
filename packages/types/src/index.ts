@@ -383,6 +383,80 @@ export interface Payment {
   updatedAt: string;
 }
 
+// ─── Encaissement client ─────────────────────────────────────────────────────
+
+/**
+ * Rail d'encaissement en service, servi par `GET /payments/providers`.
+ *
+ * L'interface s'y adapte au lieu de le coder en dur : en `PAWAPAY` le client
+ * valide une demande sur son téléphone, en `MANUAL` il compose un virement.
+ * Afficher l'un pour l'autre laisse le client sans savoir quoi faire.
+ */
+export type PaymentMode = 'MANUAL' | 'SANDBOX' | 'MTN_PRODUCTION' | 'PAWAPAY';
+
+/** Opérateur proposable, et sa disponibilité du moment chez le prestataire. */
+export interface PaymentOperator {
+  code: 'MTN_MOMO' | 'AIRTEL_MONEY';
+  label: string;
+  /** `false` = opérateur en panne : proposé grisé, jamais sélectionnable. */
+  available: boolean;
+}
+
+export interface PaymentProvidersInfo {
+  mode: PaymentMode;
+  operators: PaymentOperator[];
+}
+
+/**
+ * Instructions de virement — **mode MANUAL uniquement**, où l'encaissement est
+ * un transfert que le client effectue lui-même. Le numéro et le montant
+ * viennent du serveur : les recopier depuis une variable d'environnement du
+ * front est ce qui faisait afficher un numéro périmé.
+ */
+export interface ManualPaymentInstructions {
+  message: string;
+  reference: string;
+  phone: string;
+  method: PaymentMethod;
+  methodLabel: string;
+  amount: number;
+  currency: string;
+  note?: string;
+}
+
+/** Réponse de `POST /payments` — la tentative vient d'être ouverte. */
+export interface PaymentIntent {
+  paymentId: string;
+  orderId: string;
+  status: PaymentStatus;
+  provider: string;
+  method: PaymentMethod | null;
+  amount: number;
+  currency: string;
+  /** Délai conseillé avant la première interrogation de statut (ms). */
+  pollAfterMs?: number;
+  instructions?: ManualPaymentInstructions;
+  mode: PaymentMode | 'ZERO_AMOUNT';
+}
+
+/**
+ * État d'un encaissement — `GET /payments/:id/status` et
+ * `GET /payments/by-order/:orderId` (qui rend `null` si rien n'a été tenté).
+ */
+export interface PaymentStatusView {
+  paymentId: string;
+  orderId: string;
+  status: PaymentStatus;
+  amount: number;
+  currency: string;
+  method?: PaymentMethod;
+  provider: string;
+  failureCode?: string;
+  failureMessage?: string;
+  completedAt?: string;
+  createdAt: string;
+}
+
 export interface Review {
   id: string;
   rating: number;
@@ -615,7 +689,24 @@ export interface AdminPayment {
   currency: string;
   phoneNumber: string;
   status: PaymentStatus;
+  /**
+   * Rail qui a la charge de CET encaissement — `MANUAL`, `MTN_MOMO`, `PAWAPAY`.
+   *
+   * ⚠️ C'est lui, et non le mode courant de la plateforme, qui décide si les
+   * gestes manuels (confirmer / rejeter) sont permis : un virement ouvert en
+   * mode MANUAL reste confirmable à la main après une bascule vers pawaPay, et
+   * un dépôt pawaPay ne l'est jamais.
+   */
   provider: string;
+  /** Référence de la transaction chez le prestataire. */
+  providerTransactionId: string | null;
+  /** Opérateur visé par cette tentative (peut différer d'`order.paymentMethod`). */
+  method: PaymentMethod | null;
+  failureCode: string | null;
+  failureMessage: string | null;
+  completedAt: string | null;
+  /** Frais facturés par le prestataire — charge de Lilia Food. */
+  collectionFeeXaf: number | null;
   createdAt: string;
   order: {
     id: string;
@@ -627,7 +718,156 @@ export interface AdminPayment {
      */
     paymentMethod: PaymentMethod;
     user: { id: string; nom: string | null; phone: string | null } | null;
+    restaurant: { id: string; nom: string; vendorType: VendorType } | null;
   } | null;
+}
+
+// ─── Reversements vendeurs ───────────────────────────────────────────────────
+
+export type PayoutStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+export type PayoutProvider = 'MTN_MOMO' | 'AIRTEL_MONEY';
+
+/** Motifs de refus renvoyés par le serveur — jamais recalculés côté front. */
+export type PayoutIneligibilityCode =
+  | 'ORDER_NOT_FOUND'
+  | 'ORDER_CANCELLED'
+  | 'ORDER_NOT_READY'
+  | 'PAYMENT_NOT_COMPLETED'
+  | 'ORDER_REFUNDED'
+  | 'VENDOR_PAYOUT_ACCOUNT_MISSING'
+  | 'PAYOUT_ALREADY_COMPLETED'
+  | 'PAYOUT_IN_PROGRESS'
+  | 'PROVIDER_DOES_NOT_SUPPORT_PAYOUT';
+
+export interface PayoutBreakdown {
+  grossAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  payoutAmount: number;
+  currency: string;
+}
+
+export interface PayoutEligibility {
+  eligible: boolean;
+  code?: PayoutIneligibilityCode;
+  reason?: string;
+  breakdown?: PayoutBreakdown;
+}
+
+export interface RestaurantPayout {
+  id: string;
+  orderId: string;
+  restaurantId: string;
+  grossAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  amount: number;
+  currency: string;
+  status: PayoutStatus;
+  provider: string;
+  failureCode: string | null;
+  failureMessage: string | null;
+  requestedBy: string;
+  requestedAt: string;
+  completedAt: string | null;
+}
+
+/** Une ligne de `GET /admin/payouts`. */
+export interface AdminPayout extends RestaurantPayout {
+  payoutFeeXaf?: number | null;
+  restaurant?: { id: string; nom: string; vendorType: VendorType } | null;
+  order?: { id: string; status: OrderStatus; subTotal: number; total: number } | null;
+}
+
+/**
+ * Récapitulatif financier d'une commande (`GET /admin/orders/:id/financials`).
+ *
+ * Sépare les quatre flux qu'on ne mélange jamais : ce que paie le client, ce
+ * que touche le vendeur, ce que garde Lilia Food, ce que coûte le prestataire.
+ * **Aucun de ces montants n'est recalculé côté front** — un second calcul finit
+ * toujours par diverger de celui qui part réellement.
+ */
+export interface OrderFinancials {
+  orderId: string;
+  orderRef: string;
+  orderStatus: OrderStatus;
+  client: {
+    subTotal: number;
+    deliveryFee: number;
+    serviceFee: number;
+    discountAmount: number;
+    totalPaid: number;
+    currency: string;
+    collection: {
+      paymentId: string;
+      status: PaymentStatus;
+      provider: string;
+      method: PaymentMethod | null;
+      amount: number;
+      completedAt: string | null;
+      failureCode: string | null;
+      failureMessage: string | null;
+    } | null;
+  };
+  restaurant: {
+    id: string;
+    nom: string;
+    grossAmount: number;
+    commissionPercent: number;
+    commissionAmount: number;
+    payoutAmount: number;
+    payoutAccount: {
+      /** Masqué par le serveur — le numéro complet ne sort jamais de la base. */
+      phoneNumber: string | null;
+      provider: PayoutProvider | null;
+      accountName: string | null;
+      configured: boolean;
+    };
+    payout: {
+      id: string;
+      status: PayoutStatus;
+      amount: number;
+      requestedBy: string;
+      requestedAt: string;
+      completedAt: string | null;
+      failureCode: string | null;
+      failureMessage: string | null;
+      provider: string;
+    } | null;
+    /** ⚠️ Seul `SUCCESS` vaut « payé ». Un PENDING n'est pas de l'argent reçu. */
+    paid: boolean;
+  };
+  liliaFood: {
+    serviceFee: number;
+    restaurantCommission: number;
+    collectionFee: number | null;
+    payoutFee: number | null;
+    /** Connue seulement quand les deux frais prestataire le sont. */
+    netMargin: number | null;
+    currency: string;
+  };
+  refund: { id: string; status: string; amount: number } | null;
+  eligibility: PayoutEligibility;
+}
+
+/**
+ * Enveloppe de `GET /admin/payouts`.
+ *
+ * ⚠️ Elle ne porte **pas** `totalPages`, contrairement à `PaginationMeta` :
+ * `RestaurantPayoutService.list` construit son `meta` à la main. Le typer comme
+ * les autres listes admin ferait lire une valeur `undefined` en la croyant
+ * présente ; la pagination se déduit de `total / limit`.
+ */
+export interface PaginatedPayouts {
+  data: AdminPayout[];
+  meta: { page: number; limit: number; total: number };
+}
+
+/** Réponse de `POST /admin/orders/:id/payout` et `.../payout/retry`. */
+export interface PayoutRequestResult {
+  payout: RestaurantPayout;
+  status: PayoutStatus;
+  message?: string;
 }
 
 /** KPI agrégés paiements (GET /admin/payments/stats). */

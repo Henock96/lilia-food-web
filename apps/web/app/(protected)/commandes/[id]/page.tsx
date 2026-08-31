@@ -10,6 +10,7 @@ import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia
 import type { OrderStatus } from '@lilia/types';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
+import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { toast } from 'sonner';
 
 const STATUS_STEPS: { status: OrderStatus; icon: React.ElementType; label: string }[] = [
@@ -169,6 +170,18 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           </div>
         </div>
       )}
+
+      {/* Paiement — placé au-dessus du détail : sur une commande EN_ATTENTE,
+          c'est la seule action qui compte et elle doit être visible sans
+          défiler. Le panneau se retire de lui-même quand il n'a rien à dire. */}
+      <PaymentPanel
+        orderId={order.id}
+        orderStatus={order.status}
+        orderTotal={order.total}
+        orderMethod={order.paymentMethod}
+        contactPhone={order.contactPhone}
+        token={token}
+      />
 
       {isCancelled && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 mb-4">
