@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { RefreshCw, ChevronDown, Download, AlertCircle, ArrowRight, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
+import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   EN_ATTENTE:     'En attente',
@@ -226,6 +227,16 @@ function OrderCard({
           {order.deliveryAddress && (
             <p className="text-xs text-zinc-500 mt-1">📍 {order.deliveryAddress}</p>
           )}
+
+          {/* Argent — réservé à l'ADMIN : le vendeur ne doit voir ni la
+              commission qu'on retient, ni la marge de la plateforme. Le
+              reversement est de toute façon interdit aux autres rôles côté
+              serveur ; on ne charge simplement pas la donnée. */}
+          {role === 'ADMIN' && (
+            <div className="pt-2">
+              <OrderFinancialsCard orderId={order.id} token={token} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -262,6 +273,22 @@ export default function CommandesPage() {
   }
 
   function handleStatusUpdate(orderId: string, status: OrderStatus) {
+    // Forcer une commande à « Payé » la déclare encaissée et notifie le
+    // vendeur, sans qu'aucun paiement n'existe en base. C'est un pouvoir
+    // d'administration légitime (règlement hors ligne, rattrapage), pas un
+    // raccourci d'exploitation : on demande une confirmation explicite plutôt
+    // que de le laisser à un clic de distance d'« En préparation ».
+    if (
+      status === 'PAYER' &&
+      !window.confirm(
+        'Marquer cette commande comme payée sans encaissement enregistré ?\n\n' +
+          'Le vendeur sera prévenu qu’elle est à préparer. Si le client a payé par ' +
+          'Mobile Money, passez plutôt par l’écran Paiements.',
+      )
+    ) {
+      return;
+    }
+
     updateStatus(
       { orderId, status },
       {

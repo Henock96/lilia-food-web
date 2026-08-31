@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Package, ChevronRight, RotateCcw } from 'lucide-react';
+import { Package, ChevronRight, RotateCcw, Wallet } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useMyOrders, useReorder } from '@lilia/api-client';
 import { toast } from 'sonner';
@@ -97,6 +97,17 @@ export default function CommandesPage() {
                     <span className="font-semibold text-ink-900">{formatCurrency(order.total)}</span>
                     <span>{order.isDelivery ? 'Livraison' : 'Retrait'}</span>
                   </div>
+                  {/* Une commande non payée est la seule qui attende quelque
+                      chose du client : sans ce repère, elle se confond avec les
+                      autres et il ne sait pas qu'il doit y revenir. Le paiement
+                      lui-même vit sur le détail — un second point d'entrée
+                      dupliquerait ses états. */}
+                  {order.status === 'EN_ATTENTE' && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-xl text-xs font-medium shrink-0">
+                      <Wallet className="w-3 h-3" />
+                      À payer
+                    </span>
+                  )}
                   {(order.status === 'LIVRER' || order.status === 'ANNULER') && (
                     <button
                       onClick={(e) => handleReorder(e, order.id)}

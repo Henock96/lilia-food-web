@@ -11,10 +11,44 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /**
+     * Code métier renvoyé par le backend quand il en pose un
+     * (`PAYMENT_NOT_MANUAL`, `PAYOUT_IN_PROGRESS`, `ORDER_NOT_READY`…).
+     *
+     * Sans lui, l'interface ne peut réagir qu'au code HTTP et doit deviner en
+     * lisant le message français — qui n'est pas un contrat. Utile surtout sur
+     * les 409 de paiement, où « déjà payé » et « virement en cours » appellent
+     * deux réactions opposées.
+     */
+    public code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/**
+ * Construit l'`ApiError` d'une réponse non-OK, code métier compris.
+ *
+ * ⚠️ `HttpExceptionFilter` extrait le `message` du payload d'exception et range
+ * **tout le reste** sous `error` : un `ConflictException({ message, code })`
+ * arrive donc en `{ message, error: { code } }`, pas avec un `code` à la racine.
+ * On lit les deux, pour ne pas dépendre de ce détail de rangement.
+ */
+async function toApiError(response: Response): Promise<ApiError> {
+  const body = (await response
+    .json()
+    .catch(() => ({ message: response.statusText }))) as {
+    message?: string | string[];
+    code?: string;
+    error?: { code?: string } | string | null;
+  };
+  const message = Array.isArray(body.message)
+    ? body.message.join(' ')
+    : (body.message ?? `HTTP ${response.status}`);
+  const nested =
+    body.error && typeof body.error === 'object' ? body.error.code : undefined;
+  return new ApiError(response.status, message, body.code ?? nested);
 }
 
 /**
@@ -46,8 +80,7 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new ApiError(response.status, (error as { message?: string }).message ?? `HTTP ${response.status}`);
+    throw await toApiError(response);
   }
 
   const json: unknown = await response.json();
@@ -90,8 +123,7 @@ export async function apiClientRaw<T>(path: string, options: FetchOptions = {}):
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new ApiError(response.status, (error as { message?: string }).message ?? `HTTP ${response.status}`);
+    throw await toApiError(response);
   }
 
   return (await response.json()) as T;

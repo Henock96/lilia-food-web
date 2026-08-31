@@ -2,10 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useAdminPayments, useConfirmPayment, useRejectPayment, usePaymentsStats } from '@lilia/api-client';
-import type { PaymentMethod, PaymentStatus, PaymentsStats } from '@lilia/types';
+import {
+  useAdminPayments,
+  useConfirmPayment,
+  usePaymentProviders,
+  usePaymentsStats,
+  useReconcilePayment,
+  useRejectPayment,
+} from '@lilia/api-client';
+import type { AdminPayment, PaymentMethod, PaymentStatus, PaymentsStats } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaymentsTabs } from '@/components/payments/payments-tabs';
 import {
   CreditCard,
   Check,
@@ -19,8 +27,30 @@ import {
   Timer,
   CheckCircle2,
   AlertTriangle,
+  RefreshCw,
+  Store,
+  Banknote,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+/**
+ * Un encaissement est **manuel** — donc confirmable ou rejetable à la main —
+ * quand c'est un virement que le client a effectué lui-même.
+ *
+ * ⚠️ Le discriminant est le provider **stocké sur la ligne**, pas le mode
+ * courant de la plateforme : un virement ouvert en mode MANUAL reste
+ * confirmable après une bascule vers pawaPay, et un dépôt pawaPay ne l'est
+ * jamais. Le serveur applique exactement la même règle (409
+ * `PAYMENT_NOT_MANUAL`) ; masquer les boutons ici évite seulement de proposer
+ * un geste qui serait refusé.
+ */
+const isManualPayment = (p: AdminPayment) => p.provider === 'MANUAL';
+
+const PROVIDER_LABELS: Record<string, string> = {
+  MANUAL: 'Virement manuel',
+  MTN_MOMO: 'MTN (auto)',
+  PAWAPAY: 'pawaPay',
+};
 
 type StatusFilter = '' | PaymentStatus;
 
@@ -83,8 +113,10 @@ export default function PaiementsPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, isPlaceholderData } = useAdminPayments(token, page, status);
   const { data: stats, isLoading: statsLoading } = usePaymentsStats(token);
+  const { data: providers } = usePaymentProviders();
   const confirm = useConfirmPayment(token);
   const reject = useRejectPayment(token);
+  const reconcile = useReconcilePayment(token);
   // Paiement ciblé par le modal de rejet (null = modal fermé).
   const [rejectTarget, setRejectTarget] = useState<{ id: string; ref: string } | null>(null);
 
@@ -95,6 +127,17 @@ export default function PaiementsPage() {
     confirm.mutate(id, {
       onSuccess: () => toast.success('Paiement confirmé'),
       onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur lors de la confirmation'),
+    });
+  }
+
+  function handleReconcile(id: string) {
+    reconcile.mutate(id, {
+      onSuccess: (res) =>
+        toast.success(
+          `Opérateur interrogé — statut : ${STATUS_LABELS[res.status as PaymentStatus] ?? res.status}`,
+        ),
+      onError: (e) =>
+        toast.error(e instanceof Error ? e.message : 'Interrogation impossible'),
     });
   }
 
@@ -114,6 +157,32 @@ export default function PaiementsPage() {
 
   return (
     <div className="max-w-5xl space-y-4">
+      <PaymentsTabs />
+
+      {/* Rail d'encaissement en service. Il change ce que l'administrateur peut
+          faire : en mode automatique il ne confirme rien, il interroge. */}
+      {providers && (
+        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <Banknote size={14} className="text-zinc-400" />
+          {providers.mode === 'MANUAL' ? (
+            <span>
+              Mode <strong className="text-zinc-700 dark:text-zinc-200">manuel</strong> — les
+              clients virent sur le numéro Lilia Food, vous confirmez chaque paiement.
+            </span>
+          ) : (
+            <span>
+              Encaissement <strong className="text-zinc-700 dark:text-zinc-200">automatique</strong>{' '}
+              ({providers.mode}) — l’opérateur confirme, vous n’avez rien à valider.
+              {providers.operators.some((o) => !o.available) && (
+                <span className="text-amber-600 dark:text-amber-400">
+                  {' '}Un opérateur est signalé indisponible.
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Stats agrégées */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
@@ -186,7 +255,10 @@ export default function PaiementsPage() {
           <div className={`divide-y divide-zinc-100 dark:divide-dark-border ${isPlaceholderData ? 'opacity-60' : ''}`}>
             {data.data.map((p) => {
               const orderRef = p.order?.id.slice(-6).toUpperCase() ?? '—';
-              const method = p.order?.paymentMethod;
+              // L'opérateur visé par CETTE tentative prime sur celui choisi au
+              // checkout : une reprise après échec vise souvent l'autre réseau.
+              const method = p.method ?? p.order?.paymentMethod;
+              const manual = isManualPayment(p);
               return (
                 <div key={p.id} className="flex items-center gap-4 px-5 py-3">
                   <div className="flex-1 min-w-0">
@@ -214,34 +286,86 @@ export default function PaiementsPage() {
                     </div>
                     <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate mt-0.5">
                       {p.order?.user?.nom || '—'}
+                      {p.order?.restaurant?.nom && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs font-normal text-zinc-400">
+                          <Store size={10} />
+                          {p.order.restaurant.nom}
+                        </span>
+                      )}
                     </p>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-400 flex-wrap">
                       <span className="flex items-center gap-1"><Phone size={10} />{p.phoneNumber}</span>
-                      <span>{p.provider === 'MANUAL' ? 'Virement manuel' : p.provider}</span>
+                      <span>{PROVIDER_LABELS[p.provider] ?? p.provider}</span>
+                      {p.providerTransactionId && (
+                        <span
+                          className="font-mono"
+                          title={`Référence prestataire : ${p.providerTransactionId}`}
+                        >
+                          réf. {p.providerTransactionId.slice(-8)}
+                        </span>
+                      )}
                       <span>{new Date(p.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      {p.completedAt && (
+                        <span title="Date de résolution">
+                          → {new Date(p.completedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
                     </div>
+                    {/* Motif d'échec — sans lui, un paiement rouge n'apprend
+                        rien : « solde insuffisant » et « numéro inexistant »
+                        appellent deux réponses différentes au client. */}
+                    {(p.failureMessage || p.failureCode) && (
+                      <p className="text-xs text-red-500 mt-1 truncate" title={p.failureCode ?? undefined}>
+                        {p.failureMessage ?? p.failureCode}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
                       {formatXaf(p.amount)} <span className="text-xs font-normal text-zinc-400">{p.currency}</span>
                     </p>
+                    {p.collectionFeeXaf != null && (
+                      <p className="text-[10px] text-zinc-400 tabular-nums" title="Frais d'encaissement — charge de Lilia Food">
+                        frais {formatXaf(p.collectionFeeXaf)}
+                      </p>
+                    )}
                   </div>
                   {p.status === 'PENDING' && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => setRejectTarget({ id: p.id, ref: orderRef })}
-                        disabled={reject.isPending && reject.variables?.paymentId === p.id}
-                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                      >
-                        <X size={13} /> Rejeter
-                      </button>
-                      <button
-                        onClick={() => handleConfirm(p.id)}
-                        disabled={confirm.isPending && confirm.variables === p.id}
-                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                      >
-                        <Check size={13} /> Confirmer
-                      </button>
+                      {manual ? (
+                        <>
+                          <button
+                            onClick={() => setRejectTarget({ id: p.id, ref: orderRef })}
+                            disabled={reject.isPending && reject.variables?.paymentId === p.id}
+                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/40 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                          >
+                            <X size={13} /> Rejeter
+                          </button>
+                          <button
+                            onClick={() => handleConfirm(p.id)}
+                            disabled={confirm.isPending && confirm.variables === p.id}
+                            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                          >
+                            <Check size={13} /> Confirmer
+                          </button>
+                        </>
+                      ) : (
+                        // Aucun geste de décision : l'opérateur tranche, on lui
+                        // demande. Un bouton « Confirmer » ici fabriquerait un
+                        // paiement réussi sans argent.
+                        <button
+                          onClick={() => handleReconcile(p.id)}
+                          disabled={reconcile.isPending && reconcile.variables === p.id}
+                          title="Interroger l'opérateur et appliquer son verdict"
+                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-dark-border text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                        >
+                          <RefreshCw
+                            size={13}
+                            className={reconcile.isPending && reconcile.variables === p.id ? 'animate-spin' : ''}
+                          />
+                          Réconcilier
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

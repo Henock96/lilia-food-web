@@ -56,7 +56,16 @@ export function usePaymentsStats(token: string | null) {
   });
 }
 
-/** Confirmation manuelle d'un paiement (POST /payments/:id/confirm). */
+/**
+ * Confirmation manuelle d'un paiement (POST /payments/:id/confirm).
+ *
+ * ⚠️ **Réservée aux encaissements dont le provider est `MANUAL`** — un virement
+ * que le client a effectué lui-même et que l'administrateur vient de retrouver.
+ * Le serveur refuse en 409 `PAYMENT_NOT_MANUAL` sur tout autre rail : confirmer
+ * un dépôt pawaPay encore en vol déclarerait payée une commande pour laquelle
+ * rien n'a été débité, et le refus qui arriverait ensuite ne pourrait plus rien
+ * défaire. Sur ces paiements-là, le geste est {@link useReconcilePayment}.
+ */
 export function useConfirmPayment(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -70,9 +79,38 @@ export function useConfirmPayment(token: string | null) {
 }
 
 /**
+ * Force une interrogation du prestataire et applique son verdict
+ * (POST /payments/:id/reconcile).
+ *
+ * C'est le geste de rattrapage sur un encaissement confié à un opérateur :
+ * quand un callback s'est perdu et que le cron n'a pas encore tranché.
+ * L'administrateur ne décide de rien — il demande à l'opérateur, qui seul sait
+ * si l'argent est arrivé.
+ */
+export function useReconcilePayment(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentId: string) =>
+      apiClient<{ status: string }>(`/payments/${paymentId}/reconcile`, {
+        method: 'POST',
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'payments'] });
+      void queryClient.invalidateQueries({ queryKey: adminOpsKeys.paymentsStats });
+    },
+  });
+}
+
+/**
  * Rejet manuel d'un paiement (POST /payments/:id/reject).
  * La commande reste EN_ATTENTE côté backend : le client peut réessayer.
  * `reason` optionnel (virement non retrouvé par défaut).
+ *
+ * ⚠️ Même restriction que {@link useConfirmPayment} : refusé sur un
+ * encaissement confié à un prestataire. Le figer en `CANCELLED` ferait compter
+ * comme doublon le `COMPLETED` qui arriverait ensuite — client débité, commande
+ * jamais confirmée.
  */
 export function useRejectPayment(token: string | null) {
   const queryClient = useQueryClient();

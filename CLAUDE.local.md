@@ -6,6 +6,55 @@ Monorepo Turbo/pnpm : `apps/web` (client), `apps/admin`, `packages/*`
 
 ---
 
+## Paiement web + reversements admin (31 août 2026)
+
+Le backend et les apps Flutter étaient passés à pawaPay le 31/08 ; le web était
+resté au **mode MANUAL de mai 2026**. Il affichait « Envoyez le montant au
+numéro `NEXT_PUBLIC_MTN_NUMBER` » — un numéro copié dans le front, donc périmé
+sans que personne ne s'en aperçoive — et le détail d'une commande n'avait
+**aucune** surface de paiement : un paiement échoué était un cul-de-sac.
+
+### Client — une seule surface de paiement
+
+`components/checkout/payment-panel.tsx`, monté sur `/commandes/[id]`. Le
+checkout ouvre la tentative puis redirige ici, et cette page reprend la main sur
+**tous** les chemins de retour : rechargement, retour depuis l'historique,
+reprise après échec. Un écran de paiement dédié dupliquerait ces états et
+finirait par en oublier un.
+
+- `useOrderPayment(orderId)` — `GET /payments/by-order/:id` **retrouve** la
+  tentative (c'est ce qui rend F5 inoffensif), puis `GET /payments/:id/status`
+  la rafraîchit tant qu'elle est `PENDING`. Cadence 3 s la première minute,
+  5 s ensuite, arrêt à 3 min — aligné sur `payment_status_controller.dart`.
+- **Un arrêt d'interrogation n'est pas un échec** : le webhook et le cron
+  trancheront. L'afficher comme raté inviterait à payer deux fois.
+- Rappel USSD (`*105#` / `*555#`) après 20 s seulement : plus tôt, il suggère
+  que la demande automatique ne marche pas.
+- `usePaymentProviders()` (`GET /payments/providers`, public) donne le rail en
+  service et grise un opérateur en panne sans déploiement.
+
+⚠️ `NEXT_PUBLIC_MTN_NUMBER` / `_AIRTEL_NUMBER` **retirés** de
+`.env.local.example` : le numéro et le montant du mode manuel viennent de la
+réponse de `POST /payments`.
+
+### Admin — la moitié « reversement » existait côté serveur, pas côté web
+
+- `components/payments/order-financials-card.tsx` sur le détail d'une commande
+  (ADMIN seulement) : les quatre flux séparés, et le bouton **« Payer le
+  restaurant »**. Aucun montant n'est recalculé, l'éligibilité vient du serveur,
+  et une modale récapitule bénéficiaire / net / numéro masqué avant tout
+  virement. Le vendeur ne voit ni la commission retenue ni la marge.
+- `/paiements/reversements` — file de suivi. On **ne déclenche pas** un virement
+  depuis une liste : le geste vit sur la commande, avec son contexte.
+- `/paiements` : provider, référence prestataire, motif d'échec et frais
+  d'encaissement affichés. Surtout, **« Confirmer » / « Rejeter » ne sortent que
+  sur les paiements `MANUAL`** — ailleurs, « Réconcilier ». Le serveur applique
+  la même règle (409 `PAYMENT_NOT_MANUAL`).
+- `ApiError` porte désormais le `code` métier, lu dans `error.code` (le filtre
+  backend range tout sauf `message` sous `error`).
+
+---
+
 ## Remédiation audit (août 2026 — `AUDIT_2026-08-01.md`)
 
 1. **Uploads admin — preset unsigned supprimé** (E-5). `apps/admin` uploadait en

@@ -17,6 +17,7 @@ import {
   useRemoveCartItem,
   useCreateOrder,
   useCreatePayment,
+  usePaymentProviders,
   useAdresses,
   useCreateAdresse,
   useProfile,
@@ -48,6 +49,15 @@ export default function PanierPage() {
   const { data: profile } = useProfile(token);
   const { data: quartiers = [] } = useQuartiers();
   const { data: referralStats } = useReferralStats(token);
+  // Rail d'encaissement et disponibilité des opérateurs, décidés par le
+  // serveur. Le repli laisse les deux opérateurs proposables : une panne de
+  // cette route ne doit pas empêcher de commander.
+  const { data: paymentProviders } = usePaymentProviders();
+  const isManualPaymentMode = paymentProviders?.mode === 'MANUAL';
+  const paymentOperators = paymentProviders?.operators ?? [
+    { code: 'MTN_MOMO' as const, label: 'MTN Mobile Money', available: true },
+    { code: 'AIRTEL_MONEY' as const, label: 'Airtel Money', available: true },
+  ];
 
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -202,23 +212,31 @@ export default function PanierPage() {
         scheduledFor: scheduledFor ? scheduledFor.toISOString() : undefined,
       });
 
-      // Création du Payment PENDING — sans ça l'admin ne voit rien dans
-      // "Paiements en attente" et le flow MTN/Airtel manual reste bloqué.
-      // Si cet appel échoue, la commande existe quand même : on prévient
-      // l'utilisateur mais on continue vers vraiment le détail (LIL-98).
+      // Ouverture de l'encaissement dans la foulée : la demande arrive sur le
+      // téléphone du client pendant qu'il regarde encore l'écran.
+      //
+      // Un échec ici n'est **pas** fatal : la commande existe et reste payable.
+      // On renvoie dans tous les cas vers son détail, où le panneau de paiement
+      // reprend la main — c'est ce qui rend la reprise possible sans qu'aucun
+      // état ne se perde entre les deux pages.
       try {
         await createPayment.mutateAsync({
           orderId: result.id,
           phoneNumber: trimmedPhone,
+          method: paymentMethod,
           payerMessage: `Commande ${result.id.slice(-6).toUpperCase()}`,
         });
-        toast.success('Commande passée avec succès !');
+        toast.success(
+          isManualPaymentMode
+            ? 'Commande enregistrée — finalisez le virement'
+            : 'Validez la demande reçue sur votre téléphone',
+        );
       } catch (paymentErr: unknown) {
         const msg = (paymentErr as { message?: string }).message;
         toast.error(
           msg
-            ? `Commande créée mais paiement non initié : ${msg}`
-            : 'Commande créée mais paiement non initié — contactez le support',
+            ? `Commande créée, paiement à relancer : ${msg}`
+            : 'Commande créée — relancez le paiement depuis son détail',
         );
       }
 
@@ -551,47 +569,46 @@ export default function PanierPage() {
             <div className="bg-white rounded-2xl border border-cream-200 p-4">
               <p className="text-sm font-medium text-ink-700 mb-3">Mode de paiement</p>
               <div className="flex flex-col gap-2">
-                {([
-                  { method: 'MTN_MOMO', label: 'MTN Mobile Money', color: 'bg-yellow-400', number: process.env.NEXT_PUBLIC_MTN_NUMBER },
-                  { method: 'AIRTEL_MONEY', label: 'Airtel Money', color: 'bg-red-500', number: process.env.NEXT_PUBLIC_AIRTEL_NUMBER },
-                ] as const).map(({ method, label, color, number }) => (
+                {paymentOperators.map(({ code, label, available }) => (
                   <button
-                    key={method}
-                    onClick={() => setPaymentMethod(method)}
+                    key={code}
+                    onClick={() => available && setPaymentMethod(code)}
+                    disabled={!available}
                     className={cn(
                       'flex items-center gap-3 p-3 rounded-xl border text-sm transition-all text-left',
-                      paymentMethod === method
+                      paymentMethod === code
                         ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
                         : 'border-cream-300 text-ink-700 hover:border-ink-300',
+                      !available && 'opacity-50 cursor-not-allowed',
                     )}
                   >
-                    <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', paymentMethod === method ? 'border-tomato-500' : 'border-ink-300')}>
-                      {paymentMethod === method && <div className="w-2 h-2 bg-tomato-600 rounded-full" />}
+                    <div className={cn('w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0', paymentMethod === code ? 'border-tomato-500' : 'border-ink-300')}>
+                      {paymentMethod === code && <div className="w-2 h-2 bg-tomato-600 rounded-full" />}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={cn('w-2 h-2 rounded-full shrink-0', color)} />
+                      <span className={cn('w-2 h-2 rounded-full shrink-0', code === 'MTN_MOMO' ? 'bg-yellow-400' : 'bg-red-500')} />
                       <span>{label}</span>
                     </div>
-                    {number && paymentMethod === method && (
-                      <span className="ml-auto text-xs font-mono text-ink-500">{number}</span>
+                    {!available && (
+                      <span className="ml-auto text-[11px] text-amber-600">Indisponible</span>
                     )}
                   </button>
                 ))}
               </div>
 
-              {/* Instructions de paiement */}
+              {/* Ce que le client va devoir faire — dépend du rail d'encaissement
+                  en service, servi par le serveur. Le numéro d'encaissement et le
+                  montant du mode manuel viennent de la réponse de `POST /payments`,
+                  jamais d'une variable d'environnement du front : celle-ci se
+                  périme sans que personne ne s'en aperçoive. */}
               <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                 <p className="text-xs font-semibold text-amber-800 mb-1">
-                  Instructions de paiement
+                  Comment se passe le paiement
                 </p>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  Envoyez le montant total au numéro{' '}
-                  <span className="font-bold font-mono">
-                    {paymentMethod === 'MTN_MOMO'
-                      ? process.env.NEXT_PUBLIC_MTN_NUMBER
-                      : process.env.NEXT_PUBLIC_AIRTEL_NUMBER}
-                  </span>{' '}
-                  via {paymentMethod === 'MTN_MOMO' ? 'MTN Mobile Money' : 'Airtel Money'} après avoir passé la commande. Un agent confirmera votre paiement.
+                  {isManualPaymentMode
+                    ? 'Après validation, la page de votre commande affiche le numéro et la référence du virement à effectuer. Un agent Lilia Food confirme ensuite votre paiement.'
+                    : 'Après validation, une demande de paiement arrive sur votre téléphone : saisissez votre code secret pour confirmer. Votre commande est confirmée automatiquement.'}
                 </p>
               </div>
             </div>
