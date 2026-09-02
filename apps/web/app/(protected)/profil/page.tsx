@@ -23,6 +23,7 @@ import {
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, getInitials, cn } from '@lilia/utils';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
+import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
 
 export default function ProfilPage() {
   const router = useRouter();
@@ -88,7 +89,14 @@ export default function ProfilPage() {
     if (!newRue.trim()) return;
     setSavingAddress(true);
     try {
-      await createAdresse.mutateAsync({ rue: newRue.trim(), ville: 'Brazzaville', country: 'Congo', quartierId: newQuartierId || undefined });
+      // Quartier obligatoire : sans lui l'adresse n'est situable par rien
+      // (le web n'a pas de carte de sélection, le repli serveur s'appuie sur
+      // le centroïde du quartier).
+      if (!newQuartierId) {
+        toast.error('Choisissez votre quartier');
+        return;
+      }
+      await createAdresse.mutateAsync({ rue: newRue.trim(), ville: 'Brazzaville', country: 'Congo', quartierId: newQuartierId });
       setShowAddressForm(false);
       setNewRue('');
       setNewQuartierId('');
@@ -320,7 +328,7 @@ export default function ProfilPage() {
                   onChange={(e) => setNewQuartierId(e.target.value)}
                   className="w-full text-sm border border-cream-300 bg-white text-ink-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                 >
-                  <option value="">Quartier (optionnel)</option>
+                  <option value="">Quartier (obligatoire)</option>
                   {quartiers.map((q) => (
                     <option key={q.id} value={q.id}>{q.nom}</option>
                   ))}
@@ -393,6 +401,7 @@ export default function ProfilPage() {
                 )}
               </div>
               <p className="text-xs text-ink-500">{adresse.ville}{adresse.quartier ? ` — ${adresse.quartier.nom}` : ''}</p>
+              <AddressPrecisionHint adresse={adresse} />
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {!adresse.isDefault && (

@@ -321,6 +321,15 @@ export interface Order {
   total: number;
   isDelivery: boolean;
   deliveryAddress: string | null;
+  /**
+   * Destination figée à la commande, résolue **par le serveur** depuis
+   * l'adresse choisie. Snapshot volontaire : corriger l'adresse demain ne
+   * doit pas déplacer une commande d'hier.
+   */
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
+  deliveryPrecision?: LocationPrecision;
+  deliveryLandmark?: string | null;
   paymentMethod: PaymentMethod;
   status: OrderStatus;
   paidAt: string | null;
@@ -522,7 +531,25 @@ export interface Quartier {
   nom: string;
   ville: string;
   createdAt: string;
+  /**
+   * Centroïde du quartier — repli de position quand une adresse n'en a pas.
+   * `null` est un état normal : tous les quartiers de Brazzaville ne sont pas
+   * situables automatiquement, un administrateur les complète à la main.
+   */
+  latitude?: number | null;
+  longitude?: number | null;
 }
+
+/**
+ * Fiabilité d'une position de livraison — miroir de l'enum Prisma
+ * `LocationPrecision`.
+ *
+ * `EXACT` : point posé par le client. `APPROXIMATE` : centroïde du quartier,
+ * bon à l'échelle du quartier et faux à celle de la rue. `UNKNOWN` : aucune
+ * coordonnée — on n'affiche alors **aucun** marqueur, un faux point étant
+ * pire que pas de point.
+ */
+export type LocationPrecision = 'EXACT' | 'APPROXIMATE' | 'UNKNOWN';
 
 export interface Adresse {
   id: string;
@@ -536,6 +563,14 @@ export interface Adresse {
   quartier?: Quartier;
   createdAt: string;
   updatedAt: string;
+  /** Position de l'adresse — jamais celle du navigateur au moment de commander. */
+  latitude?: number | null;
+  longitude?: number | null;
+  locationPrecision?: LocationPrecision;
+  /** Repères pour le livreur : « portail bleu face à la pharmacie ». */
+  landmark?: string | null;
+  /** Nom donné par le client : « Maison », « Bureau ». */
+  label?: string | null;
 }
 
 export interface PromoCode {
@@ -660,6 +695,16 @@ export interface CreateAdresseDto {
   etat?: string;
   country: string;
   quartierId?: string;
+  /**
+   * Position de l'adresse. Le serveur la valide (bornes du Congo, inversion
+   * latitude/longitude, `(0, 0)`) et refuse en 400 ce qui ne tient pas debout.
+   * Absente ⇒ l'adresse est créée en `UNKNOWN` et la commande retombera sur le
+   * centroïde du quartier.
+   */
+  latitude?: number;
+  longitude?: number;
+  landmark?: string;
+  label?: string;
 }
 
 export interface AddToCartDto {
