@@ -3,6 +3,24 @@ export const API_URL =
     ? (process.env.NEXT_PUBLIC_API_URL ?? 'https://lilia-backend.onrender.com')
     : (process.env.API_URL ?? 'https://lilia-backend.onrender.com');
 
+/**
+ * Capacité de paiement annoncée à chaque requête.
+ *
+ * `provider` signifie : « je sais conduire un encaissement piloté par le
+ * prestataire » — demande envoyée sur le téléphone du client, écran d'attente,
+ * interrogation du statut jusqu'à l'issue.
+ *
+ * Le serveur refuse d'ouvrir un tel encaissement à un client qui ne l'annonce
+ * pas (426 `CLIENT_UPGRADE_REQUIRED`). Sans cette garde, une application écrite
+ * pour le virement manuel affiche sa consigne avec un numéro vide pendant que
+ * le prestataire sollicite réellement le téléphone du client.
+ *
+ * ⚠️ Déclaratif, donc falsifiable : ce n'est pas un contrôle de sécurité, mais
+ * un contrôle de compatibilité. Ne jamais s'en servir pour autoriser quoi que
+ * ce soit.
+ */
+const PAYMENT_FLOW_CAPABILITY = 'provider';
+
 type FetchOptions = RequestInit & {
   token?: string | null;
 };
@@ -70,6 +88,7 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Lilia-Payment-Flow': PAYMENT_FLOW_CAPABILITY,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };
@@ -113,6 +132,7 @@ export async function apiClientRaw<T>(path: string, options: FetchOptions = {}):
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Lilia-Payment-Flow': PAYMENT_FLOW_CAPABILITY,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };

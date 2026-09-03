@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import {
   useMyMenus, useMenus, useCreateMenu, useUpdateMenu, useToggleMenu, useDeleteMenu,
-  useProducts, useRestaurants,
+  useProducts,
 } from '@lilia/api-client';
-import type { MenuDuJour, MenuType, Product, Restaurant } from '@lilia/types';
+import type { MenuDuJour, MenuType, Product } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
-import { useIsAdmin, useMyRestaurantScoped } from '@/lib/use-role';
+import { useCatalogScope } from '@/lib/use-catalog-scope';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
@@ -59,11 +59,13 @@ function initForm(menu?: MenuDuJour): MenuForm {
 type Panel = null | { mode: 'create' } | { mode: 'edit'; menu: MenuDuJour };
 
 function MenuPanel({
-  panel, products, token, onClose, onSaved,
+  panel, products, token, targetRestaurantId, onClose, onSaved,
 }: {
   panel: Exclude<Panel, null>;
   products: Product[];
   token: string | null;
+  /** Vendeur cible — renseigné uniquement pour un ADMIN. */
+  targetRestaurantId: string | undefined;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -125,6 +127,9 @@ function MenuPanel({
       toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement');
 
     if (panel.mode === 'create') {
+      // Sans ce champ, le backend retombe sur « le vendeur de l'appelant »,
+      // qu'un ADMIN n'a pas : aucun menu ne pouvait être créé pour un tiers.
+      if (targetRestaurantId) payload.restaurantId = targetRestaurantId;
       create.mutate(payload, { onSuccess, onError });
     } else {
       update.mutate({ id: panel.menu.id, data: payload }, { onSuccess, onError });
@@ -375,20 +380,15 @@ function MenuCard({
 
 export default function MenusPage() {
   const { token } = useAuthStore();
-  const isAdmin = useIsAdmin();
-  const { restaurant, isError: noResto } = useMyRestaurantScoped(token);
-
-  const { data: allRestaurants = [] } = useRestaurants();
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
-  const restaurantId = isAdmin ? (selectedRestaurantId || undefined) : restaurant?.id;
-
-  // Pré-sélection du premier resto pour l'ADMIN
-  if (isAdmin && !selectedRestaurantId && allRestaurants.length > 0) {
-    setSelectedRestaurantId((allRestaurants[0] as Restaurant).id);
-  }
+  // Même périmètre que Produits et Sections : basculer de vendeur sur un écran
+  // bascule sur les trois, et le `restaurantId` d'écriture en découle.
+  const scope = useCatalogScope();
+  const isAdmin = scope.isAdmin;
+  const noResto = scope.noRestaurant;
+  const restaurantId = scope.restaurantId;
 
   const myMenusQuery = useMyMenus(isAdmin ? null : token);
-  const adminMenusQuery = useMenus(isAdmin ? restaurantId : undefined);
+  const adminMenusQuery = useMenus(isAdmin ? restaurantId : undefined, token);
   const menus = isAdmin ? (adminMenusQuery.data ?? []) : (myMenusQuery.data ?? []);
   const isLoading = isAdmin ? adminMenusQuery.isLoading : myMenusQuery.isLoading;
 
@@ -422,16 +422,20 @@ export default function MenusPage() {
   return (
     <div className="max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        {isAdmin && allRestaurants.length > 1 && (
+        {isAdmin && scope.vendors.length > 0 && (
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">Restaurant :</label>
+            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">Vendeur :</label>
             <select
-              value={selectedRestaurantId}
-              onChange={(e) => setSelectedRestaurantId(e.target.value)}
+              value={restaurantId ?? ''}
+              onChange={(e) => scope.select(e.target.value || null)}
               className="text-sm px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
             >
-              {(allRestaurants as Restaurant[]).map((r) => (
-                <option key={r.id} value={r.id}>{r.nom}</option>
+              {scope.vendors.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.onboardingStatus && r.onboardingStatus !== 'ACTIVATED'
+                    ? `${r.nom} · ${r.onboardingStatus}`
+                    : r.nom}
+                </option>
               ))}
             </select>
           </div>
@@ -475,6 +479,7 @@ export default function MenusPage() {
           panel={panel}
           products={products}
           token={token}
+          targetRestaurantId={scope.targetRestaurantId}
           onClose={() => setPanel(null)}
           onSaved={() => setPanel(null)}
         />

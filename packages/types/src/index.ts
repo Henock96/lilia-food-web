@@ -1,6 +1,7 @@
 // --- Enums ---
 export type Role = 'ADMIN' | 'RESTAURATEUR' | 'LIVREUR' | 'CLIENT';
-export type StatusUser = 'INACTIVE' | 'ACTIVE' | 'BLOCKED';
+export type StatusUser = 'INACTIVE' | 'ACTIVE' | 'BLOCKED' | 'DELETED';
+export type VehicleType = 'MOTO' | 'VELO' | 'VOITURE' | 'PIETON';
 export type OrderStatus =
   | 'EN_ATTENTE'
   | 'PAYER'
@@ -154,6 +155,15 @@ export interface Restaurant {
   ownerId: string;
   isActive: boolean;
   isOpen: boolean;
+  /**
+   * Position voulue par l'administrateur dans les listes publiques
+   * (1 = premier, 1000 = défaut « pas encore classé »). Ne décide **jamais**
+   * de la visibilité : celle-ci reste portée par
+   * `onboardingStatus + adminApproved + isActive`.
+   */
+  displayOrder?: number;
+  /** Mise en avant éditoriale, indépendante de `displayOrder`. */
+  isFeatured?: boolean;
   manualOverride: boolean;
   deliveryPriceMode: DeliveryPriceMode;
   fixedDeliveryFee: number;
@@ -165,6 +175,11 @@ export interface Restaurant {
   specialties?: Specialty[];
   operatingHours?: OperatingHours[];
   products?: Product[];
+  /**
+   * Sections de la carte, dans l'ordre voulu par le vendeur.
+   * Vue publique : actives uniquement. Vue propriétaire : toutes.
+   */
+  categories?: Category[];
   reviews?: Review[];
   banners?: Banner[];
   averageRating?: number;
@@ -216,9 +231,28 @@ export interface Specialty {
   createdAt: string;
 }
 
+/**
+ * Section de la carte d'un vendeur — « Plats », « Boissons », « Spécialités
+ * Maison ». Appartient à un et un seul vendeur : deux commerces peuvent avoir
+ * chacun leur « Boissons ».
+ *
+ * Les champs ajoutés en septembre 2026 sont optionnels : un client à jour
+ * contre un backend antérieur continue de fonctionner.
+ */
 export interface Category {
   id: string;
   nom: string;
+  restaurantId?: string;
+  /** Dérivé de `nom` ; porte l'unicité par vendeur. */
+  slug?: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  /** Ordre voulu par le vendeur — à respecter côté client. */
+  displayOrder?: number;
+  /** Masquée aux clients sans être supprimée ; ses produits restent vendables. */
+  isActive?: boolean;
+  /** Présent sur la vue propriétaire uniquement. */
+  _count?: { products: number };
   createdAt: string;
   updatedAt: string;
 }
@@ -321,6 +355,15 @@ export interface Order {
   total: number;
   isDelivery: boolean;
   deliveryAddress: string | null;
+  /**
+   * Destination figée à la commande, résolue **par le serveur** depuis
+   * l'adresse choisie. Snapshot volontaire : corriger l'adresse demain ne
+   * doit pas déplacer une commande d'hier.
+   */
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
+  deliveryPrecision?: LocationPrecision;
+  deliveryLandmark?: string | null;
   paymentMethod: PaymentMethod;
   status: OrderStatus;
   paidAt: string | null;
@@ -522,7 +565,25 @@ export interface Quartier {
   nom: string;
   ville: string;
   createdAt: string;
+  /**
+   * Centroïde du quartier — repli de position quand une adresse n'en a pas.
+   * `null` est un état normal : tous les quartiers de Brazzaville ne sont pas
+   * situables automatiquement, un administrateur les complète à la main.
+   */
+  latitude?: number | null;
+  longitude?: number | null;
 }
+
+/**
+ * Fiabilité d'une position de livraison — miroir de l'enum Prisma
+ * `LocationPrecision`.
+ *
+ * `EXACT` : point posé par le client. `APPROXIMATE` : centroïde du quartier,
+ * bon à l'échelle du quartier et faux à celle de la rue. `UNKNOWN` : aucune
+ * coordonnée — on n'affiche alors **aucun** marqueur, un faux point étant
+ * pire que pas de point.
+ */
+export type LocationPrecision = 'EXACT' | 'APPROXIMATE' | 'UNKNOWN';
 
 export interface Adresse {
   id: string;
@@ -536,6 +597,14 @@ export interface Adresse {
   quartier?: Quartier;
   createdAt: string;
   updatedAt: string;
+  /** Position de l'adresse — jamais celle du navigateur au moment de commander. */
+  latitude?: number | null;
+  longitude?: number | null;
+  locationPrecision?: LocationPrecision;
+  /** Repères pour le livreur : « portail bleu face à la pharmacie ». */
+  landmark?: string | null;
+  /** Nom donné par le client : « Maison », « Bureau ». */
+  label?: string | null;
 }
 
 export interface PromoCode {
@@ -660,6 +729,16 @@ export interface CreateAdresseDto {
   etat?: string;
   country: string;
   quartierId?: string;
+  /**
+   * Position de l'adresse. Le serveur la valide (bornes du Congo, inversion
+   * latitude/longitude, `(0, 0)`) et refuse en 400 ce qui ne tient pas debout.
+   * Absente ⇒ l'adresse est créée en `UNKNOWN` et la commande retombera sur le
+   * centroïde du quartier.
+   */
+  latitude?: number;
+  longitude?: number;
+  landmark?: string;
+  label?: string;
 }
 
 export interface AddToCartDto {
@@ -1196,3 +1275,127 @@ export interface Photo {
 export type VendorPhoto = Photo & { restaurantId: string };
 export type ProductImage = Photo & { productId: string };
 export type MenuImage = Photo & { menuDuJourId: string };
+
+
+// ─── Livreurs (septembre 2026) ────────────────────────────────────────────────
+
+/**
+ * Profil métier du livreur, distinct de son compte.
+ *
+ * ⚠️ Trois statuts à ne jamais confondre, et c'est pourquoi ils arrivent
+ * séparément du serveur plutôt que fondus en un seul :
+ *   · `User.statusUser`         — le compte est-il valide ?
+ *   · `DriverProfile.isActive`  — le livreur est-il en service ?
+ *   · `User.driverStatus`       — est-il disponible maintenant ?
+ * « Compte actif, profil actif, hors ligne » décrit un livreur qui a fini sa
+ * journée. C'est un état normal.
+ */
+export interface DriverProfile {
+  id: string;
+  vehicleType: VehicleType;
+  plateNumber: string | null;
+  licenseNumber: string | null;
+  licenseExpiry: string | null;
+  isActive: boolean;
+  activatedAt: string | null;
+  activatedById: string | null;
+  deactivationReason: string | null;
+  zones: { id: string; nom: string; ville?: string }[];
+}
+
+/** Une ligne de `GET /admin/drivers`. */
+export interface AdminDriverListItem {
+  id: string;
+  nom: string | null;
+  email: string;
+  phone: string | null;
+  imageUrl: string | null;
+  statusUser: StatusUser;
+  driverStatus: DriverStatus | null;
+  lastLogin: string | null;
+  createdAt: string;
+  driverProfile: DriverProfile | null;
+  _count?: { deliveries: number };
+}
+
+/** `GET /admin/drivers/:id` — la fiche, avec son activité. */
+export interface AdminDriverDetail extends AdminDriverListItem {
+  activity: {
+    activeDeliveries: {
+      id: string;
+      orderId: string;
+      status: DeliveryStatus;
+      acceptedAt: string | null;
+      pickedUpAt: string | null;
+      order: { restaurant: { nom: string } } | null;
+    }[];
+    lastDeliveryAt: string | null;
+    averageRating: number | null;
+    totalRatings: number;
+  };
+}
+
+export interface CreateDriverDto {
+  email: string;
+  nom: string;
+  phone: string;
+  imageUrl?: string;
+  vehicleType: VehicleType;
+  plateNumber?: string;
+  licenseNumber?: string;
+  licenseExpiry?: string;
+  zoneIds?: string[];
+}
+
+export type UpdateDriverDto = Partial<Omit<CreateDriverDto, 'email'>>;
+
+export interface DriverFilters {
+  search?: string;
+  isActive?: boolean;
+  driverStatus?: DriverStatus;
+  statusUser?: StatusUser;
+  page?: number;
+  limit?: number;
+}
+
+// ─── Utilisateurs (administration) ───────────────────────────────────────────
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  nom: string | null;
+  phone: string | null;
+  imageUrl: string | null;
+  role: Role;
+  statusUser: StatusUser;
+  createdAt: string;
+  lastLogin: string | null;
+  _count?: { orders: number };
+}
+
+/**
+ * `GET /admin/users/:id`. `restaurant` et `driverProfile` y figurent parce
+ * qu'ils conditionnent ce qu'un administrateur a le droit de faire ensuite :
+ * on ne retire pas le rôle RESTAURATEUR à quelqu'un qui tient une boutique en
+ * ligne sans le savoir.
+ */
+export interface AdminUserDetail extends AdminUserListItem {
+  driverStatus: DriverStatus | null;
+  restaurant: {
+    id: string;
+    nom: string;
+    onboardingStatus: string;
+    adminApproved: boolean;
+    isActive: boolean;
+  } | null;
+  driverProfile: { id: string; isActive: boolean; vehicleType: VehicleType } | null;
+  _count?: { orders: number; deliveries: number };
+}
+
+export interface AdminUserFilters {
+  role?: Role;
+  statusUser?: StatusUser;
+  search?: string;
+  page?: number;
+  limit?: number;
+}

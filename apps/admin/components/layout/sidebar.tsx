@@ -14,6 +14,7 @@ import {
   Store,
   Building2,
   Users,
+  UserCog,
   LogOut,
   X,
   Package,
@@ -62,6 +63,10 @@ const NAV_ITEMS: {
   // Clients : ADMIN voit /admin/clients (plateforme), RESTAURATEUR voit ses
   // clients scopés via GET /restaurants/:id/clients (LIL-107).
   { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: false },
+  // Comptes, rôles et bannissement. Les endpoints existaient depuis août sans
+  // aucun appelant : changer un rôle ou suspendre un compte supposait un appel
+  // HTTP à la main.
+  { href: '/utilisateurs', label: 'Utilisateurs', icon: UserCog,        badge: false, adminOnly: true  },
   // Promos : endpoints /promo CRUD sont @Roles('ADMIN') côté backend.
   { href: '/promos',      label: 'Promos',      icon: Tag,             badge: false, adminOnly: true  },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
@@ -173,8 +178,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </div>
         )}
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        {/* Nav
+            `overflow-y-auto` + `min-h-0` : sans eux, la sidebar débordait.
+            `flex-1` vaut `flex: 1 1 0%`, mais en direction colonne le
+            `min-height: auto` d'un élément flex l'empêche de rétrécir sous la
+            hauteur de son contenu. Avec les 15 entrées d'un compte ADMIN, la
+            nav mesure ~660 px et le total de l'aside ~868 px : au-delà de
+            100vh, le bloc « Déconnexion » — dernier enfant — sortait de la
+            boîte et était rogné par l'`overflow-hidden` du layout parent.
+            Le bouton existait, il était juste inatteignable sous ~870 px de
+            hauteur de fenêtre, c'est-à-dire sur tout portable 13 pouces. */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-0.5">
           {visibleNavItems.map(({ href, label, icon: Icon, badge }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
             const badgeCount =

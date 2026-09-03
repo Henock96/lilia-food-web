@@ -30,6 +30,7 @@ import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
 import { formatCurrency, cn, isValidCongoPhone, isPreorderCart } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
+import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
 import { toast } from 'sonner';
 
 export default function PanierPage() {
@@ -164,13 +165,21 @@ export default function PanierPage() {
 
   async function handleSaveAddress() {
     if (!newRue.trim()) return;
+    // Le quartier n'est plus facultatif. Sans lui, une adresse web n'est
+    // situable par rien : le navigateur ne propose pas de carte, et le repli
+    // serveur s'appuie sur le centroïde du quartier. Une adresse sans quartier
+    // part donc en `UNKNOWN` — le livreur n'a aucun point à viser.
+    if (!newQuartierId) {
+      toast.error('Choisissez votre quartier');
+      return;
+    }
     setSavingAddress(true);
     try {
       const adresse = await createAdresse.mutateAsync({
         rue: newRue.trim(),
         ville: 'Brazzaville',
         country: 'Congo',
-        quartierId: newQuartierId || undefined,
+        quartierId: newQuartierId,
       });
       setSelectedAdresseId(adresse.id);
       setShowAddressForm(false);
@@ -419,6 +428,7 @@ export default function PanierPage() {
                           <div>
                             <p className="text-sm font-medium text-ink-900">{adresse.rue}</p>
                             <p className="text-xs text-ink-500">{adresse.ville}{adresse.quartier ? ` — ${adresse.quartier.nom}` : ''}</p>
+                            <AddressPrecisionHint adresse={adresse} />
                           </div>
                           {adresse.isDefault && (
                             <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
@@ -450,7 +460,7 @@ export default function PanierPage() {
                           onChange={(e) => setNewQuartierId(e.target.value)}
                           className="w-full text-sm border border-cream-300 bg-white text-ink-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                         >
-                          <option value="">Quartier (optionnel)</option>
+                          <option value="">Quartier (obligatoire)</option>
                           {quartiers.map((q) => (
                             <option key={q.id} value={q.id}>{q.nom}</option>
                           ))}
@@ -471,7 +481,7 @@ export default function PanierPage() {
                           </button>
                           <button
                             onClick={handleSaveAddress}
-                            disabled={!newRue.trim() || savingAddress}
+                            disabled={!newRue.trim() || !newQuartierId || savingAddress}
                             className="flex-1 py-2 text-sm bg-tomato-600 text-white font-medium rounded-xl hover:bg-tomato-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-1"
                           >
                             {savingAddress ? (

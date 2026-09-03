@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import {
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { setSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
@@ -70,12 +74,40 @@ export default function ConnexionPage() {
   const [pending, setPending] = useState(false);
   const [step, setStep] = useState('');
   const [error, setError] = useState('');
+  /** Confirmation neutre (mot de passe oublié) — `step` n'est rendu que pendant
+   *  `pending`, il ne pouvait donc pas porter ce message. */
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     if (!isLoading && user && ALLOWED_ROLES.includes(user.role)) {
       router.replace('/dashboard');
     }
   }, [user, isLoading, router]);
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError('Saisissez votre adresse e-mail, puis relancez la demande.');
+      return;
+    }
+    setError('');
+    setNotice('');
+    try {
+      await sendPasswordResetEmail(getFirebaseAuth(), email);
+      // Message volontairement identique que l'adresse existe ou non : dire
+      // « ce compte n'existe pas » transformerait ce formulaire en énumérateur
+      // de comptes administrateurs.
+      setNotice(`Si un compte existe pour ${email}, un lien vient d'être envoyé.`);
+    } catch (err) {
+      const code = (err as { code?: string }).code ?? '';
+      if (code === 'auth/too-many-requests') {
+        setError('Trop de demandes. Réessayez dans quelques minutes.');
+      } else if (code === 'auth/invalid-email') {
+        setError('Adresse e-mail invalide.');
+      } else {
+        setNotice(`Si un compte existe pour ${email}, un lien vient d'être envoyé.`);
+      }
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -194,6 +226,12 @@ export default function ConnexionPage() {
             </div>
           </div>
 
+          {notice && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">{notice}</p>
+            </div>
+          )}
+
           {/* Erreur visible directement dans le formulaire */}
           {error && (
             <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
@@ -201,6 +239,23 @@ export default function ConnexionPage() {
               <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
+
+          {/* Mot de passe oublié.
+              Il manquait, et son absence était bloquante pour les VENDEURS :
+              leur compte est créé par un administrateur avec un secret jetable,
+              et l'accès passe par un lien Firebase qui expire. Sans ce bouton,
+              un vendeur qui ouvrait son e-mail le lendemain devait appeler
+              l'administrateur pour un renvoi d'invitation. */}
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={pending}
+              className="text-xs text-zinc-500 underline-offset-2 transition-colors hover:text-primary-500 hover:underline disabled:opacity-50 dark:text-zinc-400"
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
 
           <button
             type="submit"

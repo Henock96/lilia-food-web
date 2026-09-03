@@ -11,6 +11,7 @@ import {
 import type { AdminDeliverer, DeliveryStatus } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DriverProfileCard } from '@/components/drivers/driver-profile-card';
 import {
   ArrowLeft,
   Bike,
@@ -221,6 +222,12 @@ export default function DelivererDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Compte, profil professionnel et activité.
+          Ajouté en septembre 2026 : l'écran ne montrait que des statistiques
+          de livraison. On ne pouvait ni voir le véhicule d'un livreur, ni
+          savoir s'il était en service, ni l'activer. */}
+      <DriverProfileCard driverId={id} />
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

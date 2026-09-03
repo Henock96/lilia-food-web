@@ -170,3 +170,47 @@ export function useVendorStats(token: string | null) {
     staleTime: 60 * 1000,
   });
 }
+
+// ─── Classement et mise en avant (septembre 2026) ────────────────────────────
+//
+// Deux mutations distinctes pour deux notions indépendantes : `displayOrder`
+// dit OÙ le vendeur apparaît, `isFeatured` s'il porte un badge. Les fondre
+// obligerait à envoyer l'une pour changer l'autre.
+//
+// ⚠️ Ni l'une ni l'autre ne publie quoi que ce soit : la visibilité reste
+// `useApproveVendor` + l'activation d'onboarding.
+
+/** Range le vendeur dans les listes publiques (1 = premier). */
+export function useSetVendorDisplayOrder(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, displayOrder }: { id: string; displayOrder: number }) =>
+      apiClient<Restaurant>(`/admin/vendors/${id}/display-order`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ displayOrder }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminVendorKeys.all });
+      // Le catalogue public change d'ordre : son cache doit tomber aussi.
+      void queryClient.invalidateQueries({ queryKey: ['restaurants'] });
+    },
+  });
+}
+
+/** Met le vendeur en avant, ou l'en retire. */
+export function useSetVendorFeatured(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isFeatured }: { id: string; isFeatured: boolean }) =>
+      apiClient<Restaurant>(`/admin/vendors/${id}/feature`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ isFeatured }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminVendorKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['restaurants'] });
+    },
+  });
+}

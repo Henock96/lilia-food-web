@@ -3,12 +3,13 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import {
-  useMyRestaurant, useRestaurants, useProducts, useCategories,
+  useProducts, useCategories,
   useCreateProduct, useUpdateProduct, useDeleteProduct, createPhoto,
 } from '@lilia/api-client';
 import { ProductImageBuffer, type DraftImage } from '@/components/product-image-buffer';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
 import { useAuthStore } from '@/store/auth';
+import { useCatalogScope } from '@/lib/use-catalog-scope';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import type {
@@ -18,7 +19,6 @@ import type {
   ProductType,
   StockMode,
   VendorType,
-  Restaurant,
 } from '@lilia/types';
 import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -218,21 +218,25 @@ function ProductPanel({
             </div>
           </div>
 
-          {categories.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Catégorie</label>
-              <select
-                value={form.categoryId}
-                onChange={e => set('categoryId', e.target.value)}
-                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-              >
-                <option value="">Sans catégorie</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.nom}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Le sélecteur est TOUJOURS rendu : le masquer quand la liste était
+              vide empêchait de classer le premier produit d'un vendeur neuf.
+              La liste ne peut plus l'être (sections par défaut), mais la règle
+              vaut d'être écrite — une section reste facultative. */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+              Section de menu <span className="text-zinc-400">(facultatif)</span>
+            </label>
+            <select
+              value={form.categoryId}
+              onChange={e => set('categoryId', e.target.value)}
+              className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+            >
+              <option value="">Sans section — apparaîtra dans « Autres »</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.nom}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Multi-vendeurs : type produit + mode stock (LIL-116) */}
           <div className="grid grid-cols-2 gap-3">
@@ -492,32 +496,19 @@ export default function ProduitsPage() {
   const [panel, setPanel]         = useState<PanelState>(null);
   const [filterCat, setFilterCat] = useState<string>('ALL');
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
 
-  // Récupère le restaurant propre à l'utilisateur (RESTAURATEUR) ou null (ADMIN)
-  const { data: rawMine } = useMyRestaurant(token);
-  const mine = rawMine as Restaurant | undefined;
+  // Périmètre catalogue : son vendeur (RESTAURATEUR) ou celui sélectionné
+  // (ADMIN). C'est lui qui porte AUSSI le `restaurantId` d'écriture — le
+  // sélecteur ne pilotait jusqu'ici que les listes, si bien qu'un ADMIN, qui ne
+  // possède aucun vendeur, ne pouvait créer aucun produit.
+  const scope = useCatalogScope();
+  const restaurantId = scope.restaurantId;
 
-  // Pour les ADMINs sans restaurant attaché, on propose la liste complète
-  const { data: allRestaurants = [] } = useRestaurants();
+  // Type de vendeur actif — pilote la liste des productType proposés (LIL-116).
+  const vendorType: VendorType = scope.activeVendor?.vendorType ?? 'RESTAURANT';
 
-  // Restaurant actif : celui de l'utilisateur si RESTAURATEUR, sinon celui sélectionné dans le dropdown
-  const restaurantId = mine?.id ?? selectedRestaurantId;
-
-  // Type de vendeur du restaurant actif — pilote la liste des productType
-  // proposés dans le panneau de création/édition (LIL-116).
-  const activeRestaurant =
-    mine ??
-    (allRestaurants as Restaurant[]).find((r) => r.id === selectedRestaurantId);
-  const vendorType: VendorType = activeRestaurant?.vendorType ?? 'RESTAURANT';
-
-  // Pré-sélectionner le premier restaurant dès qu'ils sont chargés (ADMIN)
-  if (!mine && !selectedRestaurantId && allRestaurants.length > 0) {
-    setSelectedRestaurantId((allRestaurants[0] as { id: string }).id);
-  }
-
-  const { data: products = [], isLoading } = useProducts(restaurantId || undefined);
-  const { data: categories = [] }          = useCategories(restaurantId || undefined);
+  const { data: products = [], isLoading } = useProducts(restaurantId);
+  const { data: categories = [] }          = useCategories(restaurantId, token);
 
   const { mutateAsync: createProductAsync, isPending: creating } = useCreateProduct(token);
   const { mutate: updateProduct, isPending: updating } = useUpdateProduct(token);
@@ -550,6 +541,12 @@ export default function ProduitsPage() {
       // La couverture du buffer alimente imageUrl (rétrocompat cartes).
       const cover = buffer.find(b => b.isCover) ?? buffer[0];
       payload.imageUrl = cover?.url ?? undefined;
+      // ⚠️ Le champ manquait : sans lui le backend retombe sur « le vendeur de
+      // l'appelant », qu'un ADMIN n'a pas — d'où « Vous devez posséder un
+      // vendeur pour créer un produit ou un menu ». Il n'est joint que pour un
+      // ADMIN : d'un RESTAURATEUR, le backend le refuse (403) plutôt que de le
+      // remplacer en silence.
+      if (scope.targetRestaurantId) payload.restaurantId = scope.targetRestaurantId;
       try {
         const created = await createProductAsync(payload);
         let failures = 0;
@@ -587,16 +584,18 @@ export default function ProduitsPage() {
 
   return (
     <div className="max-w-6xl space-y-4">
-      {/* Sélecteur de restaurant (ADMIN uniquement) */}
-      {!mine && allRestaurants.length > 1 && (
+      {/* Sélecteur de vendeur (ADMIN uniquement) — alimenté par GET /admin/vendors,
+          qui inclut les commerces en DRAFT : ce sont précisément ceux dont il
+          faut remplir le catalogue pour pouvoir les activer. */}
+      {scope.isAdmin && scope.vendors.length > 0 && (
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">Restaurant :</label>
+          <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 shrink-0">Vendeur :</label>
           <select
-            value={selectedRestaurantId}
-            onChange={e => { setSelectedRestaurantId(e.target.value); setFilterCat('ALL'); }}
+            value={restaurantId ?? ''}
+            onChange={e => { scope.select(e.target.value || null); setFilterCat('ALL'); }}
             className="text-sm px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
           >
-            {allRestaurants.map((r: { id: string; nom: string }) => (
+            {scope.vendors.map((r) => (
               <option key={r.id} value={r.id}>{r.nom}</option>
             ))}
           </select>
