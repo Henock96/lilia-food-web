@@ -31,11 +31,11 @@ import type { Restaurant } from '@lilia/types';
  * une invalidation explicite. La page servie en production portait un `age`
  * de plus de deux jours.
  */
-async function fetchVendors(): Promise<Restaurant[]> {
+async function fetchVendors(query = '/vendors?limit=12'): Promise<Restaurant[]> {
   'use cache';
   cacheTag('vendors');
   cacheLife('minutes');
-  const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=12');
+  const res = await apiClientRaw<{ data: Restaurant[] }>(query);
   return res.data ?? [];
 }
 
@@ -68,6 +68,27 @@ export async function getVendors(): Promise<Restaurant[]> {
   } catch {
     // Le hero et la section « en vedette » doivent rester affichables même
     // backend injoignable : elles dégradent proprement vers un état vide.
+    return [];
+  }
+}
+
+
+/**
+ * Vendeurs **mis en avant** par l'administration (`isFeatured = true`).
+ *
+ * La section « Les plus courus » prenait jusqu'ici les quatre premiers de
+ * `getVendors()` — c'est-à-dire, le tri étant par date, les quatre vendeurs les
+ * plus récemment créés. Le titre annonçait une sélection éditoriale que
+ * personne, dans aucune interface, ne pouvait produire.
+ *
+ * Le filtre s'ajoute à la frontière de visibilité côté serveur, il ne s'y
+ * substitue pas : un vendeur mis en avant mais non publié n'apparaît pas.
+ */
+export async function getFeaturedVendors(limit = 4): Promise<Restaurant[]> {
+  await connection();
+  try {
+    return await fetchVendors(`/vendors?isFeatured=true&limit=${limit}`);
+  } catch {
     return [];
   }
 }

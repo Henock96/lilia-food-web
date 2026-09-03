@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import { VendorCard } from '@/components/restaurants/vendor-card';
 import { EmptyVendorSlot } from '@/components/restaurants/empty-vendor-slot';
 import { RestaurantCardSkeleton } from '@/components/ui';
-import { getVendors } from '@/lib/vendors';
+import { getFeaturedVendors } from '@/lib/vendors';
 
 /** Nombre d'emplacements affichés, remplis ou non. */
 const SLOTS = 4;
@@ -28,8 +28,13 @@ const GRID_CLASSNAME = 'mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-
  * ces emplacements explicites.
  */
 async function FeaturedGrid() {
-  const restaurants = await getVendors();
-  const featured = restaurants.slice(0, SLOTS);
+  // `isFeatured = true`, et non plus les quatre premiers du catalogue.
+  // La section s'intitule « Les plus courus » : elle prenait en réalité les
+  // quatre vendeurs les plus RÉCEMMENT CRÉÉS, le tri étant par date. Elle
+  // annonçait une sélection éditoriale que personne ne pouvait produire —
+  // aucune interface, aucune colonne. `isFeatured` existe depuis
+  // septembre 2026 et se pilote depuis l'admin.
+  const featured = await getFeaturedVendors(SLOTS);
 
   return (
     <div className={GRID_CLASSNAME}>

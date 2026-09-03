@@ -7,6 +7,7 @@ import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ShowcaseControls } from '@/components/vendors/showcase-controls';
 import { MapPin, Phone, Clock, ToggleLeft, ToggleRight, Star, AlertCircle, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -143,6 +144,17 @@ export default function RestaurantsPage() {
                     : <><ToggleLeft size={14} /> Ouvrir le restaurant</>
                   }
                 </button>
+
+                {/* Classement et mise en avant — ADMIN uniquement : ce sont
+                    des décisions éditoriales sur le catalogue de la
+                    plateforme, pas des réglages de boutique. */}
+                {isAdmin && (
+                  <ShowcaseControls
+                    vendorId={r.id}
+                    displayOrder={r.displayOrder ?? 1000}
+                    isFeatured={r.isFeatured ?? false}
+                  />
+                )}
 
                 {/* Détails + Galerie photos */}
                 <Link

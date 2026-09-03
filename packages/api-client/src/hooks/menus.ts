@@ -16,12 +16,19 @@ async function fetchList(path: string, token?: string | null): Promise<MenuDuJou
   return Array.isArray(res) ? res : (res?.data ?? []);
 }
 
-/** Menus d'un restaurant (GET /menus?restaurantId=) — usage ADMIN. */
-export function useMenus(restaurantId: string | undefined) {
+/**
+ * Menus d'un vendeur pour un ADMIN.
+ *
+ * ⚠️ Ce hook visait `GET /menus?restaurantId=`, une route **publique**
+ * désormais filtrée par la frontière marketplace (fix SEC-02) : elle ne rend
+ * que les commerces déjà publiés, c'est-à-dire l'exact complément de ceux dont
+ * l'admin doit remplir le catalogue. La route dédiée, elle, voit les `DRAFT`.
+ */
+export function useMenus(restaurantId: string | undefined, token: string | null) {
   return useQuery({
     queryKey: menuKeys.list(restaurantId),
-    queryFn: () => fetchList(`/menus?restaurantId=${restaurantId}`),
-    enabled: !!restaurantId,
+    queryFn: () => fetchList(`/menus/admin/by-restaurant/${restaurantId}`, token),
+    enabled: !!restaurantId && !!token,
     staleTime: 60 * 1000,
   });
 }
@@ -39,6 +46,8 @@ export function useMyMenus(token: string | null) {
 export function useCreateMenu(token: string | null) {
   const qc = useQueryClient();
   return useMutation({
+    // `restaurantId` n'est joint que pour un ADMIN (cf. produits et sections) :
+    // le backend le refuse d'un RESTAURATEUR au lieu de le remplacer en silence.
     mutationFn: (data: Record<string, unknown>) =>
       apiClient<MenuDuJour>('/menus', { method: 'POST', token, body: JSON.stringify(data) }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: menuKeys.all }),

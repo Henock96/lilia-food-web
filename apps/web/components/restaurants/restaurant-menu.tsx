@@ -18,14 +18,36 @@ interface RestaurantMenuProps {
 export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
   const products = restaurant.products ?? [];
 
-  const categories = Array.from(
-    new Map(
-      products
-        .filter((p) => p.category)
-        .map((p) => [p.category!.id, p.category!]),
-    ).values(),
+  /**
+   * Sections dans l'ordre voulu par le VENDEUR.
+   *
+   * `restaurant.categories` est servi par l'API, trié par `displayOrder` et
+   * filtré sur `isActive`. On ne retombe sur les catégories dérivées des
+   * produits que si le backend ne les a pas fournies (app servie par une
+   * version antérieure) — auparavant c'était le seul chemin, et l'ordre était
+   * alors celui de création des produits, donc arbitraire et instable.
+   *
+   * Une section sans produit visible n'est pas rendue : promettre une section
+   * vide au client, c'est lui promettre un contenu qui n'existe pas.
+   */
+  const declared = restaurant.categories ?? [];
+  const categories =
+    declared.length > 0
+      ? declared.filter((c) => products.some((p) => p.categoryId === c.id))
+      : Array.from(
+          new Map(
+            products
+              .filter((p) => p.category)
+              .map((p) => [p.category!.id, p.category!]),
+          ).values(),
+        );
+
+  // Un produit dont la section a été désactivée n'appartient à aucune section
+  // affichée : il rejoint « Autres plats » plutôt que de disparaître.
+  const shownIds = new Set(categories.map((c) => c.id));
+  const uncategorized = products.filter(
+    (p) => !p.categoryId || !shownIds.has(p.categoryId),
   );
-  const uncategorized = products.filter((p) => !p.category);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(
     categories[0]?.id ?? null,
@@ -48,7 +70,15 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
             {categories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
+                // Le bouton ne faisait que se colorer : l'ancre `#cat-<id>`
+                // existait déjà en bas, personne ne l'atteignait. Sur une carte
+                // à six sections, c'est toute l'utilité de la barre.
+                onClick={() => {
+                  setActiveCategory(cat.id);
+                  document
+                    .getElementById(`cat-${cat.id}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
                 className={cn(
                   'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all',
                   activeCategory === cat.id

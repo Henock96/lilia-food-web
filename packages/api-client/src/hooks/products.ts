@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Product, Category } from '@lilia/types';
+import type { Product } from '@lilia/types';
 import { apiClient } from '../client';
 
 export const productKeys = {
@@ -37,18 +37,10 @@ export function useProducts(restaurantId: string | undefined) {
   });
 }
 
-export function useCategories(restaurantId?: string) {
-  return useQuery({
-    queryKey: ['categories', restaurantId],
-    queryFn:  async () => {
-      const res = await apiClient<Category[] | { data: Category[] }>(
-        `/categories${restaurantId ? `?restaurantId=${restaurantId}` : ''}`,
-      );
-      return Array.isArray(res) ? res : (res as { data: Category[] }).data ?? [];
-    },
-    staleTime: 10 * 60 * 1000,
-  });
-}
+// `useCategories` vivait ici, sans jeton et sur l'ancien contrat global. Il est
+// désormais dans `hooks/categories.ts` : la route est authentifiée (une section
+// appartient à un vendeur, il faut savoir lequel demande) et deux définitions
+// du même hook exportées par le même paquet finissaient par diverger.
 
 export function useCreateProduct(token: string | null) {
   const queryClient = useQueryClient();
