@@ -297,6 +297,7 @@ function StepBody({
       return (
         <CatalogStep
           vendor={vendor}
+          token={token}
           check={report?.checks.find((c) => c.key === 'catalog')}
         />
       );
@@ -768,12 +769,17 @@ function CommerceStep({
 
 function CatalogStep({
   vendor,
+  token,
   check,
 }: {
   vendor: Restaurant;
+  token: string | null;
   check?: ReadinessCheck;
 }) {
-  const { data: products } = useProducts(vendor.id);
+  // Le catalogue d'un vendeur en cours d'onboarding est, par construction,
+  // celui d'un commerce encore `DRAFT` : il n'existe pas pour la route
+  // publique. Cette étape comptait donc toujours zéro produit.
+  const { data: products } = useProducts(vendor.id, token);
   const count = Array.isArray(products) ? products.length : 0;
 
   return (

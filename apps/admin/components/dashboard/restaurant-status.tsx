@@ -1,6 +1,6 @@
 'use client';
 
-import { useAdminVendors, useMyRestaurant, useToggleRestaurantOpen } from '@lilia/api-client';
+import { useAdminVendors, useMyRestaurant, useToggleRestaurantOpen, MAX_PAGE_SIZE } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
@@ -16,7 +16,7 @@ export function RestaurantStatus() {
   // **publique** `GET /restaurants`, qui masque les vendeurs suspends et non
   // publiés. Sur un tableau de bord d'administration, ce sont exactement ceux
   // qu'il faut voir. Un RESTAURATEUR n'a, lui, que sa propre boutique.
-  const adminQuery = useAdminVendors(isAdmin ? token : null, { limit: 100 });
+  const adminQuery = useAdminVendors(isAdmin ? token : null, { limit: MAX_PAGE_SIZE });
   const mineQuery = useMyRestaurant(isAdmin ? null : token);
 
   const restaurants: Restaurant[] | undefined = isAdmin
