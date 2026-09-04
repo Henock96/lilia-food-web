@@ -4,12 +4,13 @@ import Image from 'next/image';
 import { useState } from 'react';
 import {
   useProducts, useCategories,
-  useCreateProduct, useUpdateProduct, useDeleteProduct, createPhoto,
+  useCreateProduct, useUpdateProduct, useDeleteProduct, useSetProductAvailability, createPhoto,
 } from '@lilia/api-client';
 import { ProductImageBuffer, type DraftImage } from '@/components/product-image-buffer';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
 import { useAuthStore } from '@/store/auth';
 import { useCatalogScope } from '@/lib/use-catalog-scope';
+import { apiMessage } from '@/lib/api-message';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import type {
@@ -20,7 +21,7 @@ import type {
   StockMode,
   VendorType,
 } from '@lilia/types';
-import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -406,24 +407,43 @@ function ProductCard({
   product,
   onEdit,
   onDelete,
+  onToggleAvailability,
+  togglingAvailability,
 }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
+  onToggleAvailability: () => void;
+  togglingAvailability: boolean;
 }) {
   const [showVariants, setShowVariants] = useState(false);
+  // Les réponses antérieures au champ ne le portent pas : un produit servi
+  // sans `isAvailable` est en vente, sans quoi il n'aurait pas été servi.
+  const isAvailable = product.isAvailable !== false;
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card overflow-hidden">
+    <div className={`bg-white dark:bg-dark-card rounded-2xl border shadow-card overflow-hidden ${
+      isAvailable
+        ? 'border-zinc-200 dark:border-dark-border'
+        : 'border-amber-300 dark:border-amber-500/40'
+    }`}>
       {/* Image */}
       <div className="h-36 bg-zinc-100 dark:bg-zinc-800 relative">
         {product.imageUrl
-          ? <Image src={product.imageUrl} alt={product.nom} fill className="object-cover" />
+          ? <Image src={product.imageUrl} alt={product.nom} fill className={`object-cover ${isAvailable ? '' : 'opacity-50'}`} />
           : <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>
         }
         {product.categoryId && product.category && (
           <span className="absolute top-2 left-2 text-xs px-2 py-0.5 rounded-full bg-white/90 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 font-medium">
             {product.category.nom}
+          </span>
+        )}
+        {/* « Retiré de la vente » et « épuisé » sont deux états distincts : le
+            premier est une décision du vendeur, le second une conséquence du
+            stock. Les confondre trompait le client comme le gestionnaire. */}
+        {!isAvailable && (
+          <span className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full bg-amber-500 text-white font-medium">
+            Retiré de la vente
           </span>
         )}
       </div>
@@ -477,6 +497,18 @@ function ProductCard({
           >
             <Pencil size={12} /> Modifier
           </button>
+          <button
+            onClick={onToggleAvailability}
+            disabled={togglingAvailability}
+            title={isAvailable ? 'Retirer de la vente' : 'Remettre en vente'}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
+              isAvailable
+                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20'
+            }`}
+          >
+            {isAvailable ? <EyeOff size={12} /> : <Eye size={12} />}
+          </button>
 <button
             onClick={onDelete}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
@@ -507,12 +539,19 @@ export default function ProduitsPage() {
   // Type de vendeur actif — pilote la liste des productType proposés (LIL-116).
   const vendorType: VendorType = scope.activeVendor?.vendorType ?? 'RESTAURANT';
 
-  const { data: products = [], isLoading } = useProducts(restaurantId);
+  const { data: products = [], isLoading, error: productsError } = useProducts(restaurantId, token);
   const { data: categories = [] }          = useCategories(restaurantId, token);
+
+  // Un appel en échec rendait exactement le même écran qu'un catalogue vide
+  // (« Aucun produit. Commencez par en créer un. »). C'est ce qui a laissé un
+  // 400 de pagination passer pour un problème de données pendant des semaines.
+  const loadError = scope.vendorsError ?? (productsError as Error | null);
 
   const { mutateAsync: createProductAsync, isPending: creating } = useCreateProduct(token);
   const { mutate: updateProduct, isPending: updating } = useUpdateProduct(token);
   const { mutate: deleteProduct, isPending: deleting } = useDeleteProduct(token);
+  const { mutate: setAvailability, isPending: togglingAvailability } =
+    useSetProductAvailability(token);
 
   const filtered = filterCat === 'ALL'
     ? products
@@ -563,27 +602,50 @@ export default function ProduitsPage() {
           ? `Produit créé, ${failures} photo(s) non ajoutée(s) — réessayez en édition`
           : 'Produit créé');
         setPanel(null);
-      } catch {
-        toast.error('Erreur lors de la création');
+      } catch (err) {
+        toast.error(apiMessage(err, 'Erreur lors de la création'));
       }
     } else if (panel?.mode === 'edit') {
       // En édition, la galerie live gère les images (et imageUrl côté backend).
       updateProduct({ id: panel.product.id, data: payload }, {
         onSuccess: () => { toast.success('Produit mis à jour'); setPanel(null); },
-        onError:   () => toast.error('Erreur lors de la mise à jour'),
+        onError:   (err) => toast.error(apiMessage(err, 'Erreur lors de la mise à jour')),
       });
     }
+  }
+
+  function handleToggleAvailability(product: Product) {
+    const next = product.isAvailable === false;
+    setAvailability({ id: product.id, isAvailable: next }, {
+      onSuccess: () =>
+        toast.success(next ? 'Produit remis en vente' : 'Produit retiré de la vente'),
+      onError: (err) => toast.error(apiMessage(err, 'Erreur lors du changement de disponibilité')),
+    });
   }
 
   function handleDelete(product: Product) {
     deleteProduct(product.id, {
       onSuccess: () => { toast.success('Produit supprimé'); setConfirmDelete(null); },
-      onError:   () => toast.error('Erreur lors de la suppression'),
+      onError:   (err) => toast.error(apiMessage(err, 'Erreur lors de la suppression')),
     });
   }
 
   return (
     <div className="max-w-6xl space-y-4">
+      {/* Le message du serveur est affiché tel quel : il dit ce qui ne va pas
+          (« limit ne peut pas dépasser 100 », « Vendeur introuvable »…) là où un
+          libellé maison ne fait que constater l'échec. */}
+      {loadError && (
+        <div className="rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-3">
+          <p className="text-sm font-medium text-red-700 dark:text-red-300">
+            Le catalogue n&apos;a pas pu être chargé.
+          </p>
+          <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
+            {loadError.message}
+          </p>
+        </div>
+      )}
+
       {/* Sélecteur de vendeur (ADMIN uniquement) — alimenté par GET /admin/vendors,
           qui inclut les commerces en DRAFT : ce sont précisément ceux dont il
           faut remplir le catalogue pour pouvoir les activer. */}
@@ -661,6 +723,8 @@ export default function ProduitsPage() {
               product={p}
               onEdit={() => setPanel({ mode: 'edit', product: p })}
               onDelete={() => setConfirmDelete(p)}
+              onToggleAvailability={() => handleToggleAvailability(p)}
+              togglingAvailability={togglingAvailability}
             />
           ))}
         </div>

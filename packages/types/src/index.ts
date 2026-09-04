@@ -281,6 +281,17 @@ export interface Product {
   madeToOrder?: boolean;
   availableFrom?: string | null;
   availableUntil?: string | null;
+  /**
+   * En vente, ou retiré temporairement (fix M2 backend).
+   *
+   * Distinct de « épuisé » (`stockRestant === 0`) et de « retiré du catalogue »
+   * (`deletedAt`). Absent des réponses publiques anciennes : traiter `undefined`
+   * comme `true`, un produit servi par le catalogue étant par construction
+   * disponible.
+   */
+  isAvailable?: boolean;
+  /** Retiré du catalogue — la ligne ne survit que pour l'historique. */
+  deletedAt?: string | null;
 }
 
 export interface ProductVariant {

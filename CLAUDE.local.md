@@ -6,6 +6,51 @@ Monorepo Turbo/pnpm : `apps/web` (client), `apps/admin`, `packages/*`
 
 ---
 
+## Le back-office catalogue lisait la route client (4 septembre 2026)
+
+Deux symptômes signalés : « créer un produit renvoie une erreur » et « le
+restaurant ne voit pas ses produits sur le site ». Même racine côté web : **une
+erreur d'API rendue indiscernable d'une liste vide.**
+
+```
+useAdminVendors({ limit: 100 })  → 400 (le serveur plafonnait à 50)
+  → `data?.data ?? []`           → vendors = []
+  → sélecteur de vendeur masqué  → targetRestaurantId = undefined
+  → POST /products sans restaurantId → 403 « Vous devez posséder un vendeur »
+  → toast « Erreur lors de la création »
+```
+
+`useProducts` demandait `limit=200` (plafond serveur : 100) : **400 sur chaque
+vendeur**, traduit en « Aucun produit. Commencez par en créer un. » La page
+produits, l'étape catalogue de l'onboarding et le composeur de menus étaient
+vides quoi qu'il y ait en base.
+
+### Ce qui change
+
+- **`MAX_PAGE_SIZE` exporté par `@lilia/api-client`.** La borne était devinée,
+  différemment, à chaque appel. ⚠️ Demander plus n'est jamais la réponse à « il
+  me manque des éléments » : c'est un plafond, pas un objectif — on pagine.
+- **`useProducts` vise `GET /products/manage`**, authentifié, et enchaîne les
+  pages jusqu'au total serveur (plafond de 50 pages). La route publique masque
+  précisément ce qu'un gestionnaire doit voir : produits retirés de la vente,
+  hors fenêtre horaire, et tout le catalogue d'un vendeur suspendu ou en `DRAFT`
+  — c'est-à-dire celui qu'on est en train de remplir.
+- **`ownerCatalogQueryOptions`** extrait du hook : l'URL fautive vivait dans une
+  closure de `useQuery`, donc hors de portée de tout test. `products.contract.test.ts`
+  appelle `queryFn` directement (vitest ajouté à `packages/api-client`).
+- **`scope.vendorsError`** + bandeau d'erreur sur `/produits` : un échec de
+  chargement ne rend plus le même écran qu'un catalogue vide.
+- **`lib/api-message.ts`** : les toasts affichent le message du serveur. Le
+  backend écrit des messages faits pour être lus (« Cette catégorie appartient à
+  un autre vendeur ») ; les remplacer par « Erreur lors de la création » jetait
+  la seule information exploitable de la réponse.
+- **Bouton « retirer / remettre en vente »** (`PATCH /products/:id/availability`).
+  La route existait depuis août et **aucun client ne l'appelait** : `isAvailable`
+  n'était modifiable par personne. Elle n'a de sens que sur la vue back-office —
+  sur le catalogue public, le produit disparaît en même temps que son bouton.
+
+---
+
 ## Paiement web + reversements admin (31 août 2026)
 
 Le backend et les apps Flutter étaient passés à pawaPay le 31/08 ; le web était

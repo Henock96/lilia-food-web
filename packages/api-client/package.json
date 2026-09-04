@@ -10,5 +10,11 @@
   "dependencies": {
     "@lilia/types": "workspace:*",
     "@tanstack/react-query": "^5.101.4"
+  },
+  "scripts": {
+    "test": "vitest run --config vitest.config.mts"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }

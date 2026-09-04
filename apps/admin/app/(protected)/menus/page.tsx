@@ -392,7 +392,7 @@ export default function MenusPage() {
   const menus = isAdmin ? (adminMenusQuery.data ?? []) : (myMenusQuery.data ?? []);
   const isLoading = isAdmin ? adminMenusQuery.isLoading : myMenusQuery.isLoading;
 
-  const { data: products = [] } = useProducts(restaurantId);
+  const { data: products = [] } = useProducts(restaurantId, token);
   const deleteMenu = useDeleteMenu(token);
 
   const [panel, setPanel] = useState<Panel>(null);

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAdminVendors, useToggleRestaurantOpen, useMyRestaurant } from '@lilia/api-client';
+import { useAdminVendors, useToggleRestaurantOpen, useMyRestaurant, MAX_PAGE_SIZE } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
@@ -32,7 +32,7 @@ export default function RestaurantsPage() {
   // vendeurs sur six étaient invisibles ici — deux suspendus et un en `DRAFT` —
   // c'est-à-dire précisément ceux sur lesquels un administrateur a quelque
   // chose à faire. `GET /admin/vendors` ne filtre rien.
-  const adminQuery = useAdminVendors(isAdmin ? token : null, { limit: 100 });
+  const adminQuery = useAdminVendors(isAdmin ? token : null, { limit: MAX_PAGE_SIZE });
   const mineQuery = useMyRestaurant(isAdmin ? null : token);
 
   const restaurants: Restaurant[] = isAdmin

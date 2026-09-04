@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { useAdminVendors } from '@lilia/api-client';
+import { useAdminVendors, MAX_PAGE_SIZE } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin, useMyRestaurantScoped } from '@/lib/use-role';
@@ -58,6 +58,16 @@ export interface CatalogScope {
    */
   activeVendor: Restaurant | undefined;
   vendorsLoading: boolean;
+  /**
+   * La liste des vendeurs n'a pas pu être chargée.
+   *
+   * `vendors: []` ne dit pas si la plateforme est vide ou si l'appel a échoué,
+   * et les écrans traitaient les deux cas de la même façon. C'est ce silence
+   * qui a rendu un 400 de pagination indiscernable d'un back-office
+   * légitimement vide — et incompréhensible le 403 qui suivait à la création
+   * d'un produit.
+   */
+  vendorsError: Error | null;
   select: (id: string | null) => void;
   /** L'ADMIN n'a pas encore de cible : les écrans doivent le dire. */
   needsVendor: boolean;
@@ -74,7 +84,7 @@ export function useCatalogScope(): CatalogScope {
   // `GET /admin/vendors` et non `GET /restaurants` : la route publique ne rend
   // que les commerces déjà publiés — l'exact complément de ceux dont l'admin
   // doit remplir le catalogue pour pouvoir les activer.
-  const vendorsQuery = useAdminVendors(isAdmin ? token : null, { limit: 100 });
+  const vendorsQuery = useAdminVendors(isAdmin ? token : null, { limit: MAX_PAGE_SIZE });
   const vendors = (vendorsQuery.data?.data ?? []) as Restaurant[];
 
   const selected =
@@ -94,8 +104,12 @@ export function useCatalogScope(): CatalogScope {
     targetRestaurantId: isAdmin ? restaurantId : undefined,
     vendors,
     vendorsLoading: isAdmin && vendorsQuery.isLoading,
+    vendorsError: isAdmin ? ((vendorsQuery.error as Error | null) ?? null) : null,
     select,
-    needsVendor: isAdmin && !restaurantId && !vendorsQuery.isLoading,
+    // Un échec de chargement n'est pas « aucun vendeur à choisir » : on ne
+    // réclame une sélection que si la liste est bien arrivée, et vide.
+    needsVendor:
+      isAdmin && !restaurantId && !vendorsQuery.isLoading && !vendorsQuery.isError,
     noRestaurant: !isAdmin && isError,
   };
 }

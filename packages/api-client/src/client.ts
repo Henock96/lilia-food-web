@@ -21,6 +21,20 @@ export const API_URL =
  */
 const PAYMENT_FLOW_CAPABILITY = 'provider';
 
+/**
+ * Taille de page maximale acceptée par l'API (`MAX_PAGE_SIZE` côté backend).
+ *
+ * Elle est écrite ici parce qu'elle était jusqu'ici devinée, différemment, à
+ * chaque appel : `limit=200` sur le catalogue, `limit=100` sur les vendeurs.
+ * Le serveur répond 400 au-delà, et un 400 sur une liste se lit comme une liste
+ * vide — c'est ainsi que le back-office produits est devenu muet sans qu'aucune
+ * erreur ne s'affiche nulle part.
+ *
+ * ⚠️ Demander plus n'est jamais la bonne réponse à « il me manque des
+ * éléments » : il faut paginer. Cette constante est un plafond, pas un objectif.
+ */
+export const MAX_PAGE_SIZE = 100;
+
 type FetchOptions = RequestInit & {
   token?: string | null;
 };
