@@ -24,6 +24,8 @@ import {
   useQuartiers,
   useReferralStats,
   useRestaurant,
+  usePublicPlatformSettings,
+  useDeliveryFeeQuote,
   apiClient,
 } from '@lilia/api-client';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
@@ -31,6 +33,12 @@ import { formatCurrency, cn, isValidCongoPhone, isPreorderCart } from '@lilia/ut
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
+import {
+  computeCheckoutEstimate,
+  resolveDeliveryFee,
+  minimumOrderError,
+  PRICING_SETTINGS_FALLBACK,
+} from '@/lib/checkout-estimate';
 import { toast } from 'sonner';
 
 export default function PanierPage() {
@@ -78,8 +86,35 @@ export default function PanierPage() {
 
   const cartIsPreorder = isPreorderCart(cart);
   const firstItemRestaurantId = cart?.items?.[0]?.product?.restaurantId ?? '';
-  const { data: vendorRestaurant } = useRestaurant(firstItemRestaurantId);
+  const { data: vendorRestaurant, isPending: vendorPending } =
+    useRestaurant(firstItemRestaurantId);
   const leadHours = vendorRestaurant?.preorderLeadHours ?? 24;
+
+  // ── Montants : le serveur décide, le panier affiche ───────────────────────
+  //
+  // Trois valeurs étaient codées en dur ici (8 % de frais de service, 1000 XAF
+  // de livraison, 5 XAF par point sans plafond). Le serveur en facture
+  // d'autres, et c'est le montant du serveur qui est débité : le client voyait
+  // 800 XAF de frais sur une commande de 10 000 et payait 1 500.
+  const { data: platformSettings } = usePublicPlatformSettings();
+  const pricingSettings = platformSettings ?? PRICING_SETTINGS_FALLBACK;
+  // `null` tant que l'adresse n'est pas choisie — le devis n'est alors pas
+  // demandé et on reste sur le tarif fixe du vendeur, comme le fait le serveur.
+  const selectedAdresse = adresses.find((a) => a.id === selectedAdresseId) ?? null;
+  const deliveryQuartierId = isDelivery ? (selectedAdresse?.quartierId ?? null) : null;
+  const { data: deliveryQuote, isPending: quotePending } = useDeliveryFeeQuote(
+    firstItemRestaurantId || null,
+    deliveryQuartierId,
+  );
+  // Tant que le tarif du vendeur (et, en zone, son devis) n'est pas arrivé, on
+  // n'affiche pas de total : un montant provisoire affiché est un montant que
+  // le client croit être le sien.
+  const pricingPending =
+    vendorPending ||
+    (isDelivery &&
+      vendorRestaurant?.deliveryPriceMode === 'ZONE_BASED' &&
+      !!deliveryQuartierId &&
+      quotePending);
 
   // Réinitialise le créneau si le panier n'est plus en pré-commande (reset pendant le render).
   if (!cartIsPreorder && scheduledFor) {
@@ -106,6 +141,13 @@ export default function PanierPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newRue, setNewRue] = useState('');
   const [newQuartierId, setNewQuartierId] = useState('');
+  // Point de repère : à Brazzaville, le géocodage inverse rend un Plus Code
+  // trois fois sur cinq et « Avenue de la Paix » résout à Kinshasa. Sans
+  // position GPS — le cas de 46 adresses sur 47 en production — c'est la seule
+  // chose qui permette réellement au livreur de trouver la porte. Le champ
+  // existait côté serveur et dans l'application mobile ; le web ne le proposait
+  // pas, et **aucune** adresse n'en porte un.
+  const [newLandmark, setNewLandmark] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
 
   if (isLoading) {
@@ -129,16 +171,35 @@ export default function PanierPage() {
     (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
     0,
   );
-  const deliveryFee = isDelivery ? 1000 : 0;
-  const effectiveDeliveryFee = (promoResult?.valid && promoResult.newDeliveryFee !== undefined)
-    ? promoResult.newDeliveryFee
-    : deliveryFee;
-  const serviceFee = Math.round(subTotal * 0.08);
-  const discount = promoResult?.discountAmount ?? 0;
-  const deliveryDiscount = deliveryFee - effectiveDeliveryFee;
+  // Tarif du vendeur (FIXED) ou devis de zone du serveur (ZONE_BASED).
+  const vendorDeliveryFee = resolveDeliveryFee({
+    fixedDeliveryFee: vendorRestaurant?.fixedDeliveryFee ?? 0,
+    deliveryPriceMode: vendorRestaurant?.deliveryPriceMode ?? 'FIXED',
+    quartierId: deliveryQuartierId,
+    quotedFee: deliveryQuote?.fee,
+  });
+
   const loyaltyPoints = referralStats?.loyaltyPoints ?? 0;
-  const loyaltyDiscount = useLoyaltyPoints && loyaltyPoints >= 100 ? loyaltyPoints * 5 : 0;
-  const total = Math.max(0, subTotal + effectiveDeliveryFee + serviceFee - discount - loyaltyDiscount);
+  const estimate = computeCheckoutEstimate({
+    subTotal,
+    deliveryFee: vendorDeliveryFee,
+    isDelivery,
+    settings: pricingSettings,
+    promoDiscount: promoResult?.valid ? (promoResult.discountAmount ?? 0) : 0,
+    promoDeliveryFee: promoResult?.valid ? promoResult.newDeliveryFee : undefined,
+    loyaltyPoints,
+    useLoyaltyPoints,
+  });
+  const { serviceFee, loyaltyDiscount, deliveryDiscount, total } = estimate;
+  const deliveryFee = estimate.baseDeliveryFee;
+  const discount = estimate.promoDiscount;
+
+  // Le serveur refuse un panier sous le minimum du vendeur. Le lui laisser
+  // découvrir après la saisie de l'adresse et du téléphone, c'est lui faire
+  // remplir un formulaire pour rien.
+  const minimumError = vendorRestaurant
+    ? minimumOrderError(subTotal, vendorRestaurant.minimumOrderAmount, vendorRestaurant.nom)
+    : null;
 
   async function handleValidatePromo() {
     if (!promoCode.trim() || !cart?.items[0]) return;
@@ -180,11 +241,13 @@ export default function PanierPage() {
         ville: 'Brazzaville',
         country: 'Congo',
         quartierId: newQuartierId,
+        landmark: newLandmark.trim() || undefined,
       });
       setSelectedAdresseId(adresse.id);
       setShowAddressForm(false);
       setNewRue('');
       setNewQuartierId('');
+      setNewLandmark('');
       toast.success('Adresse enregistrée');
     } catch {
       toast.error('Impossible d\'enregistrer l\'adresse');
@@ -194,6 +257,12 @@ export default function PanierPage() {
   }
 
   async function handleCheckout() {
+    // Même règle que `OrderValidator.validateMinimumOrderAmount` : le serveur
+    // reste l'autorité, on lui évite juste un aller-retour perdu.
+    if (minimumError) {
+      toast.error(minimumError);
+      return;
+    }
     if (cartIsPreorder && !scheduledFor) {
       toast.error('Veuillez choisir un créneau de retrait pour cette pré-commande');
       return;
@@ -472,9 +541,16 @@ export default function PanierPage() {
                           placeholder="Rue / Précision (ex: Rue Mfilou, face pharmacie)"
                           className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                         />
+                        <input
+                          type="text"
+                          value={newLandmark}
+                          onChange={(e) => setNewLandmark(e.target.value)}
+                          placeholder="Point de repère pour le livreur (ex: portail bleu face à la pharmacie)"
+                          className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                        />
                         <div className="flex gap-2">
                           <button
-                            onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); }}
+                            onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); setNewLandmark(''); }}
                             className="flex-1 py-2 text-sm text-ink-500 border border-cream-300 rounded-xl hover:bg-cream-100 transition-colors"
                           >
                             Annuler
@@ -709,10 +785,12 @@ export default function PanierPage() {
                     {deliveryDiscount > 0 ? (
                       <span className="flex items-center gap-1.5">
                         <span className="line-through text-ink-500">{formatCurrency(deliveryFee)}</span>
-                        <span className="text-emerald-600 font-medium">Gratuit</span>
+                        <span className="text-emerald-600 font-medium">
+                          {estimate.deliveryFee === 0 ? 'Gratuit' : formatCurrency(estimate.deliveryFee)}
+                        </span>
                       </span>
                     ) : (
-                      <span>{formatCurrency(deliveryFee)}</span>
+                      <span>{formatCurrency(estimate.deliveryFee)}</span>
                     )}
                   </div>
                 )}
@@ -728,18 +806,26 @@ export default function PanierPage() {
                 )}
                 {loyaltyDiscount > 0 && (
                   <div className="flex justify-between text-amber-600 font-medium">
-                    <span>Points fidélité ({loyaltyPoints} pts)</span>
+                    {/* Points réellement consommés, pas le solde : le serveur
+                        n'en prend jamais plus que le montant dû. */}
+                    <span>Points fidélité ({estimate.loyaltyPointsUsed} pts)</span>
                     <span>-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
                 )}
                 <div className="h-px bg-cream-200 my-1" />
                 <div className="flex justify-between font-bold text-ink-900 text-base">
                   <span>Total</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span>{pricingPending ? '…' : formatCurrency(total)}</span>
                 </div>
               </div>
 
               {/* Validation hint */}
+              {minimumError && (
+                <p className="flex items-center gap-1.5 text-xs text-tomato-600 mt-3">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {minimumError}
+                </p>
+              )}
               {isDelivery && !selectedAdresseId && (
                 <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-3">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -755,7 +841,7 @@ export default function PanierPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={checkoutLoading || isEmpty || !phoneIsValid || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
+                disabled={checkoutLoading || isEmpty || pricingPending || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (

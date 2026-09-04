@@ -55,10 +55,18 @@ export function useTopProducts(token: string | null) {
   });
 }
 
-export function useRevenueChart(token: string | null) {
+/**
+ * Évolution du chiffre d'affaires — `GET /dashboard/revenue-chart`.
+ *
+ * ⚠️ Appelait `/dashboard/revenue`, qui n'existe pas : le graphe de revenus du
+ * tableau de bord était vide en permanence, sans message d'erreur (React Query
+ * garde l'état `error` sans que rien ne l'affiche).
+ */
+export function useRevenueChart(token: string | null, days = 30) {
   return useQuery({
-    queryKey: dashboardKeys.revenue(),
-    queryFn: () => apiClient<RevenueDataPoint[]>('/dashboard/revenue', { token }),
+    queryKey: [...dashboardKeys.revenue(), days] as const,
+    queryFn: () =>
+      apiClient<RevenueDataPoint[]>(`/dashboard/revenue-chart?days=${days}`, { token }),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });

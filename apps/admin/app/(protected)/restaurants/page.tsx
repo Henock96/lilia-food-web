@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRestaurants, useToggleRestaurantOpen, useMyRestaurant } from '@lilia/api-client';
+import { useAdminVendors, useToggleRestaurantOpen, useMyRestaurant } from '@lilia/api-client';
 import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
@@ -23,13 +23,20 @@ export default function RestaurantsPage() {
   const { token } = useAuthStore();
   const isAdmin = useIsAdmin();
 
-  // ADMIN : fetch global. RESTAURATEUR : fetch "mine" — `enabled` désactive
-  // l'autre branche pour éviter un appel inutile + un 403.
-  const adminQuery = useRestaurants();
+  // ADMIN : vue d'administration complète. RESTAURATEUR : fetch "mine" —
+  // `enabled` désactive l'autre branche pour éviter un appel inutile + un 403.
+  //
+  // ⚠️ Cette page appelait `useRestaurants()`, c'est-à-dire `GET /restaurants`,
+  // une route **publique** : elle appliquait donc le filtre client
+  // (`ACTIVATED + adminApproved + isActive`) à un écran d'administration. Trois
+  // vendeurs sur six étaient invisibles ici — deux suspendus et un en `DRAFT` —
+  // c'est-à-dire précisément ceux sur lesquels un administrateur a quelque
+  // chose à faire. `GET /admin/vendors` ne filtre rien.
+  const adminQuery = useAdminVendors(isAdmin ? token : null, { limit: 100 });
   const mineQuery = useMyRestaurant(isAdmin ? null : token);
 
   const restaurants: Restaurant[] = isAdmin
-    ? adminQuery.data ?? []
+    ? adminQuery.data?.data ?? []
     : mineQuery.data
     ? [mineQuery.data as Restaurant]
     : [];
@@ -40,7 +47,7 @@ export default function RestaurantsPage() {
   const { mutate: toggleOpen, isPending } = useToggleRestaurantOpen(token);
 
   function handleToggle(id: string, currentState: boolean) {
-    toggleOpen(id, {
+    toggleOpen({ restaurantId: id, isOpen: !currentState }, {
       onSuccess: () => toast.success(currentState ? 'Restaurant fermé' : 'Restaurant ouvert'),
       onError: () => toast.error('Erreur lors de la mise à jour'),
     });

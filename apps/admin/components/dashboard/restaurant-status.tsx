@@ -1,18 +1,34 @@
 'use client';
 
-import { useRestaurants, useToggleRestaurantOpen } from '@lilia/api-client';
+import { useAdminVendors, useMyRestaurant, useToggleRestaurantOpen } from '@lilia/api-client';
+import type { Restaurant } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
+import { useIsAdmin } from '@/lib/use-role';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function RestaurantStatus() {
   const { token } = useAuthStore();
-  const { data: restaurants, isLoading } = useRestaurants();
+  const isAdmin = useIsAdmin();
+
+  // Même correction que la page `/restaurants` : ce widget lisait la route
+  // **publique** `GET /restaurants`, qui masque les vendeurs suspends et non
+  // publiés. Sur un tableau de bord d'administration, ce sont exactement ceux
+  // qu'il faut voir. Un RESTAURATEUR n'a, lui, que sa propre boutique.
+  const adminQuery = useAdminVendors(isAdmin ? token : null, { limit: 100 });
+  const mineQuery = useMyRestaurant(isAdmin ? null : token);
+
+  const restaurants: Restaurant[] | undefined = isAdmin
+    ? adminQuery.data?.data
+    : mineQuery.data
+      ? [mineQuery.data as Restaurant]
+      : undefined;
+  const isLoading = isAdmin ? adminQuery.isLoading : mineQuery.isLoading;
   const { mutate: toggleOpen, isPending } = useToggleRestaurantOpen(token);
 
   function handleToggle(id: string, current: boolean) {
-    toggleOpen(id, {
+    toggleOpen({ restaurantId: id, isOpen: !current }, {
       onSuccess: () => toast.success(current ? 'Restaurant fermé' : 'Restaurant ouvert'),
       onError:   () => toast.error('Erreur lors de la mise à jour'),
     });

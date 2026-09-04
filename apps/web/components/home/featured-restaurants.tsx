@@ -81,8 +81,13 @@ export function FeaturedRestaurants() {
             <h2 className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl">
               Ils font saliver tout Brazza
             </h2>
+            {/* « Sélectionnés pour toi » n'est vrai que si quelqu'un a
+                réellement sélectionné. Le repli de `getFeaturedVendors` peut
+                afficher le catalogue public quand aucune vedette n'est posée :
+                l'accroche ne doit donc pas affirmer une curation qui n'a
+                peut-être pas eu lieu. */}
             <p className="mt-2 text-sm text-ink-500">
-              Les meilleurs vendeurs de la ville, sélectionnés pour toi.
+              Les vendeurs à découvrir en ce moment à Brazzaville.
             </p>
           </div>
 

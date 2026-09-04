@@ -87,7 +87,32 @@ export async function getVendors(): Promise<Restaurant[]> {
 export async function getFeaturedVendors(limit = 4): Promise<Restaurant[]> {
   await connection();
   try {
-    return await fetchVendors(`/vendors?isFeatured=true&limit=${limit}`);
+    const featured = await fetchVendors(
+      `/vendors?isFeatured=true&limit=${limit}`,
+    );
+    if (featured.length > 0) return featured;
+
+    /**
+     * **Repli — aucun vendeur n'est en vedette.**
+     *
+     * `isFeatured` a été livré à `false` sur les six vendeurs de production, et
+     * personne ne l'a jamais basculé : la page d'accueil de `liliafood.com` a
+     * donc affiché quatre emplacements pointillés et **zéro vendeur** depuis sa
+     * mise en ligne, pendant que `/restaurants` en listait trois. Le site
+     * paraissait vide alors que le catalogue ne l'était pas.
+     *
+     * La cause n'était pas le filtre — il est juste — mais le fait d'avoir fait
+     * dépendre toute la vitrine d'une case que rien n'obligeait à cocher. Une
+     * mise en avant éditoriale est un **ajout** au catalogue, jamais sa
+     * condition d'existence.
+     *
+     * Le repli ne choisit rien : il prend le catalogue public dans l'ordre déjà
+     * décidé par le serveur (`PUBLIC_VENDOR_ORDER_BY` : ouverts d'abord, puis
+     * `displayOrder`, puis date). Aucun vendeur n'est nommé ici, et un
+     * `displayOrder` posé par l'administration continue de commander l'affichage
+     * même sans vedette.
+     */
+    return await fetchVendors(`/vendors?limit=${limit}`);
   } catch {
     return [];
   }
