@@ -97,16 +97,25 @@ export function useVendors(vendorType: VendorType | null = null) {
   });
 }
 
+/**
+ * Ouvre / ferme manuellement une boutique — `PATCH /restaurants/:id/open-status`.
+ *
+ * ⚠️ Appelait `/toggle-open`, qui n'existe pas côté backend : chaque clic
+ * partait en 404 et l'interface affichait « Restaurant fermé » sans que rien
+ * ne change en base. La route réelle n'est pas une bascule, elle prend l'état
+ * voulu — d'où `isOpen` dans la signature.
+ */
 export function useToggleRestaurantOpen(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (restaurantId: string) =>
-      apiClient<Restaurant>(`/restaurants/${restaurantId}/toggle-open`, {
+    mutationFn: ({ restaurantId, isOpen }: { restaurantId: string; isOpen: boolean }) =>
+      apiClient<Restaurant>(`/restaurants/${restaurantId}/open-status`, {
         method: 'PATCH',
         token,
+        body: JSON.stringify({ isOpen }),
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: restaurantKeys.all });
     },
   });
 }

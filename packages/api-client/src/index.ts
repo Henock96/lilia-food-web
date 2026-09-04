@@ -10,6 +10,7 @@ export * from './hooks/products';
 export * from './hooks/categories';
 export * from './hooks/menus';
 export * from './hooks/promo';
+export * from './hooks/pricing';
 
 export * from './hooks/favorites';
 export * from './hooks/admin-clients';
