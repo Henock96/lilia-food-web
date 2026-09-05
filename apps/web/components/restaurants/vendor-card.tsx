@@ -47,8 +47,22 @@ export function VendorCard({ restaurant }: VendorCardProps) {
     : false;
   const vendorType = restaurant.vendorType ?? 'RESTAURANT';
 
-  // Un seul badge superposé sur la photo — priorité Nouveau > Populaire > Rapide.
-  const overlayBadge = isNew ? 'Nouveau' : isPopular ? 'Populaire' : isFastDelivery ? 'Rapide' : null;
+  // Un seul badge superposé sur la photo — priorité Mis en avant > Nouveau >
+  // Populaire > Rapide.
+  //
+  // `isFeatured` passe devant parce que c'est la seule des quatre distinctions
+  // qu'un humain a délibérément posée. Elle vit **ici**, sur la carte : c'est
+  // ce qui permet de mettre un vendeur en avant sans retirer les autres de la
+  // liste — ce que faisait la home en filtrant sur `?isFeatured=true`.
+  const overlayBadge = restaurant.isFeatured
+    ? 'Mis en avant'
+    : isNew
+      ? 'Nouveau'
+      : isPopular
+        ? 'Populaire'
+        : isFastDelivery
+          ? 'Rapide'
+          : null;
 
   function handleFavorite(e: React.MouseEvent) {
     e.preventDefault();
@@ -123,10 +137,15 @@ export function VendorCard({ restaurant }: VendorCardProps) {
             />
           </button>
 
-          {/* badge unique bas-gauche (Nouveau > Populaire > Rapide) */}
+          {/* badge unique bas-gauche (Mis en avant > Nouveau > Populaire > Rapide) */}
           {overlayBadge && (
             <div className="absolute bottom-3 left-3">
-              <span className="rounded-pill bg-ink-900/80 px-2 py-0.5 text-[10px] font-bold text-white">
+              <span
+                className={cn(
+                  'rounded-pill px-2 py-0.5 text-[10px] font-bold text-white',
+                  restaurant.isFeatured ? 'bg-amber-500' : 'bg-ink-900/80',
+                )}
+              >
                 {overlayBadge}
               </span>
             </div>

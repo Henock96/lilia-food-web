@@ -74,44 +74,39 @@ export async function getVendors(): Promise<Restaurant[]> {
 
 
 /**
- * Vendeurs **mis en avant** par l'administration (`isFeatured = true`).
+ * Vitrine de la page d'accueil : le **catalogue public**, mis en avant d'abord.
  *
- * La section « Les plus courus » prenait jusqu'ici les quatre premiers de
- * `getVendors()` — c'est-à-dire, le tri étant par date, les quatre vendeurs les
- * plus récemment créés. Le titre annonçait une sélection éditoriale que
- * personne, dans aucune interface, ne pouvait produire.
+ * ### Le défaut corrigé
  *
- * Le filtre s'ajoute à la frontière de visibilité côté serveur, il ne s'y
- * substitue pas : un vendeur mis en avant mais non publié n'apparaît pas.
+ * Cette fonction demandait `/vendors?isFeatured=true`. La section « Ils font
+ * saliver tout Brazza » est la **seule** liste de vendeurs de la page
+ * d'accueil : appliquer un filtre ici ne mettait donc rien en avant, cela
+ * **retirait tous les autres de la home**. Mettre un vendeur en vedette depuis
+ * l'admin faisait disparaître les trois autres, remplacés par des emplacements
+ * pointillés — le site paraissait se vider au moment précis où on essayait de
+ * le mettre en valeur. Un repli existait, mais il ne se déclenchait que quand
+ * la liste était *vide* : il masquait le cas « personne en vedette » et laissait
+ * intact le cas « une seule en vedette », qui est le cas réel.
+ *
+ * L'application mobile n'avait pas le problème pour une raison simple : elle
+ * n'a jamais envoyé `isFeatured`. Elle demande `/vendors?limit=50` et affiche
+ * tout le monde. C'est le comportement juste, et c'est celui qu'on reprend ici.
+ *
+ * ### La règle
+ *
+ * **Une mise en avant classe, elle n'exclut pas.** `isFeatured` appartient donc
+ * au tri, pas au filtre — et le tri appartient au serveur :
+ * `PUBLIC_VENDOR_ORDER_BY` place désormais les vendeurs en vedette en tête
+ * (derrière « ouvert maintenant », qui prime toujours), puis applique
+ * `displayOrder` et la date. Web et mobile héritent du même ordre sans qu'aucun
+ * des deux n'ait à le réimplémenter — c'est ce qui les garde cohérents.
+ *
+ * Le `limit` ne tronque donc plus arbitrairement : les premiers rendus sont les
+ * vendeurs mis en avant, et « Voir tout » mène au catalogue complet.
  */
-export async function getFeaturedVendors(limit = 4): Promise<Restaurant[]> {
+export async function getShowcaseVendors(limit = 4): Promise<Restaurant[]> {
   await connection();
   try {
-    const featured = await fetchVendors(
-      `/vendors?isFeatured=true&limit=${limit}`,
-    );
-    if (featured.length > 0) return featured;
-
-    /**
-     * **Repli — aucun vendeur n'est en vedette.**
-     *
-     * `isFeatured` a été livré à `false` sur les six vendeurs de production, et
-     * personne ne l'a jamais basculé : la page d'accueil de `liliafood.com` a
-     * donc affiché quatre emplacements pointillés et **zéro vendeur** depuis sa
-     * mise en ligne, pendant que `/restaurants` en listait trois. Le site
-     * paraissait vide alors que le catalogue ne l'était pas.
-     *
-     * La cause n'était pas le filtre — il est juste — mais le fait d'avoir fait
-     * dépendre toute la vitrine d'une case que rien n'obligeait à cocher. Une
-     * mise en avant éditoriale est un **ajout** au catalogue, jamais sa
-     * condition d'existence.
-     *
-     * Le repli ne choisit rien : il prend le catalogue public dans l'ordre déjà
-     * décidé par le serveur (`PUBLIC_VENDOR_ORDER_BY` : ouverts d'abord, puis
-     * `displayOrder`, puis date). Aucun vendeur n'est nommé ici, et un
-     * `displayOrder` posé par l'administration continue de commander l'affichage
-     * même sans vedette.
-     */
     return await fetchVendors(`/vendors?limit=${limit}`);
   } catch {
     return [];

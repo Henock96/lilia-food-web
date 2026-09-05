@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import { VendorCard } from '@/components/restaurants/vendor-card';
 import { EmptyVendorSlot } from '@/components/restaurants/empty-vendor-slot';
 import { RestaurantCardSkeleton } from '@/components/ui';
-import { getFeaturedVendors } from '@/lib/vendors';
+import { getShowcaseVendors } from '@/lib/vendors';
 
 /** Nombre d'emplacements affichés, remplis ou non. */
 const SLOTS = 4;
@@ -28,20 +28,19 @@ const GRID_CLASSNAME = 'mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-
  * ces emplacements explicites.
  */
 async function FeaturedGrid() {
-  // `isFeatured = true`, et non plus les quatre premiers du catalogue.
-  // La section s'intitule « Les plus courus » : elle prenait en réalité les
-  // quatre vendeurs les plus RÉCEMMENT CRÉÉS, le tri étant par date. Elle
-  // annonçait une sélection éditoriale que personne ne pouvait produire —
-  // aucune interface, aucune colonne. `isFeatured` existe depuis
-  // septembre 2026 et se pilote depuis l'admin.
-  const featured = await getFeaturedVendors(SLOTS);
+  // Le **catalogue public**, dans l'ordre décidé par le serveur — vendeurs en
+  // vedette en tête. Cette grille demandait auparavant `?isFeatured=true` :
+  // comme c'est la seule liste de vendeurs de la page d'accueil, mettre un
+  // vendeur en avant depuis l'admin faisait disparaître tous les autres de la
+  // home. Une mise en avant classe, elle n'exclut pas — cf. `getShowcaseVendors`.
+  const vendors = await getShowcaseVendors(SLOTS);
 
   return (
     <div className={GRID_CLASSNAME}>
-      {featured.map((r) => (
+      {vendors.map((r) => (
         <VendorCard key={r.id} restaurant={r} />
       ))}
-      {Array.from({ length: Math.max(0, SLOTS - featured.length) }).map((_, i) => (
+      {Array.from({ length: Math.max(0, SLOTS - vendors.length) }).map((_, i) => (
         <EmptyVendorSlot key={`empty-${i}`} label={i === 0 ? 'Prochain vendeur ici' : undefined} />
       ))}
     </div>
@@ -82,10 +81,10 @@ export function FeaturedRestaurants() {
               Ils font saliver tout Brazza
             </h2>
             {/* « Sélectionnés pour toi » n'est vrai que si quelqu'un a
-                réellement sélectionné. Le repli de `getFeaturedVendors` peut
-                afficher le catalogue public quand aucune vedette n'est posée :
-                l'accroche ne doit donc pas affirmer une curation qui n'a
-                peut-être pas eu lieu. */}
+                réellement sélectionné. Cette grille montre le catalogue
+                public — les vendeurs mis en avant y remontent, mais rien ne
+                garantit qu'il y en ait : l'accroche ne doit pas affirmer une
+                curation qui n'a peut-être pas eu lieu. */}
             <p className="mt-2 text-sm text-ink-500">
               Les vendeurs à découvrir en ce moment à Brazzaville.
             </p>

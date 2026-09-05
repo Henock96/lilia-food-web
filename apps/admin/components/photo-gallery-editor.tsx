@@ -28,8 +28,9 @@ import {
 } from '@lilia/api-client';
 import type { EntityType, Photo } from '@lilia/types';
 import { toast } from 'sonner';
-import { Loader2, Star, Trash2, Pencil, Plus } from 'lucide-react';
+import { Loader2, Star, Trash2, Pencil, Plus, ImageOff } from 'lucide-react';
 import { uploadToCloudinary, type UploadFolder } from '@/lib/cloudinary-upload';
+import { apiMessage } from '@/lib/api-message';
 
 /** `EntityType` (vendor/product/menu) → dossier Cloudinary accepté par le backend. */
 const ENTITY_FOLDER: Record<EntityType, UploadFolder> = {
@@ -47,11 +48,16 @@ type Props = {
 };
 
 export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
-  const photosQuery = usePhotos(entity, parentId, token);
+  // `'manage'` — cet écran est un back-office. La vue publique applique la
+  // frontière marketplace du vendeur et ne rend donc rien d'une boutique
+  // suspendue, non validée ou en cours de configuration : la galerie
+  // s'affichait vide alors qu'elle était peuplée, et une photo tout juste
+  // ajoutée disparaissait au rafraîchissement. Cf. `PhotoScope`.
+  const photosQuery = usePhotos(entity, parentId, token, 'manage');
   const upload = useUploadPhoto(entity, parentId, token);
-  const update = useUpdatePhoto(entity, parentId, token);
-  const remove = useDeletePhoto(entity, parentId, token);
-  const reorder = useReorderPhotos(entity, parentId, token);
+  const update = useUpdatePhoto(entity, parentId, token, 'manage');
+  const remove = useDeletePhoto(entity, parentId, token, 'manage');
+  const reorder = useReorderPhotos(entity, parentId, token, 'manage');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -73,11 +79,15 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
       toast.error(`Maximum ${MAX_PHOTOS} photos atteint`);
       return;
     }
+    if (!token) {
+      toast.error('Session expirée, reconnectez-vous.');
+      return;
+    }
     setIsUploading(true);
     try {
       const { secureUrl, publicId } = await uploadToCloudinary(
         file,
-        token ?? '',
+        token,
         ENTITY_FOLDER[entity],
       );
       await upload.mutateAsync({
@@ -87,8 +97,7 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
       });
       toast.success('Photo ajoutée');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erreur upload';
-      toast.error(msg);
+      toast.error(apiMessage(err, "Échec de l'ajout de la photo"));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -105,10 +114,8 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
     reorder.mutate(
       next.map((p) => p.id),
       {
-        onError: (err) => {
-          const msg = err instanceof Error ? err.message : 'Erreur reorder';
-          toast.error(msg);
-        },
+        onError: (err) =>
+          toast.error(apiMessage(err, 'Impossible de réordonner la galerie')),
       },
     );
   }
@@ -119,8 +126,7 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
       await update.mutateAsync({ photoId: photo.id, isCover: true });
       toast.success('Cover mis à jour');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erreur cover';
-      toast.error(msg);
+      toast.error(apiMessage(err, 'Impossible de définir la photo principale'));
     }
   }
 
@@ -131,8 +137,7 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
       await update.mutateAsync({ photoId: photo.id, alt: alt.trim() });
       toast.success('Description mise à jour');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erreur alt';
-      toast.error(msg);
+      toast.error(apiMessage(err, 'Impossible de modifier la description'));
     }
   }
 
@@ -142,12 +147,15 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
       await remove.mutateAsync(photo.id);
       toast.success('Photo supprimée');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erreur suppression';
-      toast.error(msg);
+      toast.error(apiMessage(err, 'Impossible de supprimer la photo'));
     }
   }
 
-  if (photosQuery.isLoading) {
+  // ⚠️ `isLoading` vaut `false` tant que la requête est désactivée (token pas
+  // encore hydraté depuis le store) : s'y fier seul faisait tomber l'écran sur
+  // « Aucune photo » avant même d'avoir demandé quoi que ce soit — le même
+  // « erreur indiscernable d'un vide » que la galerie corrigée ici.
+  if (photosQuery.isLoading || (!token && photosQuery.isPending)) {
     return (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -163,7 +171,12 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
   if (photosQuery.isError) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-md border border-dashed p-6 text-sm">
-        <p>Erreur de chargement de la galerie.</p>
+        {/* Le serveur dit *pourquoi* (« Vous n'êtes pas propriétaire de ce
+            restaurant », « Produit introuvable ») ; le masquer derrière un
+            libellé générique rendait chaque échec identique au suivant. */}
+        <p className="text-center text-neutral-700">
+          {apiMessage(photosQuery.error, 'Erreur de chargement de la galerie.')}
+        </p>
         <button
           type="button"
           onClick={() => photosQuery.refetch()}
@@ -239,6 +252,11 @@ type TileProps = {
 function SortablePhotoTile({ photo, onSetCover, onEditAlt, onDelete }: TileProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: photo.id });
+  // Une URL Cloudinary révoquée, ou une photo importée à la main avec un lien
+  // périmé, affichait l'icône de lien cassé du navigateur : indiscernable
+  // d'une panne de la page. On rend l'état explicite — et la tuile reste
+  // pilotable, c'est justement celle qu'il faut pouvoir supprimer.
+  const [broken, setBroken] = useState(!photo.url?.trim());
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -257,13 +275,21 @@ function SortablePhotoTile({ photo, onSetCover, onEditAlt, onDelete }: TileProps
         {...listeners}
         className="aspect-square w-full cursor-grab bg-neutral-100"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photo.url}
-          alt={photo.alt ?? ''}
-          className="size-full object-cover"
-          draggable={false}
-        />
+        {broken ? (
+          <div className="flex size-full flex-col items-center justify-center gap-1 px-2 text-center text-neutral-400">
+            <ImageOff className="size-5" />
+            <span className="text-[10px] leading-tight">Image indisponible</span>
+          </div>
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={photo.url}
+            alt={photo.alt ?? ''}
+            className="size-full object-cover"
+            draggable={false}
+            onError={() => setBroken(true)}
+          />
+        )}
       </div>
       {photo.isCover && (
         <div className="absolute left-2 top-2 rounded-full bg-amber-500/90 p-1 text-white shadow">
