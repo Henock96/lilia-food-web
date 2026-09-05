@@ -16,29 +16,77 @@ const parentFields: Record<EntityType, string> = {
   menu: 'menuDuJourId',
 };
 
+/**
+ * Quelle question la galerie pose au serveur.
+ *
+ * - `public` — « qu'est-ce qu'un client verrait ? » ; la route publique
+ *   applique la frontière marketplace du vendeur ;
+ * - `manage` — « qu'y a-t-il à gérer ? » ; la route `/mine` applique la
+ *   **propriété** et rien d'autre.
+ *
+ * ⚠️ Le back-office lisait la vue publique. Elle ne rend rien d'un vendeur
+ * suspendu, non validé ou en cours de configuration : `[]` sur `/vendor-photos`,
+ * `404` sur `/product-images` et `/menu-images`. La page « Détails & photos »
+ * affichait donc « Aucune photo » sur des galeries peuplées en base, et la
+ * photo qu'on venait d'ajouter disparaissait au rafraîchissement suivant
+ * (l'invalidation relit la route publique, qui ne la voit pas).
+ *
+ * C'est le même défaut que `GET /products` servi au back-office produits, et
+ * il se corrige de la même façon : une route de gestion distincte, pas un
+ * contournement côté interface.
+ */
+export type PhotoScope = 'public' | 'manage';
+
 export const photoKeys = {
   all: ['photos'] as const,
-  list: (entity: EntityType, parentId: string) =>
+  /**
+   * Préfixe couvrant **tous** les périmètres d'une même entité.
+   *
+   * Les mutations invalident ici, jamais sur une clé de périmètre : une
+   * suppression faite depuis le back-office doit aussi périmer la vue publique
+   * en cache, sans quoi les deux divergent dans la même session.
+   */
+  entity: (entity: EntityType, parentId: string) =>
     ['photos', entity, parentId] as const,
+  list: (entity: EntityType, parentId: string, scope: PhotoScope = 'public') =>
+    ['photos', entity, parentId, scope] as const,
 };
 
 /**
- * Liste publique des photos d'une entité. Le backend ne requiert pas de
- * token mais on le passe quand il est dispo pour rester cohérent.
+ * URL de liste pour un périmètre donné.
+ *
+ * Exportée pour être testable : l'URL fautive vivait dans une closure de
+ * `useQuery`, donc hors de portée de tout test — la même raison qui avait
+ * imposé d'extraire `ownerCatalogQueryOptions` du hook catalogue.
+ */
+export function listPath(
+  entity: EntityType,
+  parentId: string,
+  scope: PhotoScope,
+) {
+  const base = scope === 'manage' ? `${endpoints[entity]}/mine` : endpoints[entity];
+  return `${base}?${parentFields[entity]}=${encodeURIComponent(parentId)}`;
+}
+
+/**
+ * Photos d'une entité. `scope: 'manage'` pour toute surface d'administration —
+ * elle exige un token, la route `/mine` étant réservée au propriétaire et à
+ * l'ADMIN.
  */
 export function usePhotos(
   entity: EntityType,
   parentId: string,
   token: string | null,
+  scope: PhotoScope = 'public',
 ) {
   return useQuery({
-    queryKey: photoKeys.list(entity, parentId),
+    queryKey: photoKeys.list(entity, parentId, scope),
     queryFn: () =>
-      apiClient<Photo[]>(
-        `${endpoints[entity]}?${parentFields[entity]}=${parentId}`,
-        { token },
-      ),
-    enabled: !!parentId,
+      apiClient<Photo[]>(listPath(entity, parentId, scope), { token }),
+    // Sans le token, `/mine` répond 401 : attendre l'hydratation du store
+    // d'authentification plutôt que d'afficher une erreur de chargement au
+    // premier rendu.
+    enabled: !!parentId && (scope === 'public' || !!token),
     staleTime: 30 * 1000,
   });
 }
@@ -89,7 +137,7 @@ export function useUploadPhoto(
       createPhoto(entity, parentId, token, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: photoKeys.list(entity, parentId),
+        queryKey: photoKeys.entity(entity, parentId),
       });
     },
   });
@@ -110,9 +158,10 @@ export function useUpdatePhoto(
   entity: EntityType,
   parentId: string,
   token: string | null,
+  scope: PhotoScope = 'public',
 ) {
   const queryClient = useQueryClient();
-  const key = photoKeys.list(entity, parentId);
+  const key = photoKeys.list(entity, parentId, scope);
   return useMutation({
     mutationFn: ({ photoId, ...patch }: UpdatePayload) =>
       apiClient<Photo>(`${endpoints[entity]}/${photoId}`, {
@@ -144,7 +193,9 @@ export function useUpdatePhoto(
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({
+        queryKey: photoKeys.entity(entity, parentId),
+      });
     },
   });
 }
@@ -156,9 +207,10 @@ export function useDeletePhoto(
   entity: EntityType,
   parentId: string,
   token: string | null,
+  scope: PhotoScope = 'public',
 ) {
   const queryClient = useQueryClient();
-  const key = photoKeys.list(entity, parentId);
+  const key = photoKeys.list(entity, parentId, scope);
   return useMutation({
     mutationFn: (photoId: string) =>
       apiClient<void>(`${endpoints[entity]}/${photoId}`, {
@@ -177,7 +229,9 @@ export function useDeletePhoto(
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({
+        queryKey: photoKeys.entity(entity, parentId),
+      });
     },
   });
 }
@@ -190,9 +244,10 @@ export function useReorderPhotos(
   entity: EntityType,
   parentId: string,
   token: string | null,
+  scope: PhotoScope = 'public',
 ) {
   const queryClient = useQueryClient();
-  const key = photoKeys.list(entity, parentId);
+  const key = photoKeys.list(entity, parentId, scope);
   return useMutation({
     mutationFn: (ids: string[]) =>
       apiClient<void>(`${endpoints[entity]}/reorder`, {
@@ -218,7 +273,9 @@ export function useReorderPhotos(
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({
+        queryKey: photoKeys.entity(entity, parentId),
+      });
     },
   });
 }
