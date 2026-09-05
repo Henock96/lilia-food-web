@@ -9,10 +9,14 @@ import {
 import type {
   OrderFinancials,
   PaginatedPayouts,
+  PayoutProvider,
   PayoutRequestResult,
   PayoutStatus,
+  VendorPayoutAccount,
 } from '@lilia/types';
 import { apiClient, apiClientRaw } from '../client';
+import { adminVendorKeys } from './admin-vendors';
+import { onboardingKeys } from './vendor-onboarding';
 
 export const payoutKeys = {
   all: ['admin', 'payouts'] as const,
@@ -108,5 +112,56 @@ export function useAdminPayouts(
     enabled: !!token,
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Compte Mobile Money sur lequel le vendeur sera payé
+ * (`PATCH /admin/vendors/:id/payout-account`).
+ *
+ * Distinct de `Restaurant.phone` et du téléphone du propriétaire : la commission
+ * est négociable, ce numéro est la **destination de l'argent**. Réservé à
+ * l'ADMIN — jamais dans `UpdateRestaurantDto`, ouvert au RESTAURATEUR : un
+ * compte compromis détournerait tous les reversements suivants.
+ *
+ * ⚠️ Le serveur ne renvoie **jamais** le numéro en clair : la réponse le rend
+ * masqué. Pour en changer, on le saisit en entier — il n'y a pas de
+ * pré-remplissage possible, et c'est voulu.
+ *
+ * `payout` est une case **bloquante** de la checklist d'activation. Cet
+ * assistant ne la proposait pas : un administrateur qui configurait un vendeur
+ * depuis le web ne pouvait donc pas l'activer, sans qu'aucun écran ne dise ni
+ * pourquoi ni où corriger. Seule l'application Flutter portait le champ.
+ */
+export function useUpdateVendorPayoutAccount(
+  token: string | null,
+  vendorId: string | null,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      payoutPhoneNumber: string;
+      payoutProvider: PayoutProvider;
+      payoutAccountName?: string;
+    }) =>
+      apiClient<VendorPayoutAccount>(
+        `/admin/vendors/${vendorId}/payout-account`,
+        { method: 'PATCH', token, body: JSON.stringify(payload) },
+      ),
+    onSuccess: () => {
+      // La checklist bascule : `payout` passe de bloquant-en-défaut à coché.
+      // Sans cette invalidation, l'assistant continuerait d'afficher un manque
+      // que l'administrateur vient de combler.
+      if (vendorId) {
+        void queryClient.invalidateQueries({
+          queryKey: onboardingKeys.state(vendorId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: onboardingKeys.preview(vendorId),
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: adminVendorKeys.all });
+      void queryClient.invalidateQueries({ queryKey: payoutKeys.all });
+    },
   });
 }

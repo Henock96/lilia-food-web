@@ -817,6 +817,25 @@ export interface AdminPayment {
 export type PayoutStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type PayoutProvider = 'MTN_MOMO' | 'AIRTEL_MONEY';
 
+/**
+ * Réponse de `PATCH /admin/vendors/:id/payout-account`.
+ *
+ * ⚠️ `payoutPhoneNumber` revient **masqué** (`24206****67`). Le serveur ne rend
+ * jamais le numéro en clair, y compris à l'administrateur qui vient de le
+ * saisir : pour le changer, on le retape en entier. Ne pas typer ce champ comme
+ * une valeur réutilisable — la renvoyer au serveur enregistrerait les
+ * astérisques.
+ */
+export interface VendorPayoutAccount {
+  id: string;
+  nom: string;
+  /** Masqué. Jamais réutilisable comme valeur d'entrée. */
+  payoutPhoneNumber: string | null;
+  payoutProvider: PayoutProvider | null;
+  payoutAccountName: string | null;
+  payoutVerifiedAt: string | null;
+}
+
 /** Motifs de refus renvoyés par le serveur — jamais recalculés côté front. */
 export type PayoutIneligibilityCode =
   | 'ORDER_NOT_FOUND'
@@ -1171,6 +1190,12 @@ export interface ReadinessCheck {
     | 'gps'
     | 'hours'
     | 'delivery'
+    // Ajoutée par le backend en septembre 2026, et jamais reportée ici : le web
+    // ignorait donc l'existence d'une case **bloquante**. `payout` n'était
+    // rattachée à aucune étape de l'assistant et aucun champ ne permettait de la
+    // remplir — un vendeur configuré depuis le web restait inactivable sans que
+    // rien ne dise pourquoi.
+    | 'payout'
     | 'commerce'
     | 'catalog';
   label: string;
