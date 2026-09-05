@@ -8,12 +8,25 @@ import {
   useUpdateVendorHours,
   useUpdateVendorDelivery,
   useUpdateVendorCommerce,
+  useUpdateVendorPayoutAccount,
   useActivateVendorOnboarding,
   useVendorPreview,
   useQuartiers,
   useProducts,
 } from '@lilia/api-client';
-import type { OnboardingReport, ReadinessCheck, Restaurant } from '@lilia/types';
+import type {
+  OnboardingReport,
+  PayoutProvider,
+  ReadinessCheck,
+  Restaurant,
+} from '@lilia/types';
+import {
+  ONBOARDING_STEPS as STEPS,
+  canLeaveStep,
+  stepState as computeStepState,
+  type OnboardingStep,
+  type StepId,
+} from '@/lib/onboarding-steps';
 import { useAuthStore } from '@/store/auth';
 import { uploadToCloudinary } from '@/lib/cloudinary-upload';
 import { toast } from 'sonner';
@@ -25,6 +38,7 @@ import {
   X,
   Loader2,
   ExternalLink,
+  Wallet,
 } from 'lucide-react';
 
 const DAYS = [
@@ -37,23 +51,7 @@ const DAYS = [
   { key: 'DIMANCHE', label: 'Dimanche' },
 ];
 
-/**
- * Étapes du wizard. `checkKeys` relie chaque étape aux cases de la checklist
- * serveur : c'est ce qui permet d'afficher une pastille d'état sans jamais
- * réimplémenter la règle côté client.
- */
-const STEPS = [
-  { id: 'identity',  title: 'Identité',        checkKeys: ['identity', 'description'] },
-  { id: 'visuals',   title: 'Visuels',         checkKeys: ['logo', 'cover'] },
-  { id: 'location',  title: 'Localisation',    checkKeys: ['location', 'gps'] },
-  { id: 'hours',     title: 'Horaires',        checkKeys: ['hours'] },
-  { id: 'delivery',  title: 'Livraison',       checkKeys: ['delivery'] },
-  { id: 'commerce',  title: 'Commercial',      checkKeys: ['commerce'] },
-  { id: 'catalog',   title: 'Catalogue',       checkKeys: ['catalog'] },
-  { id: 'review',    title: 'Vérification',    checkKeys: [] },
-] as const;
 
-type StepId = (typeof STEPS)[number]['id'];
 
 interface Props {
   vendor: Restaurant;
@@ -66,19 +64,12 @@ export function OnboardingWizard({ vendor, onClose }: Props) {
 
   const { data: report, isLoading } = useVendorOnboarding(token, vendor.id);
 
-  // Le statut de chaque case vient du serveur. L'interface n'en déduit rien
-  // qu'elle aurait calculé elle-même : elle affiche ce que le backend accepte
-  // ou refuse d'activer.
-  const checkFor = (key: string): ReadinessCheck | undefined =>
-    report?.checks.find((c) => c.key === key);
-
-  const stepState = (s: (typeof STEPS)[number]) => {
-    if (s.checkKeys.length === 0) return 'neutral' as const;
-    const checks = s.checkKeys.map(checkFor).filter(Boolean) as ReadinessCheck[];
-    if (checks.some((c) => c.blocking && c.status !== 'OK')) return 'blocking' as const;
-    if (checks.some((c) => c.status !== 'OK')) return 'warning' as const;
-    return 'ok' as const;
-  };
+  // Le statut de chaque case vient du serveur, et les deux règles qui s'en
+  // déduisent — pastille d'état, droit d'avancer — vivent dans
+  // `lib/onboarding-steps`, pures et testées. L'interface n'en calcule aucune :
+  // elle affiche ce que le backend accepte ou refuse d'activer.
+  const canLeave = (s: OnboardingStep) => canLeaveStep(s, report);
+  const stepState = (s: OnboardingStep) => computeStepState(s, report);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex justify-end">
@@ -102,7 +93,10 @@ export function OnboardingWizard({ vendor, onClose }: Props) {
                 vendor={vendor}
                 report={report}
                 token={token}
-                onDone={(next) => next && setStep(next)}
+                onDone={(next) => {
+                  const current = STEPS.find((s) => s.id === step);
+                  if (next && current && canLeave(current)) setStep(next);
+                }}
               />
             </div>
           </div>
@@ -227,7 +221,7 @@ function StepNav({
 }: {
   current: StepId;
   onSelect: (s: StepId) => void;
-  stateOf: (s: (typeof STEPS)[number]) => 'ok' | 'warning' | 'blocking' | 'neutral';
+  stateOf: (s: OnboardingStep) => 'ok' | 'warning' | 'blocking' | 'neutral';
 }) {
   return (
     <nav className="w-52 shrink-0 border-r border-zinc-200 dark:border-zinc-800 py-4">
@@ -292,7 +286,14 @@ function StepBody({
     case 'delivery':
       return <DeliveryStep vendor={vendor} token={token} onDone={() => onDone('commerce')} />;
     case 'commerce':
-      return <CommerceStep vendor={vendor} token={token} onDone={() => onDone('catalog')} />;
+      return (
+        <CommerceStep
+          vendor={vendor}
+          token={token}
+          payoutCheck={report?.checks.find((c) => c.key === 'payout')}
+          onDone={() => onDone('catalog')}
+        />
+      );
     case 'catalog':
       return (
         <CatalogStep
@@ -720,10 +721,12 @@ function DeliveryStep({
 function CommerceStep({
   vendor,
   token,
+  payoutCheck,
   onDone,
 }: {
   vendor: Restaurant;
   token: string | null;
+  payoutCheck?: ReadinessCheck;
   onDone: () => void;
 }) {
   const [commission, setCommission] = useState(
@@ -735,7 +738,8 @@ function CommerceStep({
   const mutation = useUpdateVendorCommerce(token, vendor.id);
 
   return (
-    <StepShell
+    <div className="space-y-6">
+      <StepShell
       title="Paramètres commerciaux"
       hint="Réservé aux administrateurs. Le vendeur ne peut pas modifier sa commission."
       onSave={() =>
@@ -761,7 +765,126 @@ function CommerceStep({
       <Field label="Montant minimum de commande (XAF)">
         <Input value={minOrder} onChange={setMinOrder} type="number" />
       </Field>
-    </StepShell>
+      </StepShell>
+
+      <PayoutAccountForm vendor={vendor} token={token} check={payoutCheck} onDone={onDone} />
+    </div>
+  );
+}
+
+/**
+ * Compte Mobile Money sur lequel ce vendeur sera payé.
+ *
+ * Formulaire distinct des paramètres commerciaux, et pas par goût de la
+ * séparation : ce sont deux écritures sur deux routes, et surtout deux
+ * décisions de nature différente. La commission est négociable ; ce numéro est
+ * la **destination de l'argent**, réservée à l'ADMIN — un compte compromis
+ * détournerait tous les reversements suivants.
+ *
+ * ⚠️ Aucun pré-remplissage : le serveur ne rend le numéro que **masqué**
+ * (`24206****67`). Le renvoyer tel quel enregistrerait les astérisques. Pour en
+ * changer, on le saisit en entier — c'est voulu, et le message le dit.
+ */
+function PayoutAccountForm({
+  vendor,
+  token,
+  check,
+  onDone,
+}: {
+  vendor: Restaurant;
+  token: string | null;
+  check?: ReadinessCheck;
+  onDone: () => void;
+}) {
+  const [phone, setPhone] = useState('');
+  const [provider, setProvider] = useState<PayoutProvider>('MTN_MOMO');
+  const [holder, setHolder] = useState('');
+  const mutation = useUpdateVendorPayoutAccount(token, vendor.id);
+
+  const done = check?.status === 'OK';
+
+  return (
+    <div className="space-y-4 border-t border-zinc-200 dark:border-zinc-800 pt-6">
+      {/* L'état vient du serveur : l'interface ne recalcule pas « est-il
+          payable », elle affiche ce que la checklist d'activation a décidé. */}
+      <div
+        className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
+          done
+            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+        }`}
+      >
+        {done ? (
+          <Check size={14} className="mt-0.5 shrink-0" />
+        ) : (
+          <Wallet size={14} className="mt-0.5 shrink-0" />
+        )}
+        <span>
+          {check?.detail ??
+            (done
+              ? 'Compte de reversement enregistré.'
+              : 'Aucun compte de reversement — ce vendeur ne pourra pas être payé.')}
+        </span>
+      </div>
+
+      <StepShell
+        title="Compte de reversement"
+        hint="Numéro Mobile Money sur lequel ce vendeur sera payé. Distinct du téléphone du commerce. Le serveur ne renvoie jamais le numéro en clair : pour le changer, saisissez-le en entier."
+        onSave={() => {
+          // Miroir du contrôle serveur (242 optionnel + 0 + [456] + 7 chiffres).
+          // Il évite un aller-retour, il ne remplace rien : le backend valide
+          // de toute façon, et c'est lui qui décide.
+          const digits = phone.replace(/\D/g, '');
+          if (!/^(242)?0?[456]\d{7}$/.test(digits)) {
+            toast.error('Numéro Mobile Money congolais invalide (ex. 06 123 45 67).');
+            return;
+          }
+          mutation.mutate(
+            {
+              payoutPhoneNumber: phone.trim(),
+              payoutProvider: provider,
+              ...(holder.trim() ? { payoutAccountName: holder.trim() } : {}),
+            },
+            {
+              onSuccess: () => {
+                toast.success('Compte de reversement enregistré');
+                setPhone('');
+                onDone();
+              },
+              onError: (e) => toast.error(errText(e)),
+            },
+          );
+        }}
+        saving={mutation.isPending}
+      >
+        <Field
+          label="Numéro de reversement"
+          hint={
+            done
+              ? 'Un compte est déjà enregistré — saisir un numéro le remplace.'
+              : 'Ex. 06 123 45 67'
+          }
+        >
+          <Input value={phone} onChange={setPhone} type="tel" placeholder="06 123 45 67" />
+        </Field>
+        <Field label="Opérateur">
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as PayoutProvider)}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100"
+          >
+            <option value="MTN_MOMO">MTN Mobile Money</option>
+            <option value="AIRTEL_MONEY">Airtel Money</option>
+          </select>
+        </Field>
+        <Field
+          label="Titulaire du compte (facultatif)"
+          hint="Pour vérification humaine avant envoi. Jamais transmis au prestataire."
+        >
+          <Input value={holder} onChange={setHolder} placeholder="—" />
+        </Field>
+      </StepShell>
+    </div>
   );
 }
 
