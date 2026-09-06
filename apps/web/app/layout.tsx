@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import { Bricolage_Grotesque, Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
-import { Analytics } from '@/components/analytics';
+import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { Providers } from '@/components/providers';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { SITE_URL } from '@/lib/site';
@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             {children}
             <ScrollToTop />
-            <Analytics />
+            <AnalyticsProvider />
             <Toaster
               position="top-center"
               richColors

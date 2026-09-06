@@ -9,6 +9,7 @@ import { VendorInfoSection } from '@/components/restaurants/vendor-info-section'
 import { RestaurantReviews } from '@/components/restaurants/restaurant-reviews';
 import { ProductCardSkeleton } from '@/components/ui/skeleton';
 import { BreadcrumbJsonLd, VendorJsonLd } from '@/components/seo/json-ld';
+import { TrackRestaurantView } from '@/components/analytics/track-restaurant-view';
 import { SITE_URL } from '@/lib/site';
 
 interface PageProps {
@@ -61,6 +62,12 @@ export default async function RestaurantPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-cream-100">
+      {/* Seul émetteur de `restaurant_view` du site : la fiche est ouverte,
+          donc consultée. Les cartes de liste n'émettent rien. */}
+      <TrackRestaurantView
+        restaurantId={restaurant.id}
+        restaurantName={restaurant.nom}
+      />
       <VendorJsonLd
         id={restaurant.id}
         nom={restaurant.nom}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -39,6 +39,7 @@ import {
   minimumOrderError,
   PRICING_SETTINGS_FALLBACK,
 } from '@/lib/checkout-estimate';
+import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { toast } from 'sonner';
 
 export default function PanierPage() {
@@ -136,6 +137,28 @@ export default function PanierPage() {
     const def = adresses.find((a) => a.isDefault) ?? adresses[0];
     if (def) setSelectedAdresseId(def.id);
   }
+
+  // ── Mesure : panier consulté ──────────────────────────────────────────────
+  //
+  // Émis quand le panier est affiché **avec au moins un article**. Un panier
+  // vide n'est pas une étape du tunnel : le compter ferait apparaître des
+  // consultations de panier sans aucun `add_to_cart` avant elles.
+  //
+  // Les dépendances sont deux nombres, pas l'objet panier : `useCart` renvoie
+  // un nouvel objet à chaque rafraîchissement (interrogation, retour d'onglet),
+  // et l'effet se rejouerait à chaque fois pour un panier identique.
+  const cartItemCount = cart?.items?.length ?? 0;
+  const cartTotal = (cart?.items ?? []).reduce(
+    (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
+    0,
+  );
+  useEffect(() => {
+    if (cartItemCount === 0) return;
+    analytics.track('view_cart', {
+      item_count: cartItemCount,
+      cart_total: cartTotal,
+    });
+  }, [cartItemCount, cartTotal]);
 
   // New address form
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -276,6 +299,21 @@ export default function PanierPage() {
       toast.error('Veuillez saisir un numéro de téléphone valide');
       return;
     }
+    // ── `begin_checkout` ────────────────────────────────────────────────────
+    //
+    // Émis ici, et pas à l'affichage de la page : sur le web, le panier et le
+    // tunnel de commande vivent sur le même écran. Le déclencher à l'affichage
+    // le rendrait rigoureusement égal à `view_cart` — une étape de tunnel qui
+    // ne perd jamais personne n'apprend rien.
+    //
+    // Après les validations, donc : c'est le moment où le client a réellement
+    // engagé sa commande. Les mêmes contrôles existent sur l'application, au
+    // même endroit du parcours.
+    analytics.track('begin_checkout', {
+      item_count: items.length,
+      cart_total: subTotal,
+    });
+
     setCheckoutLoading(true);
     const trimmedPhone = contactPhone.trim();
     try {
@@ -297,13 +335,41 @@ export default function PanierPage() {
       // On renvoie dans tous les cas vers son détail, où le panneau de paiement
       // reprend la main — c'est ce qui rend la reprise possible sans qu'aucun
       // état ne se perde entre les deux pages.
+      // `order_created` — la commande **existe** côté serveur : `mutateAsync` a
+      // rendu son identifiant. Ce n'est pas le clic sur « Commander » qui est
+      // compté (il échoue régulièrement : panier sous le minimum, produit
+      // épuisé, vendeur fermé). Unique par `orderId` : la clé d'idempotence
+      // fait que rejouer l'appel rend la **même** commande, et une commande
+      // n'est créée qu'une fois.
+      analytics.trackOnce(onceKey.orderCreated(result.id), 'order_created', {
+        order_id: result.id,
+        amount: result.total,
+        currency: CURRENCY,
+        item_count: items.length,
+      });
+
       try {
-        await createPayment.mutateAsync({
+        const intent = await createPayment.mutateAsync({
           orderId: result.id,
           phoneNumber: trimmedPhone,
           method: paymentMethod,
           payerMessage: `Commande ${result.id.slice(-6).toUpperCase()}`,
         });
+        // `payment_started` — une tentative d'encaissement existe côté serveur.
+        // Unique par `paymentId` : l'appel est sûr à rejouer et le serveur
+        // réutilise alors la tentative PENDING existante, avec le même
+        // identifiant. Sans cette clé, une reprise depuis le détail de la
+        // commande compterait un second paiement lancé pour un seul débit.
+        analytics.trackOnce(
+          onceKey.paymentStarted(intent.paymentId),
+          'payment_started',
+          {
+            order_id: result.id,
+            payment_method: paymentMethod,
+            amount: intent.amount,
+            currency: CURRENCY,
+          },
+        );
         toast.success(
           isManualPaymentMode
             ? 'Commande enregistrée — finalisez le virement'

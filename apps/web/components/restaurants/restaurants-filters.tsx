@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import type { Restaurant, VendorType } from '@lilia/types';
-import { track } from '@/lib/analytics';
+import { analytics } from '@/lib/analytics';
 import { VendorGrid } from './vendor-grid';
 import { VendorTypeChips } from './vendor-type-chips';
 
@@ -72,7 +72,7 @@ export function RestaurantsFilters({ restaurants, failed = false }: RestaurantsF
     // Quelles catégories les visiteurs réclament est l'information la plus
     // actionnable du site aujourd'hui : elle indique quels vendeurs recruter
     // en priorité pour un catalogue qui n'en compte encore qu'un.
-    track('category_filter', { vendor_type: type ?? 'ALL' });
+    analytics.track('category_filter', { vendor_type: type ?? 'ALL' });
   }
 
   const filtered = useMemo(() => {
@@ -98,7 +98,7 @@ export function RestaurantsFilters({ restaurants, failed = false }: RestaurantsF
   // chiffre directement le manque à gagner du catalogue.
   useEffect(() => {
     if (!failed && hasActiveFilter && filtered.length === 0) {
-      track('empty_filter_view', {
+      analytics.track('empty_filter_view', {
         vendor_type: vendorType ?? 'ALL',
         has_search: Boolean(search.trim()),
       });
