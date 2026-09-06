@@ -65,4 +65,37 @@ describe('ownerCatalogQueryOptions', () => {
     expect(ownerCatalogQueryOptions('resto-a', null).enabled).toBe(false);
     expect(ownerCatalogQueryOptions('resto-a', 'tok').enabled).toBe(true);
   });
+
+  it('transmet le filtre de stock au serveur', async () => {
+    // Le filtre doit partir dans l'URL, pas s'appliquer au résultat : une
+    // liste paginée filtrée côté client ne rendrait que les ruptures de la
+    // page reçue, en laissant croire qu'il n'y en a pas d'autres.
+    const { urls, fetchPage } = spy([{ data: [], meta: { totalPages: 1 } }]);
+
+    await ownerCatalogQueryOptions('resto-a', 'tok', fetchPage, 'out').queryFn();
+
+    expect(urls[0]).toContain('&stockStatus=out');
+  });
+
+  it('n’ajoute rien à l’URL sans filtre', async () => {
+    const { urls, fetchPage } = spy([{ data: [], meta: { totalPages: 1 } }]);
+
+    await ownerCatalogQueryOptions('resto-a', 'tok', fetchPage).queryFn();
+
+    expect(urls[0]).not.toContain('stockStatus');
+  });
+
+  it('sépare les caches par filtre', async () => {
+    // Sans le filtre dans la clé, basculer d'onglet servirait le cache de
+    // l'onglet précédent — le catalogue entier présenté comme les ruptures.
+    const tout = ownerCatalogQueryOptions('resto-a', 'tok').queryKey;
+    const ruptures = ownerCatalogQueryOptions(
+      'resto-a',
+      'tok',
+      undefined,
+      'out',
+    ).queryKey;
+
+    expect(tout).not.toEqual(ruptures);
+  });
 });

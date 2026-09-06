@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import {
   useMyRestaurant, useRestaurants, useRestaurant,
-  useUpdateRestaurant, useUpdateDeliverySettings, useSetOperatingHours,
+  useUpdateRestaurant, useSetOperatingHours,
   type OperatingHourInput,
 } from '@lilia/api-client';
-import type { Restaurant, OperatingHours, DeliveryPriceMode } from '@lilia/types';
+import type { Restaurant, OperatingHours } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DeliverySettingsPanel } from '@/components/vendors/delivery-settings-panel';
 import { toast } from 'sonner';
 import { Store, Bike, Clock, AlertCircle } from 'lucide-react';
 
@@ -96,85 +97,6 @@ function GeneralSection({ restaurant, token }: { restaurant: Restaurant; token: 
           <img src={imageUrl} alt="" className="mt-2 h-24 rounded-lg object-cover border border-zinc-200 dark:border-zinc-700" />
         )}
       </Field>
-      <SaveBar saving={update.isPending} onSave={handleSave} />
-    </div>
-  );
-}
-
-// ─── Section Livraison ───────────────────────────────────────────────────────
-
-function DeliverySection({ restaurant, token }: { restaurant: Restaurant; token: string | null }) {
-  const [mode, setMode] = useState<DeliveryPriceMode>(restaurant.deliveryPriceMode);
-  const [fixedFee, setFixedFee] = useState(String(restaurant.fixedDeliveryFee));
-  const [minOrder, setMinOrder] = useState(String(restaurant.minimumOrderAmount));
-  const [etaMin, setEtaMin] = useState(String(restaurant.estimatedDeliveryTimeMin));
-  const [etaMax, setEtaMax] = useState(String(restaurant.estimatedDeliveryTimeMax));
-  const update = useUpdateDeliverySettings(token);
-
-  function handleSave() {
-    const nums = { fixedFee, minOrder, etaMin, etaMax };
-    if (Object.values(nums).some((v) => v.trim() === '' || !Number.isFinite(Number(v)))) {
-      toast.error('Les champs numériques doivent être renseignés');
-      return;
-    }
-    if (Number(etaMax) < Number(etaMin)) {
-      toast.error('Le délai max doit être ≥ au délai min');
-      return;
-    }
-    update.mutate(
-      { id: restaurant.id, data: {
-        deliveryPriceMode: mode,
-        fixedDeliveryFee: Number(fixedFee),
-        minimumOrderAmount: Number(minOrder),
-        estimatedDeliveryTimeMin: Number(etaMin),
-        estimatedDeliveryTimeMax: Number(etaMax),
-      } },
-      {
-        onSuccess: () => toast.success('Paramètres de livraison mis à jour'),
-        onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur lors de l\'enregistrement'),
-      },
-    );
-  }
-
-  return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5 space-y-4">
-      <Field label="Mode de tarification">
-        <div className="grid grid-cols-2 gap-2">
-          {(['FIXED', 'ZONE_BASED'] as DeliveryPriceMode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${
-                mode === m
-                  ? 'bg-primary-500 text-white border-primary-500'
-                  : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700'
-              }`}
-            >
-              {m === 'FIXED' ? 'Frais fixes' : 'Selon la zone'}
-            </button>
-          ))}
-        </div>
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Frais de livraison fixes (FCFA)">
-          <input type="number" min="0" value={fixedFee} onChange={(e) => setFixedFee(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Commande minimum (FCFA)">
-          <input type="number" min="0" value={minOrder} onChange={(e) => setMinOrder(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Délai estimé min (min)">
-          <input type="number" min="0" value={etaMin} onChange={(e) => setEtaMin(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Délai estimé max (min)">
-          <input type="number" min="0" value={etaMax} onChange={(e) => setEtaMax(e.target.value)} className={inputCls} />
-        </Field>
-      </div>
-      {mode === 'ZONE_BASED' && (
-        <p className="text-[11px] text-zinc-400">
-          En mode « selon la zone », les frais sont calculés par quartier (configurés dans Zones par l&apos;admin).
-        </p>
-      )}
       <SaveBar saving={update.isPending} onSave={handleSave} />
     </div>
   );
@@ -347,7 +269,15 @@ export default function MonRestaurantPage() {
         // change de restaurant (ADMIN) ou au premier chargement.
         <div key={restaurant.id}>
           {tab === 'general' && <GeneralSection restaurant={restaurant} token={token} />}
-          {tab === 'delivery' && <DeliverySection restaurant={restaurant} token={token} />}
+          {/* Même panneau que l'onglet « Livraison » de /restaurants/[id] : le
+              vendeur configure ses propres zones. `GET /vendors/:id/delivery-zones`
+              accepte le propriétaire comme l'ADMIN. La section maison qui vivait
+              ici ne savait ni lire ni écrire les zones, et affirmait qu'elles se
+              réglaient « dans Zones par l'admin » — un écran qui, lui, renvoyait
+              ici. */}
+          {tab === 'delivery' && (
+            <DeliverySettingsPanel vendorId={restaurant.id} token={token} />
+          )}
           {tab === 'hours' && <HoursSection restaurant={restaurant} token={token} />}
         </div>
       )}

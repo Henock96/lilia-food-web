@@ -1258,7 +1258,81 @@ export interface UpdateVendorDeliveryDto {
   fixedDeliveryFee?: number;
   estimatedDeliveryTimeMin?: number;
   estimatedDeliveryTimeMax?: number;
+  /**
+   * Réglé dans le même écran que le reste de la livraison. Il manquait à cette
+   * route, ce qui obligeait à passer par `PATCH /restaurants/:id/delivery-settings`
+   * pour ce seul champ — deux routes pour un formulaire.
+   */
+  minimumOrderAmount?: number;
   deliveryInstructions?: string;
+}
+
+// ─── Zones de livraison ──────────────────────────────────────────────────────
+
+/** Rattachement d'un quartier à une zone tarifaire d'un vendeur. */
+export interface QuartierZone {
+  id: string;
+  quartierId: string;
+  deliveryZoneId: string;
+  quartier?: Quartier;
+}
+
+/**
+ * Palier tarifaire d'un vendeur. **Propre à chaque vendeur** : le même quartier
+ * peut valoir 500 F chez l'un et 1 500 F chez l'autre. Il n'existe aucun tarif
+ * de zone global au marketplace.
+ */
+export interface DeliveryZone {
+  id: string;
+  restaurantId: string;
+  zoneName: string;
+  /** Montant en XAF entiers. */
+  fee: number;
+  quartiers: QuartierZone[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Couverture de la ville — **calculée par le serveur**.
+ *
+ * « Quels quartiers ne sont couverts par aucune zone ? » décide de qui paiera
+ * le tarif de repli : c'est une règle métier, pas un détail d'affichage. La
+ * recalculer côté interface en donnerait une version par client.
+ */
+export interface DeliveryZoneCoverage {
+  totalQuartiers: number;
+  coveredQuartiers: number;
+  uncovered: Pick<Quartier, 'id' | 'nom'>[];
+  /** Ce que paieront les quartiers non couverts, si le mode est ZONE_BASED. */
+  fallbackFee: number;
+}
+
+/** Réponse de `GET /vendors/:id/delivery-zones` (ADMIN ou propriétaire). */
+export interface VendorDeliveryZones {
+  restaurantId: string;
+  nom: string;
+  deliveryPriceMode: DeliveryPriceMode;
+  fixedDeliveryFee: number;
+  minimumOrderAmount: number;
+  estimatedDeliveryTimeMin: number;
+  estimatedDeliveryTimeMax: number;
+  supportsDelivery: boolean;
+  supportsPickup: boolean;
+  zones: DeliveryZone[];
+  coverage: DeliveryZoneCoverage;
+}
+
+export interface CreateDeliveryZoneDto {
+  zoneName: string;
+  fee: number;
+  quartierIds?: string[];
+}
+
+export interface UpdateDeliveryZoneDto {
+  zoneName?: string;
+  fee?: number;
+  quartierIds?: string[];
 }
 
 /** ADMIN uniquement — porte la commission, donc la marge de la plateforme. */
