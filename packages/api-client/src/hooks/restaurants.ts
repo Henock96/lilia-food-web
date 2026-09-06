@@ -132,14 +132,6 @@ export interface UpdateRestaurantInput {
   maxOrdersPerDay?: number;
 }
 
-export interface UpdateDeliverySettingsInput {
-  deliveryPriceMode?: 'FIXED' | 'ZONE_BASED';
-  fixedDeliveryFee?: number;
-  minimumOrderAmount?: number;
-  estimatedDeliveryTimeMin?: number;
-  estimatedDeliveryTimeMax?: number;
-}
-
 export interface OperatingHourInput {
   dayOfWeek: string;
   openTime: string;
@@ -161,19 +153,17 @@ export function useUpdateRestaurant(token: string | null) {
   });
 }
 
-/** PATCH /restaurants/:id/delivery-settings — mode, frais, min commande, ETA. */
-export function useUpdateDeliverySettings(token: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateDeliverySettingsInput }) =>
-      apiClient<Restaurant>(`/restaurants/${id}/delivery-settings`, {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: restaurantKeys.all }),
-  });
-}
+// ─── `useUpdateDeliverySettings` a été RETIRÉ ────────────────────────────────
+//
+// Il visait `PATCH /restaurants/:id/delivery-settings`, dépréciée au profit de
+// `PATCH /vendors/:id/delivery` (hook `useUpdateVendorDelivery`). Les deux
+// écrivent les mêmes colonnes ; l'ancienne validait moins — `deliveryPriceMode`
+// n'y était qu'un `@IsString()`, les montants n'avaient pas de borne haute.
+//
+// Le garder exporté aurait laissé un chemin tout prêt vers la route dépréciée :
+// le prochain écran de livraison l'aurait trouvé par autocomplétion, et la
+// duplication serait repartie. Un hook sans appelant n'est pas neutre quand il
+// mène au mauvais endroit.
 
 /** PUT /restaurants/:id/operating-hours — horaires de la semaine (bulk upsert). */
 export function useSetOperatingHours(token: string | null) {

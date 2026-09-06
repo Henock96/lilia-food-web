@@ -475,12 +475,42 @@ export default function PanierPage() {
                         )}
                       </button>
                       <span className="w-6 text-center font-semibold text-sm text-ink-900">{item.quantite}</span>
-                      <button
-                        onClick={() => updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })}
-                        className="w-7 h-7 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-tomato-700" />
-                      </button>
+                      {/* Le « + » était sans plafond : on pouvait porter à 50 la
+                          quantité d'un produit dont il restait une unité, et
+                          l'apprendre au checkout — après l'adresse et le moyen
+                          de paiement. Le serveur refuse désormais (fix S-2) ;
+                          l'interface cesse de proposer le geste, ce qui est
+                          moins brutal qu'un refus.
+
+                          Le stock est porté par le PRODUIT : deux variantes du
+                          même plat puisent dans le même compteur, on somme donc
+                          toutes les lignes qui le référencent. */}
+                      {(() => {
+                        const stock = item.product?.stockRestant;
+                        const engaged = items
+                          .filter((i) => i.productId === item.productId)
+                          .reduce((sum, i) => sum + i.quantite, 0);
+                        // `null` / `undefined` = illimité, à ne jamais confondre
+                        // avec 0 = épuisé.
+                        const atMax =
+                          stock !== null && stock !== undefined && engaged >= stock;
+                        return (
+                          <button
+                            onClick={() =>
+                              updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })
+                            }
+                            disabled={atMax}
+                            title={
+                              atMax
+                                ? `Il ne reste que ${stock} unité${(stock ?? 0) > 1 ? 's' : ''} de ce produit`
+                                : undefined
+                            }
+                            className="w-7 h-7 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-tomato-100"
+                          >
+                            <Plus className="w-3.5 h-3.5 text-tomato-700" />
+                          </button>
+                        );
+                      })()}
                     </div>
                   </motion.div>
                 ))}

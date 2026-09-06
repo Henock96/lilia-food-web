@@ -4,9 +4,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Product } from '@lilia/types';
 import { apiClient, apiClientRaw, MAX_PAGE_SIZE } from '../client';
 
+/**
+ * Filtre de stock de la vue gestionnaire (`GET /products/manage?stockStatus=`).
+ * Le serveur borne la valeur : une chaîne inconnue donne un 400 explicite.
+ */
+export type StockStatus = 'out' | 'low' | 'unlimited' | 'tracked';
+
 export const productKeys = {
   all:    ['products'] as const,
-  list:   (restaurantId?: string) => [...productKeys.all, 'list', restaurantId] as const,
+  // Le filtre entre dans la clé : sans lui, basculer d'onglet servirait le
+  // cache de l'onglet précédent — c'est-à-dire le catalogue entier présenté
+  // comme la liste des ruptures.
+  list:   (restaurantId?: string, stockStatus?: StockStatus) =>
+    [...productKeys.all, 'list', restaurantId, stockStatus ?? 'all'] as const,
   detail: (id: string)            => [...productKeys.all, 'detail', id] as const,
 };
 
@@ -65,14 +75,19 @@ export function ownerCatalogQueryOptions(
   token: string | null,
   fetchPage: (path: string) => Promise<ProductPage> = (path) =>
     apiClientRaw<ProductPage>(path, { token }),
+  stockStatus?: StockStatus,
 ) {
   return {
-    queryKey: productKeys.list(restaurantId),
+    queryKey: productKeys.list(restaurantId, stockStatus),
     queryFn: async (): Promise<Product[]> => {
       const all: Product[] = [];
+      // Le filtre est appliqué **par le serveur**, pas sur le résultat : une
+      // liste paginée filtrée côté client ne rendrait que les ruptures de la
+      // page reçue, en annonçant qu'il n'y en a pas d'autres.
+      const filter = stockStatus ? `&stockStatus=${stockStatus}` : '';
       for (let page = 1; page <= MAX_CATALOG_PAGES; page++) {
         const res = await fetchPage(
-          `/products/manage?restaurantId=${restaurantId}&page=${page}&limit=${MAX_PAGE_SIZE}`,
+          `/products/manage?restaurantId=${restaurantId}&page=${page}&limit=${MAX_PAGE_SIZE}${filter}`,
         );
         all.push(...(res.data ?? []));
         // Pas de `meta` → une seule page. Un backend antérieur à la route ne
@@ -86,8 +101,14 @@ export function ownerCatalogQueryOptions(
   };
 }
 
-export function useProducts(restaurantId: string | undefined, token: string | null) {
-  return useQuery(ownerCatalogQueryOptions(restaurantId, token));
+export function useProducts(
+  restaurantId: string | undefined,
+  token: string | null,
+  stockStatus?: StockStatus,
+) {
+  return useQuery(
+    ownerCatalogQueryOptions(restaurantId, token, undefined, stockStatus),
+  );
 }
 
 // `useCategories` vivait ici, sans jeton et sur l'ancien contrat global. Il est
