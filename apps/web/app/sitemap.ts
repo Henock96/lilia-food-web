@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { apiClient } from '@lilia/api-client';
-import type { Restaurant } from '@lilia/types';
+import type { Product, Restaurant } from '@lilia/types';
 import { SITE_URL as BASE_URL } from '@/lib/site';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -31,9 +31,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily' as const,
       priority: 0.8,
     }));
-    return [...staticRoutes, ...restaurantRoutes];
+
+    // Les fiches produits sont les pages les plus recherchées d'un site de
+    // livraison : on cherche « poulet braisé Brazzaville », pas le nom d'un
+    // vendeur qu'on ne connaît pas encore. Elles sont déclarées avec une
+    // priorité inférieure à celle des vendeurs, qui restent les pages
+    // d'entrée du catalogue.
+    //
+    // ⚠️ Leur absence est **tolérée** : elles vivent dans leur propre `try`.
+    // Un échec de `/products` ne doit pas coûter au sitemap ses fiches
+    // vendeurs, qui viennent d'être lues avec succès.
+    const productRoutes = await fetchProductRoutes();
+
+    return [...staticRoutes, ...restaurantRoutes, ...productRoutes];
   } catch {
     return staticRoutes;
+  }
+}
+
+async function fetchProductRoutes(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const products = await fetchAllProducts();
+    return products.map((p) => ({
+      url: `${BASE_URL}/produits/${p.id}`,
+      lastModified: new Date(p.updatedAt),
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    }));
+  } catch {
+    return [];
   }
 }
 
@@ -47,6 +73,29 @@ const MAX_SITEMAP_PAGES = 50;
  * vendeur — sans le moindre signal d'erreur.
  */
 const PAGE_SIZE = 50;
+
+/**
+ * Catalogue produit public, page par page.
+ *
+ * `GET /products` n'expose que les vendeurs approuvés et actifs : le sitemap
+ * décrit donc exactement ce que le catalogue public montre, ce qui est la seule
+ * règle qui compte ici — soumettre à Google une fiche absente du catalogue
+ * produit une page d'erreur dans l'index.
+ */
+async function fetchAllProducts(): Promise<Product[]> {
+  const all: Product[] = [];
+
+  for (let page = 1; page <= MAX_SITEMAP_PAGES; page++) {
+    const batch = await apiClient<Product[]>(
+      `/products?page=${page}&limit=${PAGE_SIZE}`,
+    );
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+
+  return all;
+}
 
 async function fetchAllRestaurants(): Promise<Restaurant[]> {
   const all: Restaurant[] = [];

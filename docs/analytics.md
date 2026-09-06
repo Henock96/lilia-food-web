@@ -64,7 +64,7 @@ Un test automatisé le vérifie de chaque côté
 |---|---|---|---|---|---|
 | `page_view` | Une page (web) ou un écran (mobile) est consulté | `page_path`, `page_title` (web) · `screen_name` (mobile) | ✅ | ✅ | ✅ |
 | `restaurant_view` | La **fiche** d'un vendeur a été ouverte | `restaurant_id`, `restaurant_name` | ✅ | ✅ | ✅ |
-| `product_view` | La **fiche** d'un produit a été ouverte | `product_id`, `product_name`, `restaurant_id`, `price` | ⚠️ | ✅ | ✅ |
+| `product_view` | La **fiche** d'un produit a été ouverte | `product_id`, `product_name`, `restaurant_id`, `price` | ✅ | ✅ | ✅ |
 | `add_to_cart` | Le serveur a **accepté** un ajout au panier | `product_id`, `product_name`, `restaurant_id`, `price`, `quantity` | ✅ | ✅ | ✅ |
 | `view_cart` | Le panier a été affiché avec au moins un article | `item_count`, `cart_total` | ✅ | ✅ | ✅ |
 | `begin_checkout` | Le client a engagé sa commande depuis le panier | `item_count`, `cart_total` | ✅ | ✅ | ✅ |
@@ -124,8 +124,17 @@ vingt, et le deuxième étage du tunnel dépasserait le premier.
 
 | | Déclencheur | Fichier |
 |---|---|---|
-| Web | **Non émis** — voir §7 | — |
+| Web | Montage de la page `/produits/[id]` | `components/analytics/track-product-view.tsx` |
 | Mobile | `initState` de `ProductDetailPage` | `features/home/presentation/product_detail_page.dart` |
+
+Comme `restaurant_view`, les listes n'émettent **rien** : une ligne de menu, un
+plat populaire ou une recommandation mènent à la fiche, et c'est la fiche qui
+compte. Un menu de trente plats en émettrait trente, et le troisième étage du
+tunnel dépasserait le deuxième.
+
+Le web n'a longtemps pas pu émettre cet événement, faute de fiche produit : le
+trou est documenté ci-dessous au §7, et refermé depuis la création de
+`/produits/[id]`.
 
 ### `add_to_cart`
 
@@ -466,26 +475,26 @@ on se protège.
 
 Trois réserves, à connaître avant de lire un chiffre.
 
-### `product_view` n'existe pas sur le web
+### ~~`product_view` n'existe pas sur le web~~ — corrigé
 
-**Le site n'a pas de fiche produit.** Les produits sont listés dans le menu du
-vendeur (`restaurant-menu.tsx`) ; il n'y a ni route `/produits/[id]`, ni modale
-de détail. Aucun geste de la page ne correspond à « le client a consulté ce
-produit » : sélectionner une variante n'est pas une consultation, et émettre
-l'événement à l'affichage de la ligne en produirait un par produit du menu —
-soit un deuxième étage de tunnel plus large que le premier.
+**Refermé.** Le site n'avait pas de fiche produit : les produits n'existaient
+que comme lignes du menu vendeur, et aucun geste de cette page ne correspondait
+à « le client a consulté ce produit ». L'événement n'était donc pas émis, et le
+tunnel web sautait de `restaurant_view` à `add_to_cart`.
 
-**Décision** : l'événement **n'est pas émis** sur le web. Le tunnel web va donc
-directement de `restaurant_view` à `add_to_cart`.
+La route `/produits/[id]` existe depuis septembre 2026 — galerie, description
+complète, ingrédients, conservation, précommande, variantes, quantité et ajout
+au panier. `product_view` y est émis au montage, et l'étape est de nouveau
+comparable entre les trois plateformes.
 
-**Conséquence de lecture** : ne pas comparer l'étape `product_view` entre le web
-et le mobile, et ne pas lire un « décrochage web » à cet endroit — il n'y a rien
-à décrocher.
+⚠️ **Conséquence de lecture sur l'historique** : les données antérieures à cette
+date ne portent aucun `product_view` web. Toute comparaison de tunnel qui
+enjambe cette date montrera une marche artificielle.
 
-**Correction possible** (hors du périmètre de ce travail, car elle modifie
-l'interface) : ajouter une fiche produit ou une modale de détail au site. Le
-jour où elle existe, `analytics.track('product_view', …)` suffit à combler le
-trou — la méthode et le contrat sont déjà en place.
+⚠️ **Le raccourci « + » de la liste subsiste**, volontairement : un menu est une
+liste dans laquelle on commande vite. Un `add_to_cart` web peut donc arriver
+**sans** `product_view` avant lui. Ce n'est pas une anomalie — le tunnel n'exige
+pas que chaque étape soit franchie.
 
 ### `payment_success` n'est observé que si le client regarde
 
@@ -524,9 +533,10 @@ Rien n'a été modifié dans la logique métier des commandes, des paiements ou 
 stocks pour installer la mesure. Deux constats faits pendant l'instrumentation,
 à traiter séparément :
 
-1. **Le web n'a pas de fiche produit** (voir §7). C'est une lacune de parcours
-   avant d'être une lacune de mesure : le client web ne peut pas lire la
-   description complète d'un plat avant de l'ajouter.
+1. ~~**Le web n'a pas de fiche produit**~~ — **corrigé** (voir §7). C'était une
+   lacune de parcours avant d'être une lacune de mesure : le client web ne
+   pouvait pas lire la description complète d'un plat avant de l'ajouter. La
+   route `/produits/[id]` la comble.
 2. **`begin_checkout` a dû changer de définition côté mobile** parce que le web
    fusionne le panier et le tunnel de commande sur une seule page. Les deux
    parcours convergent maintenant sur le même geste, mais l'asymétrie

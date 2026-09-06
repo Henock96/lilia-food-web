@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check } from 'lucide-react';
 import type { Restaurant, Product, ProductVariant } from '@lilia/types';
@@ -230,24 +231,35 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
           bien sous 4,5:1 (calculé ≈2,6:1 avec le voisinage crème) — voir
           rapport de tâche. */}
       {cover && (
-        <div
+        <Link
+          href={`/produits/${product.id}`}
+          aria-label={`Voir ${product.nom}`}
           className={cn(
             'relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-cream-200',
             isOutOfStock && 'opacity-60',
           )}
         >
           <Image src={cover} alt={product.nom} fill sizes="96px" className="object-cover" />
-        </div>
+        </Link>
       )}
 
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start gap-2">
-          <div>
-            <h3 className="font-display font-bold text-ink-900 text-sm leading-snug">{product.nom}</h3>
-            {product.description && (
-              <p className="text-ink-500 text-xs mt-1 line-clamp-2">{product.description}</p>
-            )}
+          {/* Le titre et l'image mènent à la fiche ; le bouton « + » reste.
+              Une carte est une liste dans laquelle on commande vite : forcer
+              le détour par la fiche ferait payer deux clics de plus à chaque
+              plat. La description est tronquée ici — c'est justement ce que la
+              fiche existe pour montrer en entier. */}
+          <div className="min-w-0">
+            <Link href={`/produits/${product.id}`} className="group">
+              <h3 className="font-display font-bold text-ink-900 text-sm leading-snug group-hover:text-tomato-700 transition-colors">
+                {product.nom}
+              </h3>
+              {product.description && (
+                <p className="text-ink-500 text-xs mt-1 line-clamp-2">{product.description}</p>
+              )}
+            </Link>
           </div>
           {isOutOfStock && (
             <span className="px-2 py-0.5 bg-ink-500 text-white text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0">

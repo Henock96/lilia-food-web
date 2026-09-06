@@ -268,6 +268,29 @@ export interface Product {
   stockQuotidien: number | null;
   stockRestant: number | null;
   restaurantId: string;
+  /**
+   * Vendeur, tel que servi par `GET /products/:id` — **vue réduite**.
+   *
+   * Ne pas le confondre avec un `Restaurant` complet : le type de vendeur, les
+   * horaires et les frais de livraison en sont absents. Pour ceux-là, lire
+   * `GET /restaurants/:id`.
+   */
+  restaurant?: ProductVendorRef;
+  /**
+   * Le produit est-il dans sa fenêtre de vente **maintenant** ?
+   *
+   * Calculé par le serveur avec `isWithinAvailabilityWindow`, la fonction même
+   * qu'applique le checkout pour accepter ou refuser. Le site ne recopie donc
+   * pas la règle : deux implémentations d'une même règle divergent en silence.
+   *
+   * ⚠️ **Périssable.** Une réponse mise en cache plus de quelques minutes
+   * annoncera « disponible » après la fermeture de la fenêtre : la fiche
+   * produit ne met volontairement pas cette lecture en cache entre requêtes.
+   *
+   * Absent des réponses antérieures à septembre 2026 : `undefined` vaut `true`,
+   * un produit servi par le catalogue étant par construction vendable.
+   */
+  availableNow?: boolean;
   categoryId: string | null;
   category?: Category;
   variants: ProductVariant[];
@@ -292,6 +315,21 @@ export interface Product {
   isAvailable?: boolean;
   /** Retiré du catalogue — la ligne ne survit que pour l'historique. */
   deletedAt?: string | null;
+}
+
+/**
+ * Vendeur inclus dans la réponse d'un produit.
+ *
+ * Quatre champs, choisis : `isOpen` parce qu'une fiche produit doit savoir si
+ * la boutique prend des commandes, `preorderLeadHours` parce qu'un produit sur
+ * commande annonce son préavis. Une route publique n'expose que ce dont elle a
+ * besoin — ni le téléphone du vendeur, ni son propriétaire, ni ses coordonnées.
+ */
+export interface ProductVendorRef {
+  id: string;
+  nom: string;
+  isOpen: boolean;
+  preorderLeadHours?: number | null;
 }
 
 export interface ProductVariant {

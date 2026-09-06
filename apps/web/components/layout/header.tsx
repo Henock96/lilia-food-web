@@ -12,9 +12,9 @@ import { useCart } from '@lilia/api-client';
 import { cn } from '@lilia/utils';
 
 const navLinks = [
-  { href: '/restaurants', label: 'Vendeurs' },
+  { href: '/restaurants', label: 'Nos Vendeurs' },
   { href: '/commandes', label: 'Mes commandes' },
-  { href: '/favoris', label: 'Favoris' },
+  { href: '/favoris', label: 'Mes Favoris' },
   { href: '/devenir-vendeur', label: 'Devenir vendeur' },
 ];
 

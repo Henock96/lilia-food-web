@@ -41,7 +41,7 @@ export function VendorInfoSection({ restaurant }: VendorInfoSectionProps) {
         {since && (
           <span className="text-xs text-ink-500">
             {vendorTypeLabel && !showBadge ? `${vendorTypeLabel} · ` : ''}
-            Sur Lilia depuis {since}
+            Sur Lilia Food depuis {since}
           </span>
         )}
       </div>
