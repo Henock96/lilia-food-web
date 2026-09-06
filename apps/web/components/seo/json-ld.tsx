@@ -124,6 +124,60 @@ export function VendorJsonLd({
   );
 }
 
+/**
+ * Fiche produit — éligible aux résultats enrichis « produit » de Google.
+ *
+ * L'offre porte toujours une devise (`XAF`) et une disponibilité. Cette
+ * dernière est dérivée du stock et de la mise en vente, jamais supposée : un
+ * `InStock` annoncé sur un produit épuisé fait remonter des fiches qui déçoivent
+ * au clic, et Google finit par les déclasser.
+ *
+ * Le prix est celui de la variante la moins chère — c'est ce qu'un client lit
+ * comme « à partir de », et c'est la seule valeur défendable quand un plat
+ * existe en simple et en maxi.
+ */
+export function ProductJsonLd({
+  id,
+  nom,
+  description,
+  imageUrl,
+  price,
+  vendorName,
+  inStock,
+}: {
+  id: string;
+  nom: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  price: number;
+  vendorName?: string | null;
+  inStock: boolean;
+}) {
+  return (
+    <JsonLd
+      data={{
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: nom,
+        url: `${SITE_URL}/produits/${id}`,
+        ...(description ? { description } : {}),
+        ...(imageUrl ? { image: imageUrl } : {}),
+        ...(vendorName ? { brand: { '@type': 'Brand', name: vendorName } } : {}),
+        offers: {
+          '@type': 'Offer',
+          price,
+          priceCurrency: 'XAF',
+          url: `${SITE_URL}/produits/${id}`,
+          availability: inStock
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/OutOfStock',
+          ...(vendorName ? { seller: { '@type': 'Organization', name: vendorName } } : {}),
+        },
+      }}
+    />
+  );
+}
+
 /** FAQ de /support — éligible aux résultats enrichis Google. */
 export function FaqJsonLd({ items }: { items: { question: string; answer: string }[] }) {
   return (
