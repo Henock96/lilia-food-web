@@ -8,6 +8,7 @@ import type { Restaurant, Product, ProductVariant } from '@lilia/types';
 import { formatCurrency, cn, hasPreorderConflict, isPreorderCart, coverImage } from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
 import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
+import { analytics } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
 
@@ -137,6 +138,28 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   const canAdd = restaurantOpen && !isOutOfStock && !!selectedVariant;
   const cover = coverImage(product);
 
+  /**
+   * `add_to_cart` — émis **après** que le serveur a accepté l'ajout, jamais au
+   * clic. Le backend refuse un produit épuisé, un vendeur fermé, ou un mélange
+   * de modes dans un même panier : compter le clic ferait apparaître des ajouts
+   * qui n'ont jamais eu lieu, et le tunnel décrocherait sans raison visible
+   * entre `add_to_cart` et `view_cart`.
+   *
+   * Les trois chemins d'ajout de cet écran (ajout direct, reprise après « vider
+   * le panier », résolution du conflit de mode) passent par ici : l'oubli d'un
+   * seul rendrait le comptage dépendant de la manière dont le client s'y est
+   * pris.
+   */
+  function trackAdded() {
+    analytics.track('add_to_cart', {
+      product_id: product.id,
+      product_name: product.nom,
+      restaurant_id: product.restaurantId,
+      price: selectedVariant?.prix ?? product.prixOriginal,
+      quantity: 1,
+    });
+  }
+
   async function handleAdd() {
     if (!token) {
       toast.error('Connectez-vous pour ajouter au panier');
@@ -151,6 +174,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
 
     try {
       await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+      trackAdded();
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
       toast.success(`${product.nom} ajouté au panier`);
@@ -164,6 +188,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
               try {
                 await clearCart.mutateAsync();
                 await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+                trackAdded();
                 setAdded(true);
                 setTimeout(() => setAdded(false), 2000);
                 toast.success(`${product.nom} ajouté au panier`);
@@ -185,6 +210,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
     try {
       await clearCart.mutateAsync();
       await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+      trackAdded();
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
       toast.success(`Panier vidé. ${product.nom} ajouté.`);

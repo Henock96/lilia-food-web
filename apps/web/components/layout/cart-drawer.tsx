@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useCart, useUpdateCartItem, useRemoveCartItem } from '@lilia/api-client';
 import { formatCurrency } from '@lilia/utils';
+import { analytics } from '@/lib/analytics';
 
 export function CartDrawer() {
   const router = useRouter();
@@ -19,6 +21,20 @@ export function CartDrawer() {
 
   const items = cart?.items ?? [];
   const subTotal = items.reduce((sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite, 0);
+
+  // `view_cart` — le tiroir est la seconde surface de consultation du panier
+  // sur le web (l'autre étant `/panier`). Les deux émettent : ouvrir le tiroir
+  // *est* une consultation du panier, et l'ignorer sous-estimerait cette étape
+  // pour tous les clients qui n'ouvrent jamais la page dédiée.
+  //
+  // ⚠️ Conséquence assumée, documentée dans `docs/analytics.md` : un client qui
+  // ouvre le tiroir **puis** la page émet deux `view_cart`. Le tunnel se lit en
+  // utilisateurs, où il n'en compte qu'un ; en nombre d'événements, le web est
+  // structurellement au-dessus du mobile sur cette seule étape.
+  useEffect(() => {
+    if (!isOpen || items.length === 0) return;
+    analytics.track('view_cart', { item_count: items.length, cart_total: subTotal });
+  }, [isOpen, items.length, subTotal]);
 
   function handleCheckout() {
     closeCart();

@@ -23,6 +23,7 @@ import type {
   PaymentStatusView,
 } from '@lilia/types';
 import { formatCurrency, formatDateTime, cn, isValidCongoPhone } from '@lilia/utils';
+import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { toast } from 'sonner';
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -86,6 +87,43 @@ export function PaymentPanel({
   // la tentative. Elles ne sont pas persistées : au rechargement on retombe sur
   // un message générique, ce qui reste juste.
   const [instructions, setInstructions] = useState<ManualPaymentInstructions | null>(null);
+
+  // ── `payment_success` ──────────────────────────────────────────────────────
+  //
+  // **Le seul émetteur du site.** Il ne se déclenche pas parce que le client a
+  // atterri sur un écran de confirmation, mais parce que `GET /payments/…` a
+  // rendu `SUCCESS` — c'est-à-dire parce que le prestataire a confirmé
+  // l'encaissement au serveur, via le webhook, l'interrogation ou le cron de
+  // réconciliation. C'est la même autorité que celle qui fait passer la
+  // commande en `PAYER` : aucune autre source n'a le droit de compter un
+  // paiement réussi.
+  //
+  // `trackOnce` sur le `paymentId` : cette page est rechargée, rouverte depuis
+  // l'historique, remontée au retour d'onglet, et l'interrogation la rafraîchit
+  // toutes les trois secondes. Sans clé persistante, un seul paiement produirait
+  // autant d'événements que de regards portés dessus.
+  //
+  // ⚠️ Limite structurelle : le web n'observe que pendant que le client
+  // regarde. Un paiement confirmé après la fermeture de l'onglet n'est jamais
+  // compté ici. Cf. `docs/analytics.md`, « événements imparfaitement mesurables ».
+  const settledPaymentId = payment?.status === 'SUCCESS' ? payment.paymentId : null;
+  useEffect(() => {
+    if (!settledPaymentId || !payment) return;
+    analytics.trackOnce(
+      onceKey.paymentSuccess(settledPaymentId),
+      'payment_success',
+      {
+        order_id: payment.orderId,
+        payment_method: payment.method ?? 'UNKNOWN',
+        amount: payment.amount,
+        currency: CURRENCY,
+      },
+    );
+    // `payment` est volontairement hors dépendances : seul le passage à un
+    // paiement réglé doit rejouer cet effet, pas chaque rafraîchissement de
+    // l'objet renvoyé par l'interrogation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settledPaymentId]);
 
   if (isCancelled) return null;
 
@@ -315,6 +353,22 @@ function PaymentForm({
         method,
         payerMessage: `Commande ${orderId.slice(-6).toUpperCase()}`,
       });
+      // `payment_started` — une reprise après échec est une **nouvelle**
+      // tentative : elle porte un `paymentId` distinct et doit être comptée.
+      // La clé unique tient sur cet identifiant, jamais sur la commande : deux
+      // tentatives sur une même commande sont deux paiements lancés, et c'est
+      // exactement l'écart entre `payment_started` et `payment_success` qu'on
+      // cherche à voir.
+      analytics.trackOnce(
+        onceKey.paymentStarted(intent.paymentId),
+        'payment_started',
+        {
+          order_id: orderId,
+          payment_method: method,
+          amount: intent.amount,
+          currency: CURRENCY,
+        },
+      );
       onOpened(intent.instructions);
       if (intent.status === 'SUCCESS') {
         toast.success('Commande déjà réglée.');
