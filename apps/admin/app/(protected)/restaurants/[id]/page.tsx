@@ -1,11 +1,12 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Star } from 'lucide-react';
 import { useVendorPreview } from '@lilia/api-client';
 import type { VendorType } from '@lilia/types';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
+import { DeliverySettingsPanel } from '@/components/vendors/delivery-settings-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiMessage } from '@/lib/api-message';
 import { useAuthStore } from '@/store/auth';
@@ -42,6 +43,10 @@ export default function RestaurantDetailPage({
   const { token } = useAuthStore();
   const preview = useVendorPreview(token, id);
   const vendor = preview.data?.vendor;
+  // La livraison d'abord : c'est ce qui décide de ce que paie le client, alors
+  // que la galerie est cosmétique. L'onglet par défaut est celui qu'on vient
+  // corriger le plus souvent.
+  const [tab, setTab] = useState<'livraison' | 'photos'>('livraison');
 
   const vendorType = vendor?.vendorType ?? 'RESTAURANT';
   const statusLabel = !vendor
@@ -98,12 +103,42 @@ export default function RestaurantDetailPage({
         )}
       </header>
 
-      <section className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5">
-        <h2 className="mb-3 text-lg font-medium text-zinc-900 dark:text-zinc-100">
-          Photos
-        </h2>
-        <PhotoGalleryEditor entity="vendor" parentId={id} token={token} />
-      </section>
+      {/* Onglets — la page ne portait que la galerie. La configuration de
+          livraison n'était administrable nulle part : `/zones` renvoyait vers
+          « le niveau de chaque restaurant » et `/mon-restaurant` vers « Zones,
+          par l'admin ». Elle a sa place ici, sur le vendeur qu'on administre. */}
+      <nav className="flex gap-1 border-b border-zinc-200 dark:border-dark-border">
+        {(
+          [
+            ['livraison', 'Livraison'],
+            ['photos', 'Photos'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              tab === key
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'livraison' ? (
+        <DeliverySettingsPanel vendorId={id} token={token} />
+      ) : (
+        <section className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5">
+          <h2 className="mb-3 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+            Photos
+          </h2>
+          <PhotoGalleryEditor entity="vendor" parentId={id} token={token} />
+        </section>
+      )}
     </div>
   );
 }
