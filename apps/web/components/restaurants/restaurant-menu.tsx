@@ -6,56 +6,36 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check } from 'lucide-react';
 import type { Restaurant, Product, ProductVariant } from '@lilia/types';
-import { formatCurrency, cn, hasPreorderConflict, isPreorderCart, coverImage } from '@lilia/utils';
+import {
+  formatCurrency,
+  priceLabel,
+  cn,
+  hasPreorderConflict,
+  isPreorderCart,
+  coverImage,
+} from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
 import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
 import { analytics } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
+import { buildMenuModel, menuItemState, UNCATEGORIZED_LABEL } from '@/lib/menu-model';
 
 interface RestaurantMenuProps {
   restaurant: Restaurant;
 }
 
 export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
-  const products = restaurant.products ?? [];
-
-  /**
-   * Sections dans l'ordre voulu par le VENDEUR.
-   *
-   * `restaurant.categories` est servi par l'API, trié par `displayOrder` et
-   * filtré sur `isActive`. On ne retombe sur les catégories dérivées des
-   * produits que si le backend ne les a pas fournies (app servie par une
-   * version antérieure) — auparavant c'était le seul chemin, et l'ordre était
-   * alors celui de création des produits, donc arbitraire et instable.
-   *
-   * Une section sans produit visible n'est pas rendue : promettre une section
-   * vide au client, c'est lui promettre un contenu qui n'existe pas.
-   */
-  const declared = restaurant.categories ?? [];
-  const categories =
-    declared.length > 0
-      ? declared.filter((c) => products.some((p) => p.categoryId === c.id))
-      : Array.from(
-          new Map(
-            products
-              .filter((p) => p.category)
-              .map((p) => [p.category!.id, p.category!]),
-          ).values(),
-        );
-
-  // Un produit dont la section a été désactivée n'appartient à aucune section
-  // affichée : il rejoint « Autres plats » plutôt que de disparaître.
-  const shownIds = new Set(categories.map((c) => c.id));
-  const uncategorized = products.filter(
-    (p) => !p.categoryId || !shownIds.has(p.categoryId),
-  );
+  // Le rangement de la carte vit dans `lib/menu-model.ts`, donc testable sans
+  // rendre le composant. Il ne calcule aucune règle métier : le serveur a déjà
+  // décidé de tout ce qui relève du commerce.
+  const { sections, uncategorized, isEmpty } = buildMenuModel(restaurant);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(
-    categories[0]?.id ?? null,
+    sections[0]?.id ?? null,
   );
 
-  if (products.length === 0) {
+  if (isEmpty) {
     return (
       <div className="text-center py-16 text-ink-500">
         <p className="font-medium text-ink-700">Aucun produit disponible</p>
@@ -66,10 +46,10 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
   return (
     <div>
       {/* Sticky category bar */}
-      {categories.length > 0 && (
+      {sections.length > 0 && (
         <div className="sticky top-16 z-10 -mx-4 px-4 py-3 bg-cream-100/95 backdrop-blur-sm border-b border-cream-300 mb-6">
           <div className="flex gap-2 overflow-x-auto scrollbar-none">
-            {categories.map((cat) => (
+            {sections.map((cat) => (
               <button
                 key={cat.id}
                 // Le bouton ne faisait que se colorer : l'ancre `#cat-<id>`
@@ -97,23 +77,22 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
 
       {/* Products by category */}
       <div className="flex flex-col gap-8">
-        {categories.map((cat) => {
-          const catProducts = products.filter((p) => p.categoryId === cat.id);
-          if (catProducts.length === 0) return null;
-          return (
-            <section key={cat.id} id={`cat-${cat.id}`}>
-              <h2 className="font-display text-lg font-bold text-ink-900 mb-4">{cat.nom}</h2>
-              <div className="flex flex-col gap-3">
-                {catProducts.map((product) => (
-                  <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+        {sections.map((section) => (
+          <section key={section.id} id={`cat-${section.id}`}>
+            <h2 className="font-display text-lg font-bold text-ink-900 mb-4">{section.nom}</h2>
+            <div className="flex flex-col gap-3">
+              {section.products.map((product) => (
+                <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
+              ))}
+            </div>
+          </section>
+        ))}
         {uncategorized.length > 0 && (
           <section>
-            <h2 className="font-display text-lg font-bold text-ink-900 mb-4">Autres plats</h2>
+            {/* « Autres », et non « Autres plats » : sur une boulangerie ou une
+                boutique de boissons, « plats » est simplement faux. L'application
+                disait déjà « Autres ». */}
+            <h2 className="font-display text-lg font-bold text-ink-900 mb-4">{UNCATEGORIZED_LABEL}</h2>
             <div className="flex flex-col gap-3">
               {uncategorized.map((product) => (
                 <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
@@ -132,11 +111,33 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   const clearCart = useClearCart(token);
   const { data: cart } = useCart(token);
   const [conflictOpen, setConflictOpen] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(product.variants[0]!);
+  /**
+   * Variante retenue pour l'ajout au panier.
+   *
+   * `null` tant que le client n'a pas choisi, **dès qu'il y a plusieurs
+   * formats** : la carte annonce alors « À partir de X » et le bouton reste
+   * inactif. C'est ce qui garantit que le prix affiché est toujours celui qui
+   * sera facturé.
+   *
+   * Auparavant l'état était initialisé à `product.variants[0]` — c'est-à-dire à
+   * la première ligne rendue par PostgreSQL, sans `ORDER BY`, donc à un format
+   * qui pouvait changer après une simple édition du produit. Un client
+   * commandait « Petite » ou « Grande » selon l'humeur du tas.
+   *
+   * Un produit à format unique reste sélectionné d'office : il n'y a rien à
+   * choisir, et imposer un clic serait une friction sans contrepartie.
+   */
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    product.variants.length === 1 ? product.variants[0]! : null,
+  );
   const [added, setAdded] = useState(false);
 
-  const isOutOfStock = product.stockRestant !== null && product.stockRestant === 0;
-  const canAdd = restaurantOpen && !isOutOfStock && !!selectedVariant;
+  // État d'achat calculé au même endroit que le reste de la carte, et sans
+  // recalculer une règle du serveur : `availableNow` est son verdict horaire,
+  // `stockRestant` sa convention (`null` = illimité, `0` = épuisé).
+  const { orderable, badge } = menuItemState(product, restaurantOpen);
+  const isOutOfStock = badge === 'rupture';
+  const canAdd = orderable && !!selectedVariant;
   const cover = coverImage(product);
 
   /**
@@ -236,7 +237,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
           aria-label={`Voir ${product.nom}`}
           className={cn(
             'relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-cream-200',
-            isOutOfStock && 'opacity-60',
+            badge && 'opacity-60',
           )}
         >
           <Image src={cover} alt={product.nom} fill sizes="96px" className="object-cover" />
@@ -261,20 +262,29 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
               )}
             </Link>
           </div>
-          {isOutOfStock && (
+          {/* « Rupture » et « Indisponible » sont deux informations
+              différentes : la première est une conséquence des ventes du jour,
+              la seconde une décision du vendeur ou un créneau fermé. Les
+              confondre trompe le client comme le gestionnaire. */}
+          {badge && (
             <span className="px-2 py-0.5 bg-ink-500 text-white text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0">
-              Rupture
+              {badge === 'rupture' ? 'Rupture' : 'Indisponible'}
             </span>
           )}
         </div>
 
         {/* Variants */}
         {product.variants.length > 1 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
+          <div
+            className="flex flex-wrap gap-1.5 mt-2"
+            role="group"
+            aria-label={`Format de ${product.nom}`}
+          >
             {product.variants.map((v) => (
               <button
                 key={v.id}
                 onClick={() => setSelectedVariant(v)}
+                aria-pressed={selectedVariant?.id === v.id}
                 className={cn(
                   'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
                   selectedVariant?.id === v.id
@@ -288,15 +298,40 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
           </div>
         )}
 
-        {/* Prix + Add */}
+        {/* Prix + Add
+            Une variante sélectionnée → son prix, puisque c'est celle qui part
+            au panier. Sinon le prix d'appel (`priceLabel`), identique à celui
+            de la fiche produit et de l'application. Auparavant cette ligne
+            affichait `variants[0].prix` tandis que la fiche affichait le
+            minimum : pour un plat à trois tailles, la carte pouvait annoncer
+            1 500 XAF et la fiche 1 000 XAF. */}
         <div className="flex items-center justify-between mt-3">
           <span className="text-tomato-700 font-extrabold">
-            {formatCurrency(selectedVariant?.prix ?? product.prixOriginal)}
+            {selectedVariant
+              ? formatCurrency(selectedVariant.prix)
+              : priceLabel(product)}
           </span>
 
           <motion.button
             onClick={handleAdd}
             disabled={!canAdd || addToCart.isPending}
+            // Dire POURQUOI le bouton est inactif : « désactivé » sans raison
+            // ressemble à une panne. Les trois causes sont distinctes et
+            // appellent trois gestes différents du client.
+            aria-label={
+              isOutOfStock
+                ? `${product.nom} — en rupture`
+                : !restaurantOpen
+                  ? `${product.nom} — boutique fermée`
+                  : !selectedVariant
+                    ? `Choisissez un format pour ${product.nom}`
+                    : `Ajouter ${product.nom} au panier`
+            }
+            title={
+              !selectedVariant && restaurantOpen && !isOutOfStock
+                ? 'Choisissez un format'
+                : undefined
+            }
             whileTap={canAdd ? { scale: 0.9 } : {}}
             className={cn(
               'w-8 h-8 rounded-full flex items-center justify-center transition-all',

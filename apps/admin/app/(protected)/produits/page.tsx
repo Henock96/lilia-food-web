@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import {
-  useProducts, useCategories,
+  useProducts, useCategories, useReorderProducts,
   useCreateProduct, useUpdateProduct, useDeleteProduct, useSetProductAvailability, createPhoto,
 } from '@lilia/api-client';
 import { ProductImageBuffer, type DraftImage } from '@/components/product-image-buffer';
@@ -409,12 +409,23 @@ function ProductCard({
   onDelete,
   onToggleAvailability,
   togglingAvailability,
+  reorder,
 }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
   onToggleAvailability: () => void;
   togglingAvailability: boolean;
+  /**
+   * Classement dans la section. `undefined` quand le geste n'a pas de sens —
+   * sur « Tout », où la liste mélange plusieurs sections.
+   * `onUp` / `onDown` absents aux extrémités.
+   */
+  reorder?: {
+    onUp?: () => void;
+    onDown?: () => void;
+    pending: boolean;
+  };
 }) {
   const [showVariants, setShowVariants] = useState(false);
   // Les réponses antérieures au champ ne le portent pas : un produit servi
@@ -429,6 +440,30 @@ function ProductCard({
     }`}>
       {/* Image */}
       <div className="h-36 bg-zinc-100 dark:bg-zinc-800 relative">
+        {reorder && (
+          <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={reorder.onUp}
+              disabled={!reorder.onUp || reorder.pending}
+              aria-label={`Monter ${product.nom}`}
+              title="Monter"
+              className="w-7 h-7 rounded-lg bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 flex items-center justify-center shadow-sm disabled:opacity-30 hover:bg-white dark:hover:bg-zinc-900"
+            >
+              <ChevronUp size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={reorder.onDown}
+              disabled={!reorder.onDown || reorder.pending}
+              aria-label={`Descendre ${product.nom}`}
+              title="Descendre"
+              className="w-7 h-7 rounded-lg bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 flex items-center justify-center shadow-sm disabled:opacity-30 hover:bg-white dark:hover:bg-zinc-900"
+            >
+              <ChevronDown size={15} />
+            </button>
+          </div>
+        )}
         {product.imageUrl
           ? <Image src={product.imageUrl} alt={product.nom} fill className={`object-cover ${isAvailable ? '' : 'opacity-50'}`} />
           : <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>
@@ -552,10 +587,42 @@ export default function ProduitsPage() {
   const { mutate: deleteProduct, isPending: deleting } = useDeleteProduct(token);
   const { mutate: setAvailability, isPending: togglingAvailability } =
     useSetProductAvailability(token);
+  const { mutate: reorderProducts, isPending: reordering } = useReorderProducts(token);
 
   const filtered = filterCat === 'ALL'
     ? products
     : products.filter((p: Product) => p.categoryId === filterCat);
+
+  /**
+   * Le classement n'est proposé **que** dans une section, jamais sur « Tout ».
+   *
+   * Les deux clients rendent la carte groupée par section : déplacer un produit
+   * dans une liste qui en mélange plusieurs le ferait bouger par rapport à des
+   * voisins qu'aucun acheteur ne voit à côté de lui. Le geste serait sans effet
+   * visible, ce qui est pire que pas de geste du tout.
+   */
+  const canReorder = filterCat !== 'ALL' && filtered.length > 1;
+
+  /** Déplace un produit d'un cran et pose le nouvel ordre complet. */
+  function move(index: number, direction: -1 | 1) {
+    const next = [...filtered];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target]!, next[index]!];
+    // Liste ordonnée complète de la section, pas un couple (id, position) :
+    // deux réordonnancements concurrents partant d'un ordre différent
+    // produiraient sinon un état qu'aucun des deux n'a voulu.
+    reorderProducts(
+      {
+        productIds: next.map((p) => p.id),
+        ...(scope.targetRestaurantId ? { restaurantId: scope.targetRestaurantId } : {}),
+      },
+      {
+        onSuccess: () => toast.success('Ordre mis à jour'),
+        onError: (err) => toast.error(apiMessage(err, 'Erreur lors du classement')),
+      },
+    );
+  }
 
   async function handleSave(form: ProductForm, buffer: DraftImage[]) {
     const payload: Record<string, unknown> = {
@@ -704,6 +771,17 @@ export default function ProduitsPage() {
         </button>
       </div>
 
+      {/* L'ordre est celui que voient les clients (`displayOrder` puis date de
+          création). Le dire explicitement : sans cela, le vendeur ne sait pas
+          que cette grille est sa carte. */}
+      {!isLoading && filtered.length > 1 && (
+        <p className="text-xs text-zinc-400">
+          {canReorder
+            ? 'Ordre affiché aux clients — utilisez les flèches pour classer cette section.'
+            : 'Ordre affiché aux clients. Choisissez une section pour pouvoir la classer.'}
+        </p>
+      )}
+
       {/* Grid */}
       {isLoading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -717,7 +795,7 @@ export default function ProduitsPage() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((p: Product) => (
+          {filtered.map((p: Product, i: number) => (
             <ProductCard
               key={p.id}
               product={p}
@@ -725,6 +803,15 @@ export default function ProduitsPage() {
               onDelete={() => setConfirmDelete(p)}
               onToggleAvailability={() => handleToggleAvailability(p)}
               togglingAvailability={togglingAvailability}
+              reorder={
+                canReorder
+                  ? {
+                      onUp: i > 0 ? () => move(i, -1) : undefined,
+                      onDown: i < filtered.length - 1 ? () => move(i, 1) : undefined,
+                      pending: reordering,
+                    }
+                  : undefined
+              }
             />
           ))}
         </div>

@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { apiClient } from '@lilia/api-client';
-import type { Restaurant } from '@lilia/types';
+import { getVendorMenu } from '@/lib/vendor-menu';
 import { RestaurantHero } from '@/components/restaurants/restaurant-hero';
 import { RestaurantMenu } from '@/components/restaurants/restaurant-menu';
+import { DailyMenus } from '@/components/restaurants/daily-menus';
 import { VendorInfoSection } from '@/components/restaurants/vendor-info-section';
 import { RestaurantReviews } from '@/components/restaurants/restaurant-reviews';
 import { ProductCardSkeleton } from '@/components/ui/skeleton';
@@ -16,14 +16,14 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-async function getRestaurant(id: string): Promise<Restaurant | null> {
-  'use cache';
-  try {
-    return await apiClient<Restaurant>(`/restaurants/${id}`);
-  } catch {
-    return null;
-  }
-}
+/**
+ * ⚠️ Cette fonction lisait `GET /restaurants/${id}` derrière un `'use cache'`
+ * **sans étiquette ni durée de vie**. Les deux défauts sont corrigés dans
+ * `lib/vendor-menu.ts`, qui vise désormais la route canonique `/vendors/:id`,
+ * borne la fraîcheur à quelques minutes, expose deux étiquettes
+ * d'invalidation, et complète la carte au-delà de la borne serveur.
+ */
+const getRestaurant = getVendorMenu;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
@@ -90,6 +90,13 @@ export default async function RestaurantPage({ params }: PageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <VendorInfoSection restaurant={restaurant} />
+            {/* Les menus du jour passent AVANT la carte : ce sont des offres
+                datées, elles n'ont d'intérêt que si on les voit tout de suite.
+                Le site n'en affichait aucun — sa route ne les servait pas. */}
+            <DailyMenus
+              menus={restaurant.menuDuJour ?? []}
+              restaurantOpen={restaurant.isOpen}
+            />
             <Suspense
               fallback={
                 <div className="flex flex-col gap-4">

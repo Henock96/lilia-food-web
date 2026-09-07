@@ -147,6 +147,33 @@ export function useSetProductAvailability(token: string | null) {
   });
 }
 
+/**
+ * Réordonne les produits — `PATCH /products/reorder`.
+ *
+ * Le produit était la **seule** entité ordonnable de la carte sans
+ * `displayOrder` : le site triait par date de création décroissante (le dernier
+ * plat saisi passait donc en tête de sa section, l'inverse de ce qu'un
+ * restaurateur attend) et l'application ne triait pas du tout. Un vendeur ne
+ * pouvait pas mettre son plat signature en premier.
+ *
+ * On envoie la **liste ordonnée complète**, comme pour les sections
+ * (`useReorderCategories`) : un couple `(id, position)` suffirait pour un seul
+ * appelant ; à deux, chacun partant d'un ordre différent, le résultat ne serait
+ * celui d'aucun des deux.
+ */
+export function useReorderProducts(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { productIds: string[]; restaurantId?: string }) =>
+      apiClient<{ id: string; displayOrder: number }[]>('/products/reorder', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(vars),
+      }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: productKeys.all }),
+  });
+}
+
 export function useUpdateProductStock(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({

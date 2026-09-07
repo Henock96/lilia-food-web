@@ -184,6 +184,26 @@ export interface Restaurant {
   banners?: Banner[];
   averageRating?: number;
   totalReviews?: number;
+  /**
+   * Menus du jour actifs (COMBO / PLAT_SPECIAL), servis par la carte.
+   *
+   * ⚠️ Clé nommée d'après la relation Prisma, pas d'après l'usage. Le site ne
+   * les affichait pas du tout — sa route ne les servait pas — alors que
+   * l'administration sait les créer et que l'application les affiche depuis
+   * toujours. Un vendeur composait donc un menu visible sur une plateforme sur
+   * deux, et non commandable sur l'autre.
+   */
+  menuDuJour?: MenuDuJour[];
+  /**
+   * Nombre total de produits de la carte, au-delà de ceux embarqués.
+   *
+   * Servi depuis août 2026 et **lu par personne** jusqu'à la phase 2 : la carte
+   * était donc tronquée en silence au-delà de la borne, et comme les clients
+   * masquent les sections vides, des sections entières disparaissaient.
+   */
+  totalProducts?: number;
+  /** `true` ⇒ compléter via `GET /products?restaurantId=…&page=n`. */
+  hasMoreProducts?: boolean;
   // Multi-vendeurs (LIL-111)
   vendorType?: VendorType;
   adminApproved?: boolean;
