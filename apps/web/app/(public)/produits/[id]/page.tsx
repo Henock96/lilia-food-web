@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { apiClient } from '@lilia/api-client';
 import type { Product } from '@lilia/types';
-import { coverImage, formatCurrency } from '@lilia/utils';
+import { coverImage, priceLabel, startingPrice } from '@lilia/utils';
 import { ProductPurchase } from '@/components/products/product-purchase';
 import { ProductFacts } from '@/components/products/product-facts';
 import { TrackProductView } from '@/components/analytics/track-product-view';
@@ -46,11 +46,10 @@ const getProduct = cache(async (id: string): Promise<Product | null> => {
   }
 });
 
-/** Prix d'appel : la variante la moins chère, ou le prix d'origine. */
-function startingPrice(product: Product): number {
-  const prices = product.variants.map((v) => v.prix).filter((p) => p > 0);
-  return prices.length > 0 ? Math.min(...prices) : product.prixOriginal;
-}
+// ⚠️ `startingPrice` vivait ici, en double de la règle de la carte
+// (`variants[0].prix`), avec un résultat différent : pour un plat à trois
+// tailles, la carte pouvait annoncer 1 500 XAF et cette fiche 1 000 XAF. La
+// règle est désormais unique — `@lilia/utils` — et partagée avec l'application.
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
@@ -162,8 +161,10 @@ export default async function ProduitPage({ params }: PageProps) {
               >
                 {product.nom}
               </h1>
+              {/* Même règle que la carte et que l'application : une seule
+                  fonction, pas trois expressions qui finissent par diverger. */}
               <p className="text-xl font-extrabold text-tomato-700">
-                {product.variants.length > 1 ? `À partir de ${formatCurrency(price)}` : formatCurrency(price)}
+                {priceLabel(product)}
               </p>
               {vendorName && (
                 <Link

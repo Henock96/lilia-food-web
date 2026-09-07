@@ -10,20 +10,34 @@ import { toast } from 'sonner';
 /** Clés des champs numériques de la configuration. */
 type NumberFieldKey =
   | 'serviceFeePercent'
-  | 'loyaltyPointsPer100Xaf'
+  | 'loyaltyPointsPerOrder'
   | 'loyaltyPointValueXaf'
   | 'loyaltyMinRedemption'
-  | 'referrerBonusPoints'
-  | 'referredBonusPoints';
+  | 'referrerBonusPoints';
 
 /** Champs numériques éditables : clé → libellé + suffixe. */
-const NUMBER_FIELDS: { key: NumberFieldKey; label: string; suffix: string; section: string }[] = [
+const NUMBER_FIELDS: {
+  key: NumberFieldKey;
+  label: string;
+  suffix: string;
+  section: string;
+  /** Avertissement affiché sous le champ, pour les réglages à effet rétroactif. */
+  warning?: string;
+}[] = [
   { key: 'serviceFeePercent',      label: 'Frais de service',           suffix: '%',   section: 'Frais de service' },
-  { key: 'loyaltyPointsPer100Xaf', label: 'Points gagnés / 100 XAF',    suffix: 'pts', section: 'Fidélité' },
-  { key: 'loyaltyPointValueXaf',   label: "Valeur d'un point",          suffix: 'XAF', section: 'Fidélité' },
+  { key: 'loyaltyPointsPerOrder',  label: 'Points / commande livrée',   suffix: 'pts', section: 'Fidélité' },
+  {
+    key: 'loyaltyPointValueXaf',
+    label: "Valeur d'un point",
+    suffix: 'XAF',
+    section: 'Fidélité',
+    // Le seul champ de cet écran dont la modification a un effet RÉTROACTIF :
+    // la valeur est lue au moment de la dépense, jamais figée à l'acquisition.
+    warning:
+      'Effet rétroactif : ce montant revalorise tous les points déjà distribués. Ne pas modifier sans exécuter la procédure de redénomination (docs/LOYALTY.md).',
+  },
   { key: 'loyaltyMinRedemption',   label: "Seuil minimum d'usage",      suffix: 'pts', section: 'Fidélité' },
   { key: 'referrerBonusPoints',    label: 'Bonus parrain',              suffix: 'pts', section: 'Parrainage' },
-  { key: 'referredBonusPoints',    label: 'Bonus filleul',              suffix: 'pts', section: 'Parrainage' },
 ];
 const SECTIONS = ['Frais de service', 'Fidélité', 'Parrainage'];
 
@@ -34,11 +48,10 @@ const SECTIONS = ['Frais de service', 'Fidélité', 'Parrainage'];
  */
 interface FormState {
   serviceFeePercent: string;
-  loyaltyPointsPer100Xaf: string;
+  loyaltyPointsPerOrder: string;
   loyaltyPointValueXaf: string;
   loyaltyMinRedemption: string;
   referrerBonusPoints: string;
-  referredBonusPoints: string;
   maintenanceMode: boolean;
   maintenanceMessage: string;
 }
@@ -46,11 +59,10 @@ interface FormState {
 function toFormState(s: PlatformSettings): FormState {
   return {
     serviceFeePercent: String(s.serviceFeePercent),
-    loyaltyPointsPer100Xaf: String(s.loyaltyPointsPer100Xaf),
+    loyaltyPointsPerOrder: String(s.loyaltyPointsPerOrder),
     loyaltyPointValueXaf: String(s.loyaltyPointValueXaf),
     loyaltyMinRedemption: String(s.loyaltyMinRedemption),
     referrerBonusPoints: String(s.referrerBonusPoints),
-    referredBonusPoints: String(s.referredBonusPoints),
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage ?? '',
   };
@@ -99,11 +111,10 @@ export default function ParametresPage() {
     update.mutate(
       {
         serviceFeePercent: Number(form.serviceFeePercent),
-        loyaltyPointsPer100Xaf: Number(form.loyaltyPointsPer100Xaf),
+        loyaltyPointsPerOrder: Number(form.loyaltyPointsPerOrder),
         loyaltyPointValueXaf: Number(form.loyaltyPointValueXaf),
         loyaltyMinRedemption: Number(form.loyaltyMinRedemption),
         referrerBonusPoints: Number(form.referrerBonusPoints),
-        referredBonusPoints: Number(form.referredBonusPoints),
         maintenanceMode: form.maintenanceMode,
         maintenanceMessage: form.maintenanceMessage,
       },
@@ -121,18 +132,25 @@ export default function ParametresPage() {
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">{section}</h3>
           <div className="space-y-3">
             {NUMBER_FIELDS.filter((f) => f.section === section).map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-4">
-                <label className="text-sm text-zinc-600 dark:text-zinc-300">{f.label}</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    value={form[f.key]}
-                    onChange={(e) => setForm((prev) => (prev ? { ...prev, [f.key]: e.target.value } : prev))}
-                    className="w-24 px-2.5 py-1.5 text-sm text-right rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-500 tabular-nums"
-                  />
-                  <span className="text-xs text-zinc-400 w-8">{f.suffix}</span>
+              <div key={f.key}>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm text-zinc-600 dark:text-zinc-300">{f.label}</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      value={form[f.key]}
+                      onChange={(e) => setForm((prev) => (prev ? { ...prev, [f.key]: e.target.value } : prev))}
+                      className="w-24 px-2.5 py-1.5 text-sm text-right rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-500 tabular-nums"
+                    />
+                    <span className="text-xs text-zinc-400 w-8">{f.suffix}</span>
+                  </div>
                 </div>
+                {f.warning && (
+                  <p className="mt-1 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+                    ⚠️ {f.warning}
+                  </p>
+                )}
               </div>
             ))}
           </div>

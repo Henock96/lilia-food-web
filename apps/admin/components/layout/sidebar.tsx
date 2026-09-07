@@ -26,6 +26,7 @@ import {
   MapPin,
   Settings,
   AlertTriangle,
+  Gift,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -70,6 +71,10 @@ const NAV_ITEMS: {
   // Promos : endpoints /promo CRUD sont @Roles('ADMIN') côté backend.
   { href: '/promos',      label: 'Promos',      icon: Tag,             badge: false, adminOnly: true  },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
+  // File d'arbitrage des récompenses de parrainage retenues par le scoring
+  // anti-abus. Sans elle, un parrain légitime pris dans un faux positif ne
+  // serait jamais payé.
+  { href: '/parrainages', label: 'Parrainages', icon: Gift,            badge: false, adminOnly: true  },
   { href: '/incidents',   label: 'Incidents',   icon: AlertTriangle,   badge: false, adminOnly: true  },
   { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false, adminOnly: true  },
   { href: '/zones',       label: 'Zones',       icon: MapPin,          badge: false, adminOnly: true  },

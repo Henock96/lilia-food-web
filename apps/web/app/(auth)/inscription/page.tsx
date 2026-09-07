@@ -14,16 +14,26 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } fro
 import { auth } from '@/lib/firebase';
 import { setSessionCookie } from '@/lib/session';
 import { pageVariants } from '@lilia/motion';
-import { API_URL } from '@lilia/api-client';
+import { API_URL, installationHeaders } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
 import { toast } from 'sonner';
 
+/**
+ * `POST /users/sync` — création ou rafraîchissement du compte en base.
+ *
+ * `telephone` peut être vide (inscription Google : Firebase ne le fournit pas).
+ * Le serveur écrit alors `NULL`, jamais la chaîne vide.
+ */
 async function syncUser(token: string, telephone: string, referralCode?: string): Promise<void> {
   const res = await fetch(`${API_URL}/users/sync`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      // Cet appel n'utilise pas `apiClient` (il tourne avant que la session
+      // React Query n'existe) : l'en-tête doit donc être posé à la main. Et
+      // c'est LA requête où le signal compte — celle qui crée le compte.
+      ...installationHeaders(),
     },
     body: JSON.stringify({ telephone, ...(referralCode ? { referralCode } : {}) }),
   });
@@ -168,6 +178,24 @@ export default function InscriptionPage() {
       // Pose le cookie avant la redirection (sinon race avec le middleware — LIL-97).
       const token = await cred.user.getIdToken();
       await setSessionCookie(token);
+
+      // Le code saisi sur CET écran doit suivre, quel que soit le mode
+      // d'inscription choisi ensuite. Sans cet appel, un filleul qui tape son
+      // code puis clique « Google » perdait son parrain sans le savoir : la
+      // synchronisation d'`auth-provider` ne transmet jamais de code.
+      //
+      // Le serveur ignore le code sur un compte déjà existant — rejouer cet
+      // appel sur une connexion est donc sans effet, et c'est voulu : le
+      // parrain ne se change pas après coup.
+      const code = referralCode.trim().toUpperCase();
+      if (code) {
+        try {
+          await syncUser(token, '', code);
+        } catch {
+          // Non bloquant : `auth-provider` créera le compte de toute façon.
+        }
+      }
+
       toast.success('Bienvenue sur Lilia Food 🎉');
       router.push('/restaurants');
     } catch {

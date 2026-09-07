@@ -35,6 +35,66 @@ export function coverImage(entity: ImageBearing): string | null {
   return entity.imageUrl?.trim() ? entity.imageUrl : null;
 }
 
+/**
+ * **Prix d'appel d'un produit** — le moins cher de ses formats.
+ *
+ * ## Pourquoi cette fonction existe
+ *
+ * Trois définitions concurrentes cohabitaient, pour la même notion :
+ *
+ * | Surface | Prix affiché |
+ * |---|---|
+ * | ligne de menu (site) | `variants[0].prix` |
+ * | fiche produit (site) | `Math.min(variants)` |
+ * | carte produit (application) | `variants.first.prix` |
+ *
+ * Le site était donc **incohérent avec lui-même** : pour un plat à trois
+ * tailles, sa carte pouvait annoncer 1 500 XAF et sa fiche 1 000 XAF.
+ *
+ * Pire, `variants[0]` n'avait aucun sens stable : les 18 `include` de variantes
+ * du backend étaient écrits sans `orderBy`, or PostgreSQL ne garantit aucun
+ * ordre sans `ORDER BY` — une ligne mise à jour se déplace dans le tas. Le
+ * « premier » format changeait donc tout seul après une édition. Le serveur
+ * trie désormais par prix croissant (`MENU_VARIANTS_ORDER_BY`), mais on ne s'en
+ * remet pas à cet ordre ici : on prend explicitement le minimum, pour que la
+ * règle reste vraie même servie par un backend antérieur.
+ *
+ * `prixOriginal` reste le repli — un produit sans variante ne devrait pas
+ * exister (le backend en crée toujours une « Standard »), mais une réponse
+ * ancienne ou tronquée ne doit pas afficher 0.
+ */
+export function startingPrice(product: {
+  variants?: { prix: number }[];
+  prixOriginal: number;
+}): number {
+  const prices = (product.variants ?? [])
+    .map((v) => v.prix)
+    .filter((p) => Number.isFinite(p) && p > 0);
+  return prices.length > 0 ? Math.min(...prices) : product.prixOriginal;
+}
+
+/**
+ * Libellé du prix au catalogue.
+ *
+ * Un seul format → son prix. Plusieurs → « À partir de X », parce qu'annoncer
+ * le prix d'un format sans dire lequel est une promesse qu'on ne tient pas au
+ * panier.
+ *
+ * ⚠️ Règle **identique** à `PriceRule.label` côté Flutter
+ * (`lilia-app/lib/models/produit.dart`). Les deux plateformes peuvent différer
+ * d'apparence, pas de vérité métier.
+ */
+export function priceLabel(product: {
+  variants?: { prix: number }[];
+  prixOriginal: number;
+}): string {
+  const from = startingPrice(product);
+  const distinctPrices = new Set((product.variants ?? []).map((v) => v.prix));
+  return distinctPrices.size > 1
+    ? `À partir de ${formatCurrency(from)}`
+    : formatCurrency(from);
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',

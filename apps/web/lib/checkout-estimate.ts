@@ -12,7 +12,7 @@
  * |---|---|---|
  * | Frais de service | `subTotal * 0.08` | `PlatformSettings.serviceFeePercent` (15 % en prod) |
  * | Livraison | `1000` figé | `Restaurant.fixedDeliveryFee` ou zone `ZONE_BASED` |
- * | Fidélité | `points * 5`, sans plafond | `min(solde, floor(dû / valeurDuPoint))` |
+ * | Fidélité | `points * 5`, sans plafond | `min(solde, floor(panier / valeurDuPoint))` |
  *
  * Sur une commande de 10 000 XAF, le client voyait 800 XAF de frais et était
  * débité de 1 500. Le total affiché n'était pas celui encaissé.
@@ -41,8 +41,8 @@ export interface PricingSettings {
  */
 export const PRICING_SETTINGS_FALLBACK: PricingSettings = {
   serviceFeePercent: 8,
-  loyaltyPointValueXaf: 5,
-  loyaltyMinRedemption: 100,
+  loyaltyPointValueXaf: 50,
+  loyaltyMinRedemption: 1,
 };
 
 export interface CheckoutEstimateInput {
@@ -114,12 +114,23 @@ export function computeCheckoutEstimate({
     subTotal + effectiveDeliveryFee + serviceFee - promoDiscount,
   );
 
+  // ⚠️ Assiette des points : le **panier alimentaire**, pas le montant dû.
+  //
+  // Les points s'imputaient sur `subTotal + livraison + frais de service` : ils
+  // finançaient la course du livreur et le fonctionnement de la plateforme,
+  // deux postes réellement décaissés que le reversement vendeur ne compense
+  // pas. Ils ne réduisent plus que la nourriture, promo déduite.
+  //
+  // Miroir exact d'`OrderCheckoutService` : un écart ici afficherait un total
+  // que le serveur ne facturerait pas.
+  const redeemableBase = Math.max(0, subTotal - promoDiscount);
+
   let loyaltyPointsUsed = 0;
   let loyaltyDiscount = 0;
   if (useLoyaltyPoints && loyaltyPoints >= settings.loyaltyMinRedemption) {
     loyaltyPointsUsed = Math.min(
       loyaltyPoints,
-      Math.floor(remaining / settings.loyaltyPointValueXaf),
+      Math.floor(redeemableBase / settings.loyaltyPointValueXaf),
     );
     loyaltyDiscount = loyaltyPointsUsed * settings.loyaltyPointValueXaf;
   }

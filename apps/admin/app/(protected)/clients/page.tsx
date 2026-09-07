@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import {
   useClientStats, useClientDetail, useClientLoyalty, useClientReferral, useAdminClients,
   useRestaurantClients, useRestaurantClientOrders,
+  usePublicPlatformSettings, pointsToXaf, useAdjustClientLoyalty,
   type RestaurantClient,
 } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
@@ -13,8 +14,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users, UserPlus, Repeat, TrendingUp, TrendingDown,
   Phone, Mail, MapPin, ChevronRight, X, ShoppingBag, Clock, Download,
-  Star, Gift, Search, ChevronLeft, AlertCircle,
+  Star, Gift, Search, ChevronLeft, AlertCircle, Plus, Minus,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
 
 interface ClientEntry {
@@ -65,8 +67,128 @@ function formatTxnDate(iso: string): string {
   });
 }
 
+/**
+ * Libellé humain d'une écriture de fidélité.
+ *
+ * Le back-office n'affichait que `reason`, une chaîne libre : un gain de
+ * commande, une récompense de parrainage et un ajustement manuel s'y
+ * ressemblaient. Le `type` vient de la base et ne dépend d'aucune formulation.
+ */
+const LOYALTY_TYPE_LABELS: Record<string, { label: string; tone: string }> = {
+  ORDER_EARN: { label: 'Commande livrée', tone: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' },
+  ORDER_SPEND: { label: 'Points utilisés', tone: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300' },
+  CANCELLATION_REFUND: { label: 'Annulation', tone: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' },
+  REFERRAL_REFERRER: { label: 'Parrainage', tone: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400' },
+  REFERRAL_REFERRED: { label: 'Bonus filleul (historique)', tone: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' },
+  ADJUSTMENT: { label: 'Ajustement manuel', tone: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400' },
+};
+
+/**
+ * Ajustement manuel d'un solde.
+ *
+ * Il n'existait aucun moyen de corriger une erreur de crédit : la seule voie
+ * était une requête SQL à la main — invisible, sans auteur, et qui mettait le
+ * compte en dérive au contrôle du lendemain.
+ *
+ * Le motif est **obligatoire**, et le serveur le refuse en dessous de cinq
+ * caractères. Un point vaut de l'argent : le créditer à la main est un
+ * mouvement financier, pas un réglage, et il laisse une trace nominative dans
+ * le journal d'audit.
+ */
+function LoyaltyAdjustForm({ clientId, token }: { clientId: string; token: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [points, setPoints] = useState('');
+  const [reason, setReason] = useState('');
+  const adjust = useAdjustClientLoyalty(token);
+
+  function submit(sign: 1 | -1) {
+    const value = Number(points);
+    if (!Number.isInteger(value) || value <= 0) {
+      toast.error('Indiquez un nombre entier de points, supérieur à zéro.');
+      return;
+    }
+    if (reason.trim().length < 5) {
+      toast.error('Le motif est obligatoire (5 caractères minimum).');
+      return;
+    }
+    adjust.mutate(
+      { clientId, points: sign * value, reason: reason.trim() },
+      {
+        onSuccess: (res) => {
+          toast.success(`Solde ajusté : ${res.balance} point(s).`);
+          setPoints('');
+          setReason('');
+          setOpen(false);
+        },
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : 'Ajustement refusé.'),
+      },
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mb-3 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+      >
+        Ajuster le solde manuellement
+      </button>
+    );
+  }
+
+  return (
+    <div className="mb-3 rounded-xl border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+      <p className="text-[11px] text-amber-600 dark:text-amber-400">
+        ⚠️ Mouvement financier tracé : votre nom, le motif et l&apos;avant/après sont
+        enregistrés au journal d&apos;audit.
+      </p>
+      <input
+        type="number"
+        min={1}
+        value={points}
+        onChange={(e) => setPoints(e.target.value)}
+        placeholder="Nombre de points"
+        className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 tabular-nums"
+      />
+      <input
+        type="text"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Motif (obligatoire) — ex. « geste commercial commande #A1B2C3 »"
+        maxLength={300}
+        className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800"
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => submit(1)}
+          disabled={adjust.isPending}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg bg-emerald-600 text-white disabled:opacity-50"
+        >
+          <Plus size={12} /> Créditer
+        </button>
+        <button
+          onClick={() => submit(-1)}
+          disabled={adjust.isPending}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg bg-red-600 text-white disabled:opacity-50"
+        >
+          <Minus size={12} /> Débiter
+        </button>
+        <button
+          onClick={() => setOpen(false)}
+          className="px-2.5 py-1.5 text-xs text-zinc-500 hover:underline"
+        >
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LoyaltySection({ clientId, token }: { clientId: string; token: string | null }) {
   const { data, isLoading, isError } = useClientLoyalty(clientId, token);
+  // Le barème vient du serveur : aucune conversion points → FCFA en dur.
+  const { data: pricing } = usePublicPlatformSettings();
 
   if (isLoading) return <Skeleton className="h-40 rounded-xl" />;
   if (isError) return <p className="text-xs text-red-500">Impossible de charger les données de fidélité.</p>;
@@ -84,9 +206,11 @@ function LoyaltySection({ clientId, token }: { clientId: string; token: string |
           <span className="text-sm text-zinc-500">points</span>
         </div>
         <p className="text-xs text-zinc-400 mt-1">
-          ≈ {(data.balance * 5).toLocaleString('fr-FR')} FCFA de réduction disponible
+          ≈ {pointsToXaf(data.balance, pricing).toLocaleString('fr-FR')} FCFA de réduction disponible
         </p>
       </div>
+      <LoyaltyAdjustForm clientId={clientId} token={token} />
+
       {data.transactions.length === 0 ? (
         <p className="text-xs text-zinc-400">Aucune transaction de fidélité</p>
       ) : (
@@ -94,8 +218,24 @@ function LoyaltySection({ clientId, token }: { clientId: string; token: string |
           {data.transactions.map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
               <div className="min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${LOYALTY_TYPE_LABELS[t.type]?.tone ?? 'bg-zinc-100 text-zinc-600'}`}>
+                    {LOYALTY_TYPE_LABELS[t.type]?.label ?? t.type}
+                  </span>
+                  {/* « Quelle commande ? » et « quel filleul ? » ont désormais
+                      une réponse en colonne, pas dans une chaîne libre. */}
+                  {t.orderId && (
+                    <span className="text-[10px] text-zinc-400 font-mono truncate">#{t.orderId.slice(-6).toUpperCase()}</span>
+                  )}
+                  {t.actorId && (
+                    <span className="text-[10px] text-blue-500">par un admin</span>
+                  )}
+                </div>
                 <p className="text-zinc-600 dark:text-zinc-300 truncate">{t.reason}</p>
-                <p className="text-zinc-400">{formatTxnDate(t.createdAt)}</p>
+                <p className="text-zinc-400">
+                  {formatTxnDate(t.createdAt)}
+                  {t.sourceUserId && ` · filleul ${t.sourceUserId.slice(-6)}`}
+                </p>
               </div>
               <span className={`font-semibold tabular-nums shrink-0 ${
                 t.points >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
