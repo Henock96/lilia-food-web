@@ -139,8 +139,10 @@ describe('computeCheckoutEstimate — fidélité', () => {
     expect(e.loyaltyDiscount).toBe(0);
   });
 
-  it('ne consomme que les points nécessaires (plafond au montant dû)', () => {
-    // Dû = 1000 + 0 + 150 = 1150 → 230 points suffisent, le client en a 5000.
+  it('ne consomme que les points nécessaires (plafond au panier alimentaire)', () => {
+    // ⚠️ L'assiette a changé en septembre 2026 : les points ne couvrent plus
+    // les frais de service. Panier = 1000 → 200 points suffisent (1000 / 5),
+    // et les 150 XAF de frais restent dus en argent.
     const e = computeCheckoutEstimate({
       subTotal: 1000,
       deliveryFee: 0,
@@ -149,9 +151,9 @@ describe('computeCheckoutEstimate — fidélité', () => {
       loyaltyPoints: 5000,
       useLoyaltyPoints: true,
     });
-    expect(e.loyaltyPointsUsed).toBe(230);
-    expect(e.loyaltyDiscount).toBe(1150);
-    expect(e.total).toBe(0);
+    expect(e.loyaltyPointsUsed).toBe(200);
+    expect(e.loyaltyDiscount).toBe(1000);
+    expect(e.total).toBe(150);
   });
 
   it('arrondit à l\'entier inférieur — le reliquat reste dû (bug Flutter #2)', () => {
@@ -184,7 +186,10 @@ describe('computeCheckoutEstimate — fidélité', () => {
   });
 
   it('se calcule après la promo, pas avant', () => {
-    // Dû après promo = 10 000 + 1000 + 1500 - 12 000 = 500 → 100 points.
+    // Assiette = panier − promo. Une promo de 12 000 sur un panier de 10 000
+    // ramène l'assiette à zéro : plus aucun point n'est utilisable, même avec
+    // 5 000 en solde. Le reliquat dû se paie donc en argent — les points ne
+    // peuvent plus l'absorber.
     const e = computeCheckoutEstimate({
       subTotal: 10_000,
       deliveryFee: 1000,
@@ -194,8 +199,25 @@ describe('computeCheckoutEstimate — fidélité', () => {
       loyaltyPoints: 5000,
       useLoyaltyPoints: true,
     });
-    expect(e.loyaltyPointsUsed).toBe(100);
-    expect(e.total).toBe(0);
+    expect(e.loyaltyPointsUsed).toBe(0);
+    expect(e.total).toBe(500);
+  });
+
+  it('une promo partielle laisse une assiette réduite aux points', () => {
+    // Panier 10 000, promo 4 000 → assiette 6 000 → 1 200 points à 5 XAF.
+    const e = computeCheckoutEstimate({
+      subTotal: 10_000,
+      deliveryFee: 1000,
+      isDelivery: true,
+      settings: PROD,
+      promoDiscount: 4_000,
+      loyaltyPoints: 5000,
+      useLoyaltyPoints: true,
+    });
+    expect(e.loyaltyPointsUsed).toBe(1200);
+    expect(e.loyaltyDiscount).toBe(6000);
+    // Restent dus : livraison 1000 + frais de service 1500.
+    expect(e.total).toBe(2500);
   });
 
   it('ne fait rien si la case n\'est pas cochée', () => {
@@ -215,8 +237,8 @@ describe('PRICING_SETTINGS_FALLBACK', () => {
   it('reprend les défauts Prisma, pas une valeur inventée', () => {
     expect(PRICING_SETTINGS_FALLBACK).toEqual({
       serviceFeePercent: 8,
-      loyaltyPointValueXaf: 5,
-      loyaltyMinRedemption: 100,
+      loyaltyPointValueXaf: 50,
+      loyaltyMinRedemption: 1,
     });
   });
 });
@@ -280,5 +302,75 @@ describe('minimumOrderError', () => {
 
   it('laisse passer quand le vendeur n\'impose pas de minimum', () => {
     expect(minimumOrderError(100, 0, 'Chez Maman Lili')).toBeNull();
+  });
+});
+
+
+describe('assiette des points (septembre 2026)', () => {
+  // Les points s'imputaient sur `subTotal + livraison + frais de service` : ils
+  // finançaient la course du livreur et le fonctionnement de la plateforme,
+  // deux postes réellement décaissés que le reversement vendeur ne compense
+  // pas. Ils ne réduisent plus que la nourriture.
+  it('les points ne paient ni la livraison ni les frais de service', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 1000,
+      deliveryFee: 1000,
+      isDelivery: true,
+      settings: PRICING_SETTINGS_FALLBACK, // 1 pt = 50 XAF
+      loyaltyPoints: 100,
+      useLoyaltyPoints: true,
+    });
+
+    expect(e.loyaltyPointsUsed).toBe(20); // 1000 / 50
+    expect(e.loyaltyDiscount).toBe(1000);
+    expect(e.total).toBe(1080); // livraison 1000 + frais 80
+  });
+
+  it('la promo réduit l’assiette avant les points', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 1000,
+      deliveryFee: 0,
+      isDelivery: false,
+      settings: PRICING_SETTINGS_FALLBACK,
+      promoDiscount: 400,
+      loyaltyPoints: 100,
+      useLoyaltyPoints: true,
+    });
+
+    expect(e.loyaltyPointsUsed).toBe(12); // (1000 - 400) / 50
+    expect(e.loyaltyDiscount).toBe(600);
+  });
+
+  it('le seuil de rachat vaut 1 point', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 1000,
+      deliveryFee: 0,
+      isDelivery: false,
+      settings: PRICING_SETTINGS_FALLBACK,
+      loyaltyPoints: 1,
+      useLoyaltyPoints: true,
+    });
+
+    expect(e.loyaltyPointsUsed).toBe(1);
+    expect(e.loyaltyDiscount).toBe(50);
+  });
+
+  it('ne consomme jamais plus de points que l’assiette n’en absorbe', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 120,
+      deliveryFee: 0,
+      isDelivery: false,
+      settings: PRICING_SETTINGS_FALLBACK,
+      loyaltyPoints: 50,
+      useLoyaltyPoints: true,
+    });
+
+    expect(e.loyaltyPointsUsed).toBe(2);
+    expect(e.loyaltyDiscount).toBe(100);
+  });
+
+  it('le repli reprend les défauts Prisma, jamais une constante inventée', () => {
+    expect(PRICING_SETTINGS_FALLBACK.loyaltyPointValueXaf).toBe(50);
+    expect(PRICING_SETTINGS_FALLBACK.loyaltyMinRedemption).toBe(1);
   });
 });

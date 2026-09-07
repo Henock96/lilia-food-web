@@ -13,11 +13,55 @@ import { apiClient } from '../client';
  */
 export interface PublicPlatformSettings {
   serviceFeePercent: number;
-  loyaltyPointsPer100Xaf: number;
+  /**
+   * Forfait de points gagné par commande livrée. A remplacé
+   * `loyaltyPointsPer100Xaf` : le gain n'est plus proportionnel au montant.
+   */
+  loyaltyPointsPerOrder: number;
+  /**
+   * Valeur d'un point, en FCFA. **Seule** source autorisée pour convertir des
+   * points en argent à l'écran — aucun `* 5` ni `* 50` ne doit subsister dans
+   * une page.
+   */
   loyaltyPointValueXaf: number;
   loyaltyMinRedemption: number;
+  /** Points versés au parrain à la première commande livrée de son filleul. */
+  referrerBonusPoints: number;
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
+}
+
+/**
+ * Repli utilisé tant que `GET /platform-settings` n'a pas répondu.
+ *
+ * Aligné sur les `@default` du modèle Prisma, jamais une constante inventée
+ * côté web. Il ne facture rien : le montant dû est celui de la commande créée
+ * par le serveur.
+ */
+export const PUBLIC_PLATFORM_SETTINGS_FALLBACK: PublicPlatformSettings = {
+  serviceFeePercent: 8,
+  loyaltyPointsPerOrder: 1,
+  loyaltyPointValueXaf: 50,
+  loyaltyMinRedemption: 1,
+  referrerBonusPoints: 1,
+  maintenanceMode: false,
+  maintenanceMessage: null,
+};
+
+/**
+ * Convertit un nombre de points en FCFA. Point de passage **unique** côté web :
+ * c'est ce qui garantit qu'un changement de barème serveur se voit partout
+ * sans redéploiement.
+ */
+export function pointsToXaf(
+  points: number,
+  settings: Pick<PublicPlatformSettings, 'loyaltyPointValueXaf'> | undefined,
+): number {
+  return (
+    points *
+    (settings?.loyaltyPointValueXaf ??
+      PUBLIC_PLATFORM_SETTINGS_FALLBACK.loyaltyPointValueXaf)
+  );
 }
 
 export const pricingKeys = {

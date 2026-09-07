@@ -1,11 +1,18 @@
 'use client';
 
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query';
 import type {
   Paginated,
   AdminClientListItem,
   AdminClientLoyalty,
   AdminClientReferral,
+  ReferralReward,
+  ReferralRewardStatus,
 } from '@lilia/types';
 import { apiClient, apiClientRaw } from '../client';
 
@@ -161,5 +168,93 @@ export function useClientReferral(clientId: string | null, token: string | null)
       apiClient<AdminClientReferral>(`/admin/clients/${clientId}/referral`, { token }),
     enabled: !!clientId && !!token,
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+
+// ─── Écritures d'administration sur la fidélité ────────────────────────────
+
+export const referralRewardKeys = {
+  all: ['admin', 'referral-rewards'] as const,
+  list: (status: ReferralRewardStatus | 'ALL', page: number) =>
+    [...referralRewardKeys.all, status, page] as const,
+};
+
+/**
+ * Ajustement manuel d'un solde de fidélité.
+ *
+ * Le motif est obligatoire côté serveur (5 caractères minimum) : c'est la seule
+ * chose qui rendra l'écriture relisible dans six mois, et un champ facultatif
+ * reste vide dans la plupart des cas. Chaque appel écrit une ligne de ledger
+ * nominative **et** une entrée au journal d'audit.
+ */
+export function useAdjustClientLoyalty(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      clientId,
+      points,
+      reason,
+    }: {
+      clientId: string;
+      points: number;
+      reason: string;
+    }) =>
+      apiClient<{ balance: number; points: number; reason: string }>(
+        `/admin/clients/${clientId}/loyalty/adjust`,
+        { method: 'POST', token, body: JSON.stringify({ points, reason }) },
+      ),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: adminClientKeys.loyalty(variables.clientId),
+      });
+      void queryClient.invalidateQueries({ queryKey: adminClientKeys.all });
+    },
+  });
+}
+
+/**
+ * File des récompenses de parrainage arbitrées.
+ *
+ * `status: 'PENDING_REVIEW'` donne les récompenses que le scoring anti-abus a
+ * retenues sans les refuser — celles qui attendent une décision humaine.
+ */
+export function useReferralRewards(
+  token: string | null,
+  status: ReferralRewardStatus | 'ALL' = 'PENDING_REVIEW',
+  page = 1,
+) {
+  return useQuery({
+    queryKey: referralRewardKeys.list(status, page),
+    queryFn: () =>
+      apiClientRaw<Paginated<ReferralReward>>(
+        `/admin/referral-rewards?page=${page}&limit=20${status === 'ALL' ? '' : `&status=${status}`}`,
+        { token },
+      ),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Arbitrage humain d'une récompense `PENDING_REVIEW`. */
+export function useReviewReferralReward(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      rewardId,
+      decision,
+      note,
+    }: {
+      rewardId: string;
+      decision: 'APPROVE' | 'REJECT';
+      note?: string;
+    }) =>
+      apiClient<{ id: string; decision: string; points: number }>(
+        `/admin/referral-rewards/${rewardId}/review`,
+        { method: 'POST', token, body: JSON.stringify({ decision, note }) },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: referralRewardKeys.all });
+    },
   });
 }

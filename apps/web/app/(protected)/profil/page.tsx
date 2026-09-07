@@ -19,6 +19,8 @@ import {
   useAdresses, useCreateAdresse, useSetDefaultAdresse, useDeleteAdresse,
   useQuartiers,
   useReferralStats, useLoyaltyTransactions,
+  usePublicPlatformSettings,
+  pointsToXaf,
 } from '@lilia/api-client';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, getInitials, cn } from '@lilia/utils';
 import { pageVariants } from '@lilia/motion';
@@ -38,6 +40,10 @@ export default function ProfilPage() {
   const deleteAdresse = useDeleteAdresse(token);
   const { data: quartiers = [] } = useQuartiers();
   const { data: referralStats } = useReferralStats(token);
+  // Le barème vient du serveur. Aucune conversion points → FCFA n'est écrite
+  // en dur : le jour où l'administrateur change la valeur du point, cette page
+  // afficherait sinon encore l'ancienne.
+  const { data: pricing } = usePublicPlatformSettings();
   const { data: loyaltyTxs = [] } = useLoyaltyTransactions(token);
 
   const user = profile ?? storeUser;
@@ -448,11 +454,11 @@ export default function ProfilPage() {
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="bg-white/15 rounded-xl p-2.5 text-center">
             <p className="text-orange-100">Valeur</p>
-            <p className="font-bold text-sm">{((referralStats?.loyaltyPoints ?? 0) * 5).toLocaleString('fr-FR')} FCFA</p>
+            <p className="font-bold text-sm">{formatCurrency(pointsToXaf(referralStats?.loyaltyPoints ?? 0, pricing))}</p>
           </div>
           <div className="bg-white/15 rounded-xl p-2.5 text-center">
             <p className="text-orange-100">Comment gagner</p>
-            <p className="font-bold text-sm">1 pt / 100 FCFA</p>
+            <p className="font-bold text-sm">{pricing?.loyaltyPointsPerOrder ?? 1} pt / commande livrée</p>
           </div>
         </div>
 
@@ -529,8 +535,16 @@ export default function ProfilPage() {
         </div>
 
         <div className="bg-emerald-50 rounded-xl p-3 text-xs text-emerald-700 space-y-1">
-          <div className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 shrink-0" /> Votre ami commande → vous gagnez <strong>+500 pts</strong> (2 500 FCFA)</div>
-          <div className="flex items-center gap-1.5"><Gift className="w-3.5 h-3.5 shrink-0" /> Votre ami reçoit <strong>+200 pts</strong> bonus à l&apos;inscription</div>
+          {/* Le filleul ne reçoit plus rien : seul le parrain est récompensé,
+              et seulement quand la première commande est LIVRÉE. Annoncer un
+              bonus d'inscription était devenu faux. */}
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5 shrink-0" /> Votre filleul se fait livrer sa 1ʳᵉ commande → vous gagnez{' '}
+            <strong>+{pricing?.referrerBonusPoints ?? 1} pt</strong> ({formatCurrency(pointsToXaf(pricing?.referrerBonusPoints ?? 1, pricing))})
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Gift className="w-3.5 h-3.5 shrink-0" /> Récompense acquise à la livraison, pas à l&apos;inscription
+          </div>
         </div>
       </div>
 

@@ -324,7 +324,10 @@ export default function PanierPage() {
         notes: notes || undefined,
         contactPhone: trimmedPhone,
         promoCode: promoResult?.valid ? promoCode : undefined,
-        useLoyaltyPoints: useLoyaltyPoints && loyaltyPoints >= 100,
+        // Simple intention : le serveur recalcule seul le nombre de points et
+        // la remise. Le client n'envoie jamais de valeur financière.
+        useLoyaltyPoints:
+          useLoyaltyPoints && loyaltyPoints >= pricingSettings.loyaltyMinRedemption,
         scheduledFor: scheduledFor ? scheduledFor.toISOString() : undefined,
       });
 
@@ -796,7 +799,10 @@ export default function PanierPage() {
             </div>
 
             {/* Points fidélité toggle */}
-            {loyaltyPoints >= 100 && (
+            {/* Le seuil vient du serveur : il est passé de 100 à 1 point avec
+                le forfait par commande, et le coder en dur aurait rendu la
+                section invisible pour tout le monde. */}
+            {loyaltyPoints >= pricingSettings.loyaltyMinRedemption && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
@@ -807,7 +813,7 @@ export default function PanierPage() {
                       {loyaltyPoints} points disponibles
                     </p>
                     <p className="text-xs text-amber-600">
-                      = {formatCurrency(loyaltyPoints * 5)} de réduction
+                      = {formatCurrency(loyaltyPoints * pricingSettings.loyaltyPointValueXaf)} de réduction sur le panier
                     </p>
                   </div>
                 </div>

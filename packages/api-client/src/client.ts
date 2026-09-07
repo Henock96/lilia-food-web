@@ -1,3 +1,5 @@
+import { installationHeaders } from './installation-id';
+
 export const API_URL =
   typeof window !== 'undefined'
     ? (process.env.NEXT_PUBLIC_API_URL ?? 'https://lilia-backend.onrender.com')
@@ -103,6 +105,11 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Lilia-Payment-Flow': PAYMENT_FLOW_CAPABILITY,
+    // Signal anti-abus du parrainage. Vide côté serveur (pas de `localStorage`)
+    // et en navigation privée stricte : le serveur traite un signal absent
+    // comme absent. ⚠️ Tout en-tête ajouté ici doit l'être aussi dans
+    // `lilia-backend/apps/lilia-app/src/common/http/cors-headers.ts`.
+    ...installationHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };
@@ -147,6 +154,11 @@ export async function apiClientRaw<T>(path: string, options: FetchOptions = {}):
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Lilia-Payment-Flow': PAYMENT_FLOW_CAPABILITY,
+    // Signal anti-abus du parrainage. Vide côté serveur (pas de `localStorage`)
+    // et en navigation privée stricte : le serveur traite un signal absent
+    // comme absent. ⚠️ Tout en-tête ajouté ici doit l'être aussi dans
+    // `lilia-backend/apps/lilia-app/src/common/http/cors-headers.ts`.
+    ...installationHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };

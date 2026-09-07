@@ -64,13 +64,57 @@ export interface User {
   updatedAt: string;
 }
 
+/**
+ * Nature d'une écriture de fidélité.
+ *
+ * Elle est exposée parce que le back-office ne lisait que `reason`, une chaîne
+ * libre : impossible d'y distinguer un gain de commande d'une récompense de
+ * parrainage ou d'un ajustement manuel, et donc de filtrer ou d'auditer.
+ */
+export type LoyaltyTransactionType =
+  | 'ORDER_SPEND'
+  | 'ORDER_EARN'
+  | 'CANCELLATION_REFUND'
+  | 'REFERRAL_REFERRER'
+  /** Historique seulement — le filleul ne reçoit plus de bonus. */
+  | 'REFERRAL_REFERRED'
+  | 'ADJUSTMENT';
+
 export interface LoyaltyTransaction {
   id: string;
   userId: string;
   points: number;
+  type: LoyaltyTransactionType;
   reason: string;
   orderId: string | null;
+  /** Filleul à l'origine d'une récompense de parrainage, le cas échéant. */
+  sourceUserId: string | null;
+  /** Administrateur auteur d'un `ADJUSTMENT`. `null` pour le système. */
+  actorId: string | null;
   createdAt: string;
+}
+
+/** Arbitrage d'une récompense de parrainage (`GET /admin/referral-rewards`). */
+export type ReferralRewardStatus = 'APPROVED' | 'PENDING_REVIEW' | 'REJECTED';
+
+export interface ReferralRiskSignal {
+  code: string;
+  weight: number;
+  detail: string;
+}
+
+export interface ReferralReward {
+  id: string;
+  status: ReferralRewardStatus;
+  riskScore: number;
+  riskSignals: ReferralRiskSignal[];
+  points: number;
+  decidedAt: string;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  orderId: string;
+  referrer: { id: string; nom: string | null; phone: string | null };
+  referredUser: { id: string; nom: string | null; phone: string | null };
 }
 
 export interface ReferralStats {
@@ -1146,11 +1190,16 @@ export interface PaginatedIncidents {
 export interface PlatformSettings {
   id: string;
   serviceFeePercent: number;
-  loyaltyPointsPer100Xaf: number;
+  /** Forfait gagné par commande livrée (a remplacé `loyaltyPointsPer100Xaf`). */
+  loyaltyPointsPerOrder: number;
+  /**
+   * ⚠️ Le modifier revalorise **tout le passif déjà distribué** : la valeur est
+   * lue au moment de la dépense, jamais figée à l'acquisition. Ne jamais la
+   * changer sans exécuter d'abord `scripts/db/redenominate-loyalty.js`.
+   */
   loyaltyPointValueXaf: number;
   loyaltyMinRedemption: number;
   referrerBonusPoints: number;
-  referredBonusPoints: number;
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
   updatedAt: string;
