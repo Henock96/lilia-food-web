@@ -4,7 +4,8 @@ import Image from 'next/image';
 import { useState } from 'react';
 import {
   useProducts, useCategories, useReorderProducts,
-  useCreateProduct, useUpdateProduct, useDeleteProduct, useSetProductAvailability, createPhoto,
+  useCreateProduct, useUpdateProduct, useDeleteProduct, useSetProductAvailability,
+  useUpdateProductStock, createPhoto,
 } from '@lilia/api-client';
 import { ProductImageBuffer, type DraftImage } from '@/components/product-image-buffer';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
@@ -21,7 +22,8 @@ import type {
   StockMode,
   VendorType,
 } from '@lilia/types';
-import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import type { StockStatus } from '@lilia/api-client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -409,6 +411,8 @@ function ProductCard({
   onDelete,
   onToggleAvailability,
   togglingAvailability,
+  onRestock,
+  restocking,
   reorder,
 }: {
   product: Product;
@@ -416,6 +420,8 @@ function ProductCard({
   onDelete: () => void;
   onToggleAvailability: () => void;
   togglingAvailability: boolean;
+  onRestock: () => void;
+  restocking: boolean;
   /**
    * Classement dans la section. `undefined` quand le geste n'a pas de sens —
    * sur « Tout », où la liste mélange plusieurs sections.
@@ -440,8 +446,11 @@ function ProductCard({
     }`}>
       {/* Image */}
       <div className="h-36 bg-zinc-100 dark:bg-zinc-800 relative">
+        {/* Coin BAS-gauche : les deux coins hauts sont déjà pris — le badge de
+            section à gauche, le badge « indisponible » à droite. Placées en
+            haut, les flèches les recouvraient (elles portent `z-10`). */}
         {reorder && (
-          <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+          <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-1">
             <button
               type="button"
               onClick={reorder.onUp}
@@ -500,6 +509,22 @@ function ProductCard({
           <div className="flex items-center gap-1 text-zinc-400">
             <Package size={11} />
             <span className={stockColor(product)}>{stockLabel(product)}</span>
+            {/* Réapprovisionner est un geste distinct de « modifier la fiche ».
+                Il vit donc à côté du stock qu'il corrige, et passe par
+                `PATCH /products/:id/stock` — la seule route qui remette
+                `stockRestant` à niveau. Le formulaire d'édition, lui, ne
+                réaligne le stock restant que si la capacité déclarée change :
+                sans ça, corriger une description l'après-midi ressusciterait
+                les unités déjà vendues dans la journée. */}
+            <button
+              type="button"
+              onClick={onRestock}
+              disabled={restocking}
+              title="Réapprovisionner — remet le stock restant à niveau"
+              className="ml-1 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            >
+              <RefreshCw size={11} className={restocking ? 'animate-spin' : ''} />
+            </button>
           </div>
           {product.variants.length > 0 && (
             <button
@@ -562,6 +587,11 @@ export default function ProduitsPage() {
   const { token } = useAuthStore();
   const [panel, setPanel]         = useState<PanelState>(null);
   const [filterCat, setFilterCat] = useState<string>('ALL');
+  // Filtre de stock — appliqué par le SERVEUR (`?stockStatus=`), pas sur la
+  // liste reçue : le catalogue est paginé, filtrer localement ne rendrait que
+  // les ruptures de la page chargée en laissant croire qu'il n'y en a pas
+  // d'autres.
+  const [stockFilter, setStockFilter] = useState<StockStatus | undefined>();
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
 
   // Périmètre catalogue : son vendeur (RESTAURATEUR) ou celui sélectionné
@@ -574,7 +604,8 @@ export default function ProduitsPage() {
   // Type de vendeur actif — pilote la liste des productType proposés (LIL-116).
   const vendorType: VendorType = scope.activeVendor?.vendorType ?? 'RESTAURANT';
 
-  const { data: products = [], isLoading, error: productsError } = useProducts(restaurantId, token);
+  const { data: products = [], isLoading, error: productsError } =
+    useProducts(restaurantId, token, stockFilter);
   const { data: categories = [] }          = useCategories(restaurantId, token);
 
   // Un appel en échec rendait exactement le même écran qu'un catalogue vide
@@ -587,7 +618,15 @@ export default function ProduitsPage() {
   const { mutate: deleteProduct, isPending: deleting } = useDeleteProduct(token);
   const { mutate: setAvailability, isPending: togglingAvailability } =
     useSetProductAvailability(token);
-  const { mutate: reorderProducts, isPending: reordering } = useReorderProducts(token);
+  // ⚠️ Ce hook existait dans `@lilia/api-client` et **aucun composant ne
+  // l'appelait** — exactement comme `useSetProductAvailability` avant
+  // septembre. `PATCH /products/:id/stock` est la seule route qui remette
+  // `stockRestant` à niveau ; sans elle, un produit épuisé restait invendable
+  // jusqu'au cron de 5 h, et définitivement pour un `stockMode = PERMANENT`.
+  const { mutate: updateStock, isPending: restocking } =
+    useUpdateProductStock(token);
+  const { mutate: reorderProducts, isPending: reordering } =
+    useReorderProducts(token);
 
   const filtered = filterCat === 'ALL'
     ? products
@@ -690,6 +729,46 @@ export default function ProduitsPage() {
     });
   }
 
+  /**
+   * Réapprovisionnement — remet `stockRestant` au niveau déclaré.
+   *
+   * Le champ « stock » du formulaire d'édition décrit la **capacité** ; ce
+   * bouton-ci décrit un **réassort**. Ce sont deux gestes, et les confondre
+   * était la moitié du bug : la fiche produit n'écrivait pas le stock restant,
+   * donc un produit épuisé le restait quoi qu'on saisisse.
+   *
+   * Une saisie vide vaut « stock illimité » — c'est le seul chemin qui permette
+   * d'y revenir, le formulaire traitant un champ vide comme « ne pas toucher ».
+   */
+  function handleRestock(product: Product) {
+    const current = product.stockQuotidien;
+    const answer = window.prompt(
+      `Réapprovisionner « ${product.nom} »\n\n` +
+        `Stock restant : ${product.stockRestant ?? 'illimité'}\n` +
+        `Capacité déclarée : ${current ?? 'illimitée'}\n\n` +
+        `Nouvelle quantité disponible (vide = illimité) :`,
+      current != null ? String(current) : '',
+    );
+    if (answer === null) return;
+
+    const trimmed = answer.trim();
+    const value = trimmed === '' ? null : Number(trimmed);
+    if (value !== null && (!Number.isInteger(value) || value < 0)) {
+      toast.error('Indiquez un nombre entier d’unités, ou laissez vide pour illimité');
+      return;
+    }
+
+    updateStock({ id: product.id, stockQuotidien: value }, {
+      onSuccess: () =>
+        toast.success(
+          value === null
+            ? 'Produit repassé en stock illimité'
+            : `Stock remis à ${value} unité${value > 1 ? 's' : ''}`,
+        ),
+      onError: (err) => toast.error(apiMessage(err, 'Réapprovisionnement impossible')),
+    });
+  }
+
   function handleDelete(product: Product) {
     deleteProduct(product.id, {
       onSuccess: () => { toast.success('Produit supprimé'); setConfirmDelete(null); },
@@ -731,6 +810,32 @@ export default function ProduitsPage() {
         </div>
       )}
 
+      {/* Filtre de stock — l'audit du 05/09/2026 relevait qu'aucune surface ne
+          permettait de retrouver les produits en rupture : ils étaient colorés
+          en rouge, mais noyés dans une liste paginée de tout le catalogue. */}
+      <div className="flex flex-wrap gap-1.5">
+        {(
+          [
+            [undefined, 'Tous les stocks'],
+            ['out', 'En rupture'],
+            ['low', 'Bientôt épuisés'],
+            ['unlimited', 'Sans gestion de stock'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={label}
+            onClick={() => setStockFilter(value)}
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              stockFilter === value
+                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                : 'bg-white dark:bg-dark-card border border-zinc-200 dark:border-dark-border text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Category filter */}
@@ -743,7 +848,7 @@ export default function ProduitsPage() {
                 : 'bg-white dark:bg-dark-card border border-zinc-200 dark:border-dark-border text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
             }`}
           >
-            Tout ({products.length})
+            {stockFilter ? 'Toutes sections' : 'Tout'} ({products.length})
           </button>
           {categories.map((c: Category) => {
             const count = products.filter((p: Product) => p.categoryId === c.id).length;
@@ -803,6 +908,8 @@ export default function ProduitsPage() {
               onDelete={() => setConfirmDelete(p)}
               onToggleAvailability={() => handleToggleAvailability(p)}
               togglingAvailability={togglingAvailability}
+              onRestock={() => handleRestock(p)}
+              restocking={restocking}
               reorder={
                 canReorder
                   ? {

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useAdminQuartiers } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,9 +12,23 @@ export default function ZonesPage() {
 
   return (
     <div className="max-w-4xl space-y-4">
+      {/* Cette phrase disait « la configuration se fait au niveau de chaque
+          restaurant » — et la page du restaurant renvoyait ici, « dans Zones,
+          par l'admin ». Deux écrans qui se désignaient l'un l'autre pour une
+          fonction qu'aucun ne portait. Elle existe maintenant, et le lien y
+          mène pour de bon. */}
       <p className="text-xs text-zinc-400">
-        Référentiel des quartiers couverts. La configuration des zones de livraison et de leurs
-        tarifs se fait au niveau de chaque restaurant.
+        Référentiel des quartiers de la ville. Les zones de livraison et leurs
+        tarifs sont <strong className="font-medium text-zinc-500 dark:text-zinc-300">propres à chaque
+        vendeur</strong> — le même quartier peut valoir 500 F chez l&apos;un et
+        1 500 F chez l&apos;autre. Ils se règlent dans{' '}
+        <Link
+          href="/restaurants"
+          className="font-medium text-primary-600 underline-offset-2 hover:underline dark:text-primary-400"
+        >
+          Restaurants → un vendeur → onglet « Livraison »
+        </Link>
+        .
       </p>
 
       <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card overflow-hidden">
