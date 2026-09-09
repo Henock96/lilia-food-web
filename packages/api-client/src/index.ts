@@ -24,4 +24,6 @@ export * from './hooks/photos';
 export * from './hooks/admin-payouts';
 export * from './hooks/admin-drivers';
 export * from './hooks/admin-users';
+export * from './hooks/deliveries';
+export * from './hooks/refunds';
 

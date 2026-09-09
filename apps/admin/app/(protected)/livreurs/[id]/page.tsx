@@ -35,14 +35,20 @@ const STATUS_FILTERS: { value: DeliveryStatus | ''; label: string }[] = [
   { value: '',            label: 'Toutes' },
   { value: 'EN_ATTENTE',  label: 'En attente' },
   { value: 'ASSIGNER',    label: 'Assignée' },
+  { value: 'ACCEPTER',    label: 'Acceptée' },
   { value: 'EN_TRANSIT',  label: 'En transit' },
   { value: 'LIVRER',      label: 'Livrée' },
   { value: 'ECHEC',       label: 'Échec' },
 ];
 
+// `ACCEPTER` manquait ici : le type l'ignorait aussi, si bien qu'une mission
+// acceptée mais pas encore récupérée s'affichait sans libellé ni couleur. C'est
+// le trou qu'avait `lilia_food_delivery` — sa valeur inconnue retombait en
+// silence sur `EN_ATTENTE` et rendait la course invisible.
 const STATUS_LABELS: Record<DeliveryStatus, string> = {
   EN_ATTENTE: 'En attente',
   ASSIGNER:   'Assignée',
+  ACCEPTER:   'Acceptée',
   EN_TRANSIT: 'En transit',
   LIVRER:     'Livrée',
   ECHEC:      'Échec',
@@ -51,6 +57,7 @@ const STATUS_LABELS: Record<DeliveryStatus, string> = {
 const STATUS_STYLES: Record<DeliveryStatus, string> = {
   EN_ATTENTE: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
   ASSIGNER:   'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400',
+  ACCEPTER:   'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400',
   EN_TRANSIT: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
   LIVRER:     'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
   ECHEC:      'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',
