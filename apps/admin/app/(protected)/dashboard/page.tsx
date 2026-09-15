@@ -9,6 +9,7 @@ import {
   useClientStats,
 } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
+import { useIsAdmin } from '@/lib/use-role';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { RevenueChart } from '@/components/dashboard/revenue-chart';
 import { OrderStats } from '@/components/dashboard/order-stats';
@@ -43,6 +44,7 @@ const periodLabels: Record<Period, string> = {
 
 export default function DashboardPage() {
   const { token } = useAuthStore();
+  const isAdmin = useIsAdmin();
   const [period, setPeriod] = useState<Period>('today');
 
   const { data: rawOverview,  isLoading: loadingOverview } = useDashboardOverview(token);
@@ -139,8 +141,14 @@ export default function DashboardPage() {
         <RevenueChart data={Array.isArray(revenue) ? revenue : []} />
       ) : null}
 
-      {/* Revenus par restaurant + Restaurant status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Classement des vendeurs + état des boutiques.
+          `RestaurantRevenue` ne se monte que pour un ADMIN : la route est
+          `@Roles('ADMIN')`, et « revenus par vendeur » n'a aucun sens pour
+          quelqu'un qui n'en tient qu'un. La grille suit, plutôt que de laisser
+          une colonne vide. */}
+      <div
+        className={`grid grid-cols-1 gap-4 ${isAdmin ? 'lg:grid-cols-2' : ''}`}
+      >
         <RestaurantRevenue />
         <RestaurantStatus />
       </div>

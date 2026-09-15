@@ -6,7 +6,11 @@ import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { clearSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
-import { useDashboardOverview, useAdminPendingVendors } from '@lilia/api-client';
+import {
+  useDashboardOverview,
+  useAdminPendingVendors,
+  usePendingRefundsCount,
+} from '@lilia/api-client';
 import { useIsAdmin, useIsRestaurateur } from '@/lib/use-role';
 import {
   LayoutDashboard,
@@ -27,6 +31,7 @@ import {
   Settings,
   AlertTriangle,
   Gift,
+  Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,7 +46,7 @@ import { toast } from 'sonner';
  * Clients (de son resto), Promos. Les sections globales (Paiements,
  * Incidents, Livreurs, Zones, Paramètres plateforme) sont admin-only.
  */
-type BadgeKind = false | 'orders' | 'vendors';
+type BadgeKind = false | 'orders' | 'vendors' | 'refunds';
 
 const NAV_ITEMS: {
   href: string;
@@ -71,6 +76,7 @@ const NAV_ITEMS: {
   // Promos : endpoints /promo CRUD sont @Roles('ADMIN') côté backend.
   { href: '/promos',      label: 'Promos',      icon: Tag,             badge: false, adminOnly: true  },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
+  { href: '/remboursements', label: 'Remboursements', icon: Undo2,      badge: 'refunds', adminOnly: true  },
   // File d'arbitrage des récompenses de parrainage retenues par le scoring
   // anti-abus. Sans elle, un parrain légitime pris dans un faux positif ne
   // serait jamais payé.
@@ -99,6 +105,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   // Pending vendeurs uniquement pour ADMIN (l'endpoint est admin-only)
   const { data: pendingVendorsResp } = useAdminPendingVendors(isAdmin ? token : null);
   const pendingVendorsCount = pendingVendorsResp?.meta.total ?? 0;
+  // Argent dû aux clients. C'est le seul endroit d'où un opérateur peut
+  // l'apprendre sans ouvrir l'écran : le bouton qui crée ces dettes est sur
+  // l'écran Commandes, à l'autre bout de la navigation.
+  const { data: pendingRefundsCount = 0 } = usePendingRefundsCount(
+    isAdmin ? token : null,
+  );
 
   // Filtre les items globaux pour les RESTAURATEUR + ajuste les labels.
   const visibleNavItems = NAV_ITEMS.filter(
@@ -199,6 +211,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             const badgeCount =
               badge === 'orders' ? pending
               : badge === 'vendors' ? pendingVendorsCount
+              : badge === 'refunds' ? pendingRefundsCount
               : 0;
             const showBadge = badgeCount > 0;
             return (

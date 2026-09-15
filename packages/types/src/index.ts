@@ -12,7 +12,138 @@ export type OrderStatus =
   | 'ANNULER';
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'MTN_MOMO' | 'AIRTEL_MONEY';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
-export type DeliveryStatus = 'EN_ATTENTE' | 'ASSIGNER' | 'EN_TRANSIT' | 'LIVRER' | 'ECHEC';
+/**
+ * Cycle de vie d'une course.
+ *
+ * ⚠️ `ACCEPTER` manquait ici. Il a été ajouté côté backend le 29/08/2026 pour
+ * distinguer « le livreur a pris la course et va au restaurant » de « il roule
+ * avec le repas » — la confusion des deux faisait annoncer au client « votre
+ * livreur est en chemin » alors que le livreur n'avait pas quitté son domicile.
+ *
+ * `lilia_food_delivery` avait le même trou : sa valeur inconnue retombait
+ * silencieusement sur `EN_ATTENTE` et rendait invisible la carte de toute
+ * course acceptée. Le corriger ici évite d'avoir à le découvrir une troisième
+ * fois.
+ *
+ * `EN_ATTENTE` (course créée, aucun livreur) → `ASSIGNER` (un livreur est
+ * désigné, il n'a pas répondu) → `ACCEPTER` (il a pris la course) →
+ * `EN_TRANSIT` (il a le repas) → `LIVRER`. `ECHEC` est une sortie latérale.
+ */
+export type DeliveryStatus =
+  | 'EN_ATTENTE'
+  | 'ASSIGNER'
+  | 'ACCEPTER'
+  | 'EN_TRANSIT'
+  | 'LIVRER'
+  | 'ECHEC';
+
+/**
+ * Une ligne du classement des vendeurs (`GET /dashboard/restaurant-ranking`).
+ *
+ * ⚠️ `totalRevenue` somme `Order.total` sur les commandes non annulées — donc
+ * `EN_ATTENTE` comprises, c'est-à-dire des commandes jamais payées. C'est le
+ * défaut D-1 de l'audit, traité séparément côté serveur : la population et le
+ * périmètre sont désormais justes, la définition du CA ne l'est pas encore.
+ */
+export interface RestaurantRankingRow {
+  id: string;
+  nom: string;
+  imageUrl: string | null;
+  isActive: boolean;
+  orderCount: number;
+  totalRevenue: number;
+}
+
+/** Les trois états qui composent une commande « bloquée ». */
+export type StuckOrderStatus = 'PAYER' | 'EN_PREPARATION' | 'PRET';
+
+/**
+ * Décompte des commandes bloquées (`GET /orders/restaurant/stuck`).
+ *
+ * `oldestMinutes` vaut `null` — et non `0` — quand rien n'est bloqué : zéro se
+ * lirait comme « une commande vient de se bloquer ».
+ */
+export interface StuckOrders {
+  thresholdMinutes: number;
+  total: number;
+  byStatus: Record<StuckOrderStatus, number>;
+  oldestMinutes: number | null;
+}
+
+/**
+ * Cycle de vie d'un remboursement client.
+ *
+ * ⚠️ Un remboursement est une **dette suivie**, pas un mouvement d'argent :
+ * `COMPLETED` signifie « quelqu'un a envoyé l'argent », pas « le système l'a
+ * envoyé ». Aucun appel prestataire n'est déclenché — le virement se fait hors
+ * application. L'interface doit le dire, sans quoi « Marquer remboursé » se lit
+ * comme un ordre de paiement.
+ */
+export type RefundStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'REJECTED';
+
+/** Une ligne de la file des remboursements (`GET /refunds`). */
+export interface Refund {
+  id: string;
+  orderId: string;
+  paymentId: string | null;
+  /** Montant dû au client, en XAF. Il vaut ce qui a été **réellement encaissé**. */
+  amount: number;
+  status: RefundStatus;
+  /** Pourquoi la dette existe — écrit par le système à l'annulation. */
+  reason: string;
+  /** Ce que l'administrateur a noté en la traitant. */
+  notes: string | null;
+  processedBy: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  order?: {
+    id: string;
+    total: number;
+    status: OrderStatus;
+    paymentMethod: PaymentMethod;
+    contactPhone: string | null;
+    user: { id: string; nom: string | null; phone: string | null } | null;
+    restaurant: { id: string; nom: string } | null;
+  };
+}
+
+export interface RefundsPage {
+  data: Refund[];
+  meta: PaginationMeta;
+}
+
+/**
+ * Un livreur proposable à l'assignation (`GET /deliveries/deliverers`).
+ *
+ * Le serveur a déjà écarté les comptes bloqués, supprimés, hors ligne et sans
+ * profil actif : cette liste ne contient que des livreurs à qui l'assignation
+ * dira oui. `_count.deliveries` est sa charge courante, pas son historique.
+ */
+export interface AvailableDeliverer {
+  id: string;
+  nom: string | null;
+  phone: string | null;
+  imageUrl: string | null;
+  driverStatus: DriverStatus | null;
+  _count: { deliveries: number };
+}
+
+/** La course d'une commande (`GET /deliveries/by-order/:orderId`). */
+export interface OrderDelivery {
+  id: string;
+  status: DeliveryStatus;
+  deliverer: {
+    id: string;
+    nom: string | null;
+    phone: string | null;
+    imageUrl: string | null;
+  } | null;
+  acceptedAt?: string | null;
+  pickedUpAt?: string | null;
+  deliveredAt?: string | null;
+  estimatedArrival?: string | null;
+}
 export type DriverStatus = 'AVAILABLE' | 'ON_DELIVERY' | 'OFFLINE';
 export type DeliveryPriceMode = 'FIXED' | 'ZONE_BASED';
 export type MenuType = 'COMBO' | 'PLAT_SPECIAL';
@@ -493,6 +624,46 @@ export interface Order {
   scheduledFor?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Compteurs par statut, calculés par le serveur sur le **périmètre entier** —
+ * filtre de statut courant exclu.
+ *
+ * Les onglets de l'écran Commandes les calculaient sur la page reçue, c'est-à-
+ * dire sur vingt lignes arbitraires : « En attente (2) » pouvait s'afficher
+ * alors que quarante commandes attendaient. `Partial` parce qu'un backend
+ * antérieur à `meta.statusCounts` n'en renvoie aucun — un compteur absent doit
+ * se lire comme « inconnu », pas comme zéro.
+ */
+export type OrderStatusCounts = Partial<Record<OrderStatus, number>>;
+
+/** `meta` des listes de commandes : pagination + compteurs d'onglets. */
+export interface OrdersMeta extends PaginationMeta {
+  statusCounts: OrderStatusCounts;
+}
+
+/**
+ * Une page de commandes de la vue d'administration.
+ *
+ * `user` et `delivery` y figurent parce qu'ils conditionnent ce qu'un opérateur
+ * peut faire ensuite : rappeler le client, savoir qui porte la commande.
+ */
+export interface AdminOrder extends Order {
+  user?: {
+    id: string;
+    nom: string | null;
+    phone: string | null;
+    imageUrl: string | null;
+  };
+  delivery?: Delivery & {
+    deliverer?: { id: string; nom: string | null; phone: string | null } | null;
+  };
+}
+
+export interface AdminOrdersPage {
+  data: AdminOrder[];
+  meta: OrdersMeta;
 }
 
 export interface OrderItem {
