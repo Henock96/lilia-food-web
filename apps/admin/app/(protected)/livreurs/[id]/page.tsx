@@ -249,12 +249,22 @@ export default function DelivererDetailPage({
           }
           loading={statsLoading}
         />
+        {/* ⚠️ Ce n'est le revenu de personne.
+
+            `totalRevenueXAF` est la somme des `Order.total` des commandes que
+            ce livreur a livrées — donc ce que les CLIENTS ont payé, dont le
+            gros va au vendeur. Ce n'est ni ce que le livreur a gagné (il n'a
+            aucune rémunération dans le système), ni ce que Lilia Food a gardé.
+
+            Le libellé disait « Revenu généré ». Lu sur la fiche d'une personne,
+            il se comprend forcément comme « ce qu'elle a gagné » ou « ce
+            qu'elle nous a rapporté » — les deux faux d'un ordre de grandeur. */}
         <StatCard
           icon={<TrendingUp size={14} className="text-amber-500" />}
-          label="Revenu généré"
+          label="Commandes livrées (valeur)"
           value={statsLoading ? '—' : `${formatXaf(stats?.totalRevenueXAF ?? 0)}`}
           unit="XAF"
-          sub={statsLoading ? '—' : 'Total cumulé'}
+          sub={statsLoading ? '—' : 'Payé par les clients, vendeur inclus'}
           loading={statsLoading}
         />
         <StatCard

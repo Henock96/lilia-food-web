@@ -1222,9 +1222,39 @@ export interface OrderFinancials {
   liliaFood: {
     serviceFee: number;
     restaurantCommission: number;
+    /**
+     * Frais de livraison encaissés auprès du client — un **revenu** de Lilia :
+     * le vendeur ne les reçoit pas (`grossAmount = subTotal`). Ce qu'ils
+     * coûtent réellement, la course, est le poste manquant ci-dessous.
+     */
+    deliveryFeeCollected: number;
+    /** Remises offertes par Lilia (promo + fidélité) — un **coût**. */
+    discountGranted: number;
+    /**
+     * Remboursement **réellement versé**. `0` tant qu'il n'est pas `COMPLETED` :
+     * un remboursement en cours est une dette, pas une sortie d'argent.
+     */
+    refundPaid: number;
     collectionFee: number | null;
     payoutFee: number | null;
-    /** Connue seulement quand les deux frais prestataire le sont. */
+    /**
+     * Contribution réelle de la commande, ou `null` si un poste **obligatoire**
+     * est inconnu — `missingInputs` dit alors lesquels.
+     *
+     * ⚠️ `null` veut dire **inconnu**, jamais « zéro ». Écrire `?? 0` ici
+     * afficherait une marge surestimée avec l'air d'être exacte.
+     */
+    contributionMargin: number | null;
+    /**
+     * Postes qui empêchent de conclure. Aujourd'hui `driverCost` sur **toute**
+     * commande livrée : le coût d'une course n'existe nulle part dans le
+     * système.
+     */
+    missingInputs: string[];
+    /**
+     * @deprecated Alias serveur de `contributionMargin`, conservé le temps que
+     * les deux back-offices migrent. Ne plus l'afficher.
+     */
     netMargin: number | null;
     currency: string;
   };

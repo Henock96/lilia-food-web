@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useOrderFinancials, useRequestPayout, useRetryPayout } from '@lilia/api-client';
 import type { OrderFinancials, PaymentStatus, PayoutStatus } from '@lilia/types';
+import { describeMissingInputs } from '@/lib/missing-inputs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertTriangle,
@@ -30,6 +31,7 @@ const PAYOUT_LABELS: Record<PayoutStatus, string> = {
   FAILED: 'Virement échoué',
   CANCELLED: 'Virement annulé',
 };
+
 
 /**
  * Récapitulatif financier d'une commande, et le geste « Payer le restaurant ».
@@ -142,16 +144,33 @@ export function OrderFinancialsCard({
       <div className="px-3 py-2 border-t border-zinc-100 dark:border-dark-border flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500 dark:text-zinc-400">
         <span>Frais de service {formatXaf(liliaFood.serviceFee)}</span>
         <span>Commission {formatXaf(liliaFood.restaurantCommission)}</span>
+        {liliaFood.deliveryFeeCollected > 0 && (
+          <span>+ livraison {formatXaf(liliaFood.deliveryFeeCollected)}</span>
+        )}
+        {liliaFood.discountGranted > 0 && (
+          <span>− remise {formatXaf(liliaFood.discountGranted)}</span>
+        )}
+        {liliaFood.refundPaid > 0 && (
+          <span>− remboursé {formatXaf(liliaFood.refundPaid)}</span>
+        )}
         {liliaFood.collectionFee != null && (
           <span>− encaissement {formatXaf(liliaFood.collectionFee)}</span>
         )}
         {liliaFood.payoutFee != null && (
           <span>− reversement {formatXaf(liliaFood.payoutFee)}</span>
         )}
+        {/* ⚠️ Le repli disait « Marge connue après facturation prestataire ».
+            C'était vrai quand seuls les frais du prestataire pouvaient manquer ;
+            ça ne l'est plus. Depuis que le coût du livreur est reconnu absent,
+            la marge est inconnue sur TOUTE commande livrée — attendre la
+            facturation du prestataire n'y changerait rien, et le message
+            envoyait l'administrateur patienter pour une information qui
+            n'arrivera jamais. On nomme désormais le poste réellement manquant,
+            rendu par le serveur. */}
         <span className="ml-auto font-semibold text-zinc-700 dark:text-zinc-200">
-          {liliaFood.netMargin != null
-            ? `Marge ${formatXaf(liliaFood.netMargin)}`
-            : 'Marge connue après facturation prestataire'}
+          {liliaFood.contributionMargin != null
+            ? `Contribution ${formatXaf(liliaFood.contributionMargin)}`
+            : `Contribution non calculable — il manque ${describeMissingInputs(liliaFood.missingInputs)}`}
         </span>
       </div>
 
