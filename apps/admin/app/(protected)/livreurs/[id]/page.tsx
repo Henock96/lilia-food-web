@@ -262,7 +262,13 @@ export default function DelivererDetailPage({
         <StatCard
           icon={<TrendingUp size={14} className="text-amber-500" />}
           label="Commandes livrées (valeur)"
-          value={statsLoading ? '—' : `${formatXaf(stats?.totalRevenueXAF ?? 0)}`}
+          value={
+            statsLoading
+              ? '—'
+              : // `handledOrderValueXaf` dit ce que le champ mesure. On retombe
+                // sur l'ancien nom tant que le backend n'est pas redéployé.
+                `${formatXaf(stats?.handledOrderValueXaf ?? stats?.totalRevenueXAF ?? 0)}`
+          }
           unit="XAF"
           sub={statsLoading ? '—' : 'Payé par les clients, vendeur inclus'}
           loading={statsLoading}

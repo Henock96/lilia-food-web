@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 /** Clés des champs numériques de la configuration. */
 type NumberFieldKey =
   | 'serviceFeePercent'
+  | 'restaurantCommissionPercent'
   | 'loyaltyPointsPerOrder'
   | 'loyaltyPointValueXaf'
   | 'loyaltyMinRedemption'
@@ -25,6 +26,17 @@ const NUMBER_FIELDS: {
   warning?: string;
 }[] = [
   { key: 'serviceFeePercent',      label: 'Frais de service',           suffix: '%',   section: 'Frais de service' },
+  {
+    key: 'restaurantCommissionPercent',
+    label: 'Commission vendeur',
+    suffix: '%',
+    section: 'Commission vendeur',
+    // Ce champ n'était éditable par AUCUNE interface : absent du DTO serveur,
+    // il était silencieusement retiré des requêtes (whitelist), qui
+    // répondaient 200 sans rien changer. Le mettre à 0 imposait du SQL direct.
+    warning:
+      "Retenue sur le vendeur au reversement — le client ne la paie pas (à ne pas confondre avec les frais de service). N'affecte que les commandes futures : le taux est figé sur chaque commande à sa création. Un taux propre à un vendeur, défini sur sa fiche, prime sur celui-ci.",
+  },
   { key: 'loyaltyPointsPerOrder',  label: 'Points / commande livrée',   suffix: 'pts', section: 'Fidélité' },
   {
     key: 'loyaltyPointValueXaf',
@@ -39,7 +51,7 @@ const NUMBER_FIELDS: {
   { key: 'loyaltyMinRedemption',   label: "Seuil minimum d'usage",      suffix: 'pts', section: 'Fidélité' },
   { key: 'referrerBonusPoints',    label: 'Bonus parrain',              suffix: 'pts', section: 'Parrainage' },
 ];
-const SECTIONS = ['Frais de service', 'Fidélité', 'Parrainage'];
+const SECTIONS = ['Frais de service', 'Commission vendeur', 'Fidélité', 'Parrainage'];
 
 /**
  * État local du formulaire. Les champs numériques sont stockés en **chaîne**
@@ -48,6 +60,7 @@ const SECTIONS = ['Frais de service', 'Fidélité', 'Parrainage'];
  */
 interface FormState {
   serviceFeePercent: string;
+  restaurantCommissionPercent: string;
   loyaltyPointsPerOrder: string;
   loyaltyPointValueXaf: string;
   loyaltyMinRedemption: string;
@@ -59,6 +72,7 @@ interface FormState {
 function toFormState(s: PlatformSettings): FormState {
   return {
     serviceFeePercent: String(s.serviceFeePercent),
+    restaurantCommissionPercent: String(s.restaurantCommissionPercent),
     loyaltyPointsPerOrder: String(s.loyaltyPointsPerOrder),
     loyaltyPointValueXaf: String(s.loyaltyPointValueXaf),
     loyaltyMinRedemption: String(s.loyaltyMinRedemption),
@@ -111,6 +125,7 @@ export default function ParametresPage() {
     update.mutate(
       {
         serviceFeePercent: Number(form.serviceFeePercent),
+        restaurantCommissionPercent: Number(form.restaurantCommissionPercent),
         loyaltyPointsPerOrder: Number(form.loyaltyPointsPerOrder),
         loyaltyPointValueXaf: Number(form.loyaltyPointValueXaf),
         loyaltyMinRedemption: Number(form.loyaltyMinRedemption),
