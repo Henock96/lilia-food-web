@@ -1317,7 +1317,20 @@ export interface DelivererStats {
   inProgressCount: number;
   /** 0..100 avec 2 décimales — calcul `delivered / (delivered+failed)`. */
   successRate: number;
+  /**
+   * Valeur des commandes que ce livreur a portées — ce que les CLIENTS ont
+   * payé, vendeur inclus. **Ce n'est le revenu de personne**, et surtout pas
+   * le sien.
+   */
+  handledOrderValueXaf: number;
+  /** @deprecated Alias de `handledOrderValueXaf`. Le nom laissait croire à un revenu du livreur. */
   totalRevenueXAF: number;
+  /**
+   * Ce que le livreur a réellement touché. `null` = **inconnu** : le coût
+   * d'une course n'existe nulle part dans le système. Ne jamais afficher 0 à
+   * la place — cela transformerait « on ne sait pas » en « il n'a rien coûté ».
+   */
+  driverPayXaf: number | null;
   /** Durée moyenne entre `pickedUpAt` et `deliveredAt`, en minutes. */
   avgDeliveryMinutes: number | null;
   last30dDeliveries: number;
@@ -1391,6 +1404,15 @@ export interface PaginatedIncidents {
 export interface PlatformSettings {
   id: string;
   serviceFeePercent: number;
+  /**
+   * Commission vendeur par défaut, retenue **sur le vendeur** au reversement —
+   * jamais payée par le client, à ne pas confondre avec `serviceFeePercent`.
+   *
+   * ⚠️ N'affecte que les commandes **futures** : le taux est figé sur chaque
+   * commande à sa création, et c'est ce snapshot que lit le reversement.
+   * Surchargée par vendeur via `PATCH /admin/vendors/:id/commerce`.
+   */
+  restaurantCommissionPercent: number;
   /** Forfait gagné par commande livrée (a remplacé `loyaltyPointsPer100Xaf`). */
   loyaltyPointsPerOrder: number;
   /**
