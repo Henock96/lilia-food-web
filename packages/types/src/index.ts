@@ -1884,3 +1884,64 @@ export interface AdminUserFilters {
   page?: number;
   limit?: number;
 }
+
+// ─── Règlements livreurs ────────────────────────────────────────────────────
+
+export type DriverSettlementMethod =
+  | 'CASH'
+  | 'MOBILE_MONEY'
+  | 'BANK_TRANSFER'
+  | 'OTHER';
+
+/**
+ * ⚠️ Deux valeurs seulement, et aucun état d'attente : un règlement n'est
+ * enregistré qu'APRÈS remise de l'argent. `CANCELLED` couvre la saisie
+ * erronée, pas un flux.
+ */
+export type DriverSettlementStatus = 'PAID' | 'CANCELLED';
+
+/**
+ * Ce qui reste dû à un livreur (`GET /admin/driver-settlements/outstanding/:id`).
+ *
+ * ⚠️ **Lecture pure** : la consulter ne verrouille aucune course. `coveredUntil`
+ * doit être rejoué tel quel à l'enregistrement — c'est lui qui garantit que le
+ * versement couvre exactement les courses vues, et pas celles terminées
+ * pendant qu'on allait payer.
+ */
+export interface DriverOutstanding {
+  driverId: string;
+  coveredUntil: string;
+  amountXaf: number;
+  courseCount: number;
+  /** Première course non réglée, ou `null` s'il n'y en a aucune. */
+  periodStart: string | null;
+  currency: string;
+}
+
+/** Un versement déjà effectué, hors application. */
+export interface DriverSettlement {
+  id: string;
+  driverId: string;
+  amountXaf: number;
+  courseCount: number;
+  periodStart: string;
+  coveredUntil: string;
+  currency: string;
+  status: DriverSettlementStatus;
+  method: DriverSettlementMethod;
+  /** N° de transaction Mobile Money, n° de reçu — seule trace opposable. */
+  reference: string | null;
+  note: string | null;
+  /** Instant déclaré de la remise, distinct de l'enregistrement. */
+  paidAt: string;
+  recordedBy: string;
+  recordedAt: string;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+export interface PaginatedDriverSettlements {
+  data: DriverSettlement[];
+  meta: { page: number; limit: number; total: number };
+}
