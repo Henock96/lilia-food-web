@@ -1237,6 +1237,44 @@ export interface OrderFinancials {
     refundPaid: number;
     collectionFee: number | null;
     payoutFee: number | null;
+
+    /**
+     * Rémunération due au livreur pour cette course, en XAF. Figée à
+     * l'acceptation, jamais recalculée à la lecture.
+     *
+     * ⚠️ `null` = **inconnu** : soit la course n'a pas d'économie gelée, soit
+     * elle n'existe pas (retrait au comptoir, ou livraison faite hors système).
+     * Ne jamais afficher `0` à la place — cela transformerait « on ne sait
+     * pas » en « il n'a rien coûté ».
+     */
+    driverCost: number | null;
+    /** Part de Lilia sur la course : `driverBaseXaf − driverPayXaf`. */
+    liliaDeliveryShare: number | null;
+    /**
+     * Rend un `driverCost` de 0 lisible : au salaire, zéro est la bonne
+     * réponse. Sans ce champ, il serait indistinguable d'une anomalie.
+     */
+    driverCompensationModel:
+      | 'SALARY'
+      | 'PER_DELIVERY'
+      | 'SALARY_PLUS_PER_DELIVERY'
+      | null;
+    driverEmploymentType: 'LILIA' | 'INDEPENDENT' | null;
+    driverSharePercent: number | null;
+
+    /**
+     * Contribution **hors frais prestataire**.
+     *
+     * `collectionFee` et `payoutFee` ne sont jamais renseignés : nos types
+     * pawaPay n'en modélisent aucun, et la production n'a jamais reçu un seul
+     * webhook. Attendre ces deux valeurs revient à ne jamais afficher de marge.
+     *
+     * Ce nombre est exact dès que le coût livreur est connu. ⚠️ Il ne remplace
+     * PAS `contributionMargin` : l'interface doit dire lequel elle montre, sans
+     * quoi elle surestimerait le résultat du montant des frais du prestataire.
+     */
+    contributionMarginBeforeProviderFees: number | null;
+
     /**
      * Contribution réelle de la commande, ou `null` si un poste **obligatoire**
      * est inconnu — `missingInputs` dit alors lesquels.
@@ -1246,9 +1284,9 @@ export interface OrderFinancials {
      */
     contributionMargin: number | null;
     /**
-     * Postes qui empêchent de conclure. Aujourd'hui `driverCost` sur **toute**
-     * commande livrée : le coût d'une course n'existe nulle part dans le
-     * système.
+     * Postes qui empêchent de conclure. Depuis le 18/09/2026, `driverCost` n'y
+     * figure plus dès que la course porte une économie gelée ; restent
+     * `collectionFee` et `payoutFee`, jamais renseignés par le prestataire.
      */
     missingInputs: string[];
     /**
@@ -1326,11 +1364,18 @@ export interface DelivererStats {
   /** @deprecated Alias de `handledOrderValueXaf`. Le nom laissait croire à un revenu du livreur. */
   totalRevenueXAF: number;
   /**
-   * Ce que le livreur a réellement touché. `null` = **inconnu** : le coût
-   * d'une course n'existe nulle part dans le système. Ne jamais afficher 0 à
-   * la place — cela transformerait « on ne sait pas » en « il n'a rien coûté ».
+   * Ce que le livreur a réellement touché sur ses courses livrées, en XAF.
+   *
+   * ⚠️ Somme des **seules** courses portant une économie gelée.
+   * `coursesWithoutEconomics` dit combien ce total ignore : l'afficher seul
+   * laisserait croire à un cumul exhaustif. `null` = aucune course connue.
    */
   driverPayXaf: number | null;
+  /**
+   * Courses livrées sans économie connue — toutes celles antérieures au
+   * 18/09/2026, aucun backfill n'ayant été fait.
+   */
+  coursesWithoutEconomics: number;
   /** Durée moyenne entre `pickedUpAt` et `deliveredAt`, en minutes. */
   avgDeliveryMinutes: number | null;
   last30dDeliveries: number;
@@ -1838,4 +1883,65 @@ export interface AdminUserFilters {
   search?: string;
   page?: number;
   limit?: number;
+}
+
+// ─── Règlements livreurs ────────────────────────────────────────────────────
+
+export type DriverSettlementMethod =
+  | 'CASH'
+  | 'MOBILE_MONEY'
+  | 'BANK_TRANSFER'
+  | 'OTHER';
+
+/**
+ * ⚠️ Deux valeurs seulement, et aucun état d'attente : un règlement n'est
+ * enregistré qu'APRÈS remise de l'argent. `CANCELLED` couvre la saisie
+ * erronée, pas un flux.
+ */
+export type DriverSettlementStatus = 'PAID' | 'CANCELLED';
+
+/**
+ * Ce qui reste dû à un livreur (`GET /admin/driver-settlements/outstanding/:id`).
+ *
+ * ⚠️ **Lecture pure** : la consulter ne verrouille aucune course. `coveredUntil`
+ * doit être rejoué tel quel à l'enregistrement — c'est lui qui garantit que le
+ * versement couvre exactement les courses vues, et pas celles terminées
+ * pendant qu'on allait payer.
+ */
+export interface DriverOutstanding {
+  driverId: string;
+  coveredUntil: string;
+  amountXaf: number;
+  courseCount: number;
+  /** Première course non réglée, ou `null` s'il n'y en a aucune. */
+  periodStart: string | null;
+  currency: string;
+}
+
+/** Un versement déjà effectué, hors application. */
+export interface DriverSettlement {
+  id: string;
+  driverId: string;
+  amountXaf: number;
+  courseCount: number;
+  periodStart: string;
+  coveredUntil: string;
+  currency: string;
+  status: DriverSettlementStatus;
+  method: DriverSettlementMethod;
+  /** N° de transaction Mobile Money, n° de reçu — seule trace opposable. */
+  reference: string | null;
+  note: string | null;
+  /** Instant déclaré de la remise, distinct de l'enregistrement. */
+  paidAt: string;
+  recordedBy: string;
+  recordedAt: string;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+export interface PaginatedDriverSettlements {
+  data: DriverSettlement[];
+  meta: { page: number; limit: number; total: number };
 }

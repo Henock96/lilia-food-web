@@ -12,6 +12,7 @@ import type { AdminDeliverer, DeliveryStatus } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DriverProfileCard } from '@/components/drivers/driver-profile-card';
+import { DriverSettlementCard } from '@/components/drivers/driver-settlement-card';
 import {
   ArrowLeft,
   Bike,
@@ -20,6 +21,7 @@ import {
   Phone,
   Calendar,
   TrendingUp,
+  Banknote,
   CheckCircle2,
   Clock,
   Package,
@@ -236,6 +238,10 @@ export default function DelivererDetailPage({
           savoir s'il était en service, ni l'activer. */}
       <DriverProfileCard driverId={id} />
 
+      {/* Ce que Lilia Food lui doit, et ce qu'elle lui a versé. Aucun virement
+          n'est déclenché d'ici : l'argent est remis hors application. */}
+      <DriverSettlementCard driverId={id} />
+
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
@@ -271,6 +277,37 @@ export default function DelivererDetailPage({
           }
           unit="XAF"
           sub={statsLoading ? '—' : 'Payé par les clients, vendeur inclus'}
+          loading={statsLoading}
+        />
+        {/* Ce que le livreur a réellement touché — le champ qui manquait.
+
+            `null` = aucune de ses courses ne porte d'économie connue, ce qui
+            est le cas de toutes celles antérieures au 18/09/2026 (aucun
+            backfill : on ne fabrique pas des montants jamais versés). On
+            affiche un tiret, jamais 0 — « 0 XAF » se lirait « ce livreur n'a
+            rien gagné ». */}
+        <StatCard
+          icon={<Banknote size={14} className="text-emerald-500" />}
+          label="Rémunération livreur"
+          value={
+            statsLoading
+              ? '—'
+              : stats?.driverPayXaf != null
+                ? formatXaf(stats.driverPayXaf)
+                : '—'
+          }
+          unit={stats?.driverPayXaf != null ? 'XAF' : undefined}
+          sub={
+            statsLoading
+              ? '—'
+              : stats?.driverPayXaf == null
+                ? 'Aucune course avec économie connue'
+                : (stats?.coursesWithoutEconomics ?? 0) > 0
+                  ? // Le total n'est pas exhaustif : le dire, sinon il se lit
+                    // comme un cumul complet.
+                    `Hors ${stats!.coursesWithoutEconomics} course(s) sans économie connue`
+                  : 'Sur toutes ses courses livrées'
+          }
           loading={statsLoading}
         />
         <StatCard
