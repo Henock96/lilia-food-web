@@ -1237,6 +1237,44 @@ export interface OrderFinancials {
     refundPaid: number;
     collectionFee: number | null;
     payoutFee: number | null;
+
+    /**
+     * Rémunération due au livreur pour cette course, en XAF. Figée à
+     * l'acceptation, jamais recalculée à la lecture.
+     *
+     * ⚠️ `null` = **inconnu** : soit la course n'a pas d'économie gelée, soit
+     * elle n'existe pas (retrait au comptoir, ou livraison faite hors système).
+     * Ne jamais afficher `0` à la place — cela transformerait « on ne sait
+     * pas » en « il n'a rien coûté ».
+     */
+    driverCost: number | null;
+    /** Part de Lilia sur la course : `driverBaseXaf − driverPayXaf`. */
+    liliaDeliveryShare: number | null;
+    /**
+     * Rend un `driverCost` de 0 lisible : au salaire, zéro est la bonne
+     * réponse. Sans ce champ, il serait indistinguable d'une anomalie.
+     */
+    driverCompensationModel:
+      | 'SALARY'
+      | 'PER_DELIVERY'
+      | 'SALARY_PLUS_PER_DELIVERY'
+      | null;
+    driverEmploymentType: 'LILIA' | 'INDEPENDENT' | null;
+    driverSharePercent: number | null;
+
+    /**
+     * Contribution **hors frais prestataire**.
+     *
+     * `collectionFee` et `payoutFee` ne sont jamais renseignés : nos types
+     * pawaPay n'en modélisent aucun, et la production n'a jamais reçu un seul
+     * webhook. Attendre ces deux valeurs revient à ne jamais afficher de marge.
+     *
+     * Ce nombre est exact dès que le coût livreur est connu. ⚠️ Il ne remplace
+     * PAS `contributionMargin` : l'interface doit dire lequel elle montre, sans
+     * quoi elle surestimerait le résultat du montant des frais du prestataire.
+     */
+    contributionMarginBeforeProviderFees: number | null;
+
     /**
      * Contribution réelle de la commande, ou `null` si un poste **obligatoire**
      * est inconnu — `missingInputs` dit alors lesquels.
@@ -1246,9 +1284,9 @@ export interface OrderFinancials {
      */
     contributionMargin: number | null;
     /**
-     * Postes qui empêchent de conclure. Aujourd'hui `driverCost` sur **toute**
-     * commande livrée : le coût d'une course n'existe nulle part dans le
-     * système.
+     * Postes qui empêchent de conclure. Depuis le 18/09/2026, `driverCost` n'y
+     * figure plus dès que la course porte une économie gelée ; restent
+     * `collectionFee` et `payoutFee`, jamais renseignés par le prestataire.
      */
     missingInputs: string[];
     /**
@@ -1326,11 +1364,18 @@ export interface DelivererStats {
   /** @deprecated Alias de `handledOrderValueXaf`. Le nom laissait croire à un revenu du livreur. */
   totalRevenueXAF: number;
   /**
-   * Ce que le livreur a réellement touché. `null` = **inconnu** : le coût
-   * d'une course n'existe nulle part dans le système. Ne jamais afficher 0 à
-   * la place — cela transformerait « on ne sait pas » en « il n'a rien coûté ».
+   * Ce que le livreur a réellement touché sur ses courses livrées, en XAF.
+   *
+   * ⚠️ Somme des **seules** courses portant une économie gelée.
+   * `coursesWithoutEconomics` dit combien ce total ignore : l'afficher seul
+   * laisserait croire à un cumul exhaustif. `null` = aucune course connue.
    */
   driverPayXaf: number | null;
+  /**
+   * Courses livrées sans économie connue — toutes celles antérieures au
+   * 18/09/2026, aucun backfill n'ayant été fait.
+   */
+  coursesWithoutEconomics: number;
   /** Durée moyenne entre `pickedUpAt` et `deliveredAt`, en minutes. */
   avgDeliveryMinutes: number | null;
   last30dDeliveries: number;

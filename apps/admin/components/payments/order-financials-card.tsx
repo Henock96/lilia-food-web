@@ -159,6 +159,27 @@ export function OrderFinancialsCard({
         {liliaFood.payoutFee != null && (
           <span>− reversement {formatXaf(liliaFood.payoutFee)}</span>
         )}
+        {/* Coût de la course, figé à l'acceptation du livreur.
+
+            ⚠️ `null` signifie INCONNU, pas zéro. On l'affiche comme tel plutôt
+            que de le masquer : une ligne absente laisserait croire qu'il n'y a
+            rien à déduire, alors que c'est le poste de coût variable principal
+            d'une marketplace de livraison. */}
+        {liliaFood.driverCost != null ? (
+          <span>
+            − livreur {formatXaf(liliaFood.driverCost)}
+            {liliaFood.driverSharePercent != null &&
+              ` (${liliaFood.driverSharePercent} %)`}
+            {liliaFood.driverCompensationModel === 'SALARY' && ' — au salaire'}
+          </span>
+        ) : (
+          <span className="text-amber-600 dark:text-amber-400">
+            − livreur inconnu
+          </span>
+        )}
+        {liliaFood.liliaDeliveryShare != null && (
+          <span>dont course gardée {formatXaf(liliaFood.liliaDeliveryShare)}</span>
+        )}
         {/* ⚠️ Le repli disait « Marge connue après facturation prestataire ».
             C'était vrai quand seuls les frais du prestataire pouvaient manquer ;
             ça ne l'est plus. Depuis que le coût du livreur est reconnu absent,
@@ -167,10 +188,24 @@ export function OrderFinancialsCard({
             envoyait l'administrateur patienter pour une information qui
             n'arrivera jamais. On nomme désormais le poste réellement manquant,
             rendu par le serveur. */}
+        {/* Deux nombres, jamais confondus.
+
+            La contribution STRICTE reste `null` tant que les frais du
+            prestataire sont inconnus — et ils le sont toujours : nos types
+            pawaPay n'en modélisent aucun, et la production n'a jamais reçu un
+            seul webhook. Attendre ces deux valeurs revient à n'afficher aucune
+            marge, jamais.
+
+            On montre donc la contribution HORS frais prestataire, exacte dès
+            que le coût livreur est connu, et nommée pour ce qu'elle est. Le
+            libellé porte le « hors frais prestataire » : sans lui, le chiffre
+            serait lu comme la marge réelle et la surestimerait. */}
         <span className="ml-auto font-semibold text-zinc-700 dark:text-zinc-200">
           {liliaFood.contributionMargin != null
             ? `Contribution ${formatXaf(liliaFood.contributionMargin)}`
-            : `Contribution non calculable — il manque ${describeMissingInputs(liliaFood.missingInputs)}`}
+            : liliaFood.contributionMarginBeforeProviderFees != null
+              ? `Contribution ${formatXaf(liliaFood.contributionMarginBeforeProviderFees)} hors frais prestataire`
+              : `Contribution non calculable — il manque ${describeMissingInputs(liliaFood.missingInputs)}`}
         </span>
       </div>
 
