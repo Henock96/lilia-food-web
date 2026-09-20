@@ -57,6 +57,13 @@ export default function ProfilPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newRue, setNewRue] = useState('');
   const [newQuartierId, setNewQuartierId] = useState('');
+  // Repères pour le livreur. Le web n'a pas de carte de sélection : sans
+  // position posée, une adresse y sort au mieux en APPROXIMATE, c'est-à-dire
+  // au centroïde du quartier — plusieurs centaines de mètres. « Portail bleu
+  // face à la pharmacie » est ce qui reste pour combler cet écart, et c'est
+  // aussi ce qu'un livreur lit réellement. Le champ existait côté serveur et
+  // dans l'app mobile ; ce formulaire ne l'envoyait pas.
+  const [newLandmark, setNewLandmark] = useState('');
   const [savingAddress, setSavingAddress] = useState(false);
 
   // Sign out
@@ -102,10 +109,20 @@ export default function ProfilPage() {
         toast.error('Choisissez votre quartier');
         return;
       }
-      await createAdresse.mutateAsync({ rue: newRue.trim(), ville: 'Brazzaville', country: 'Congo', quartierId: newQuartierId });
+      await createAdresse.mutateAsync({
+        rue: newRue.trim(),
+        ville: 'Brazzaville',
+        country: 'Congo',
+        quartierId: newQuartierId,
+        // Omis plutôt qu'envoyé vide : le serveur distingue « pas de repère »
+        // d'une chaîne vide, et une chaîne vide s'afficherait comme un repère
+        // au livreur.
+        ...(newLandmark.trim() ? { landmark: newLandmark.trim() } : {}),
+      });
       setShowAddressForm(false);
       setNewRue('');
       setNewQuartierId('');
+      setNewLandmark('');
       toast.success('Adresse enregistrée');
     } catch {
       toast.error('Impossible d\'enregistrer l\'adresse');
@@ -346,9 +363,17 @@ export default function ProfilPage() {
                   placeholder="Rue / Précision (ex: Rue Mfilou, face pharmacie)"
                   className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                 />
+                <input
+                  type="text"
+                  value={newLandmark}
+                  onChange={(e) => setNewLandmark(e.target.value)}
+                  maxLength={300}
+                  placeholder="Repères pour le livreur (ex: portail bleu, face à la pharmacie)"
+                  className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); }}
+                    onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); setNewLandmark(''); }}
                     className="flex-1 py-2 text-sm text-ink-500 border border-cream-300 rounded-xl bg-white hover:bg-cream-100 transition-colors"
                   >
                     Annuler

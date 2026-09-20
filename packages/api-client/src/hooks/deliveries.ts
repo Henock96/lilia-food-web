@@ -20,7 +20,8 @@ export const deliveryKeys = {
 /**
  * Statuts de commande sur lesquels le serveur accepte une assignation.
  *
- * Miroir exact d'`assignableStatuses` dans `DeliveryAssignmentService` : ni sur
+ * Miroir exact d'`ASSIGNABLE_ORDER_STATUSES` exporté par
+ * `DeliveryAssignmentService` : ni sur
  * `EN_ATTENTE` (non payée), ni sur une commande terminée. Un bouton que l'API
  * refusera par un 400 n'apprend rien, sinon que l'application est cassée.
  */
