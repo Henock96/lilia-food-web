@@ -98,6 +98,13 @@ export default function PanierPage() {
   // d'autres, et c'est le montant du serveur qui est débité : le client voyait
   // 800 XAF de frais sur une commande de 10 000 et payait 1 500.
   const { data: platformSettings } = usePublicPlatformSettings();
+  // ⚠️ `settingsKnown` distingue « le serveur a répondu » de « on applique le
+  // repli ». Le repli reprend le `@default` du schéma (8 %) alors que la
+  // production facture 15 % : afficher son montant reviendrait à annoncer
+  // 800 XAF de frais sur un panier de 10 000 pour un débit réel de 1 500 —
+  // exactement le défaut que ce module a corrigé, rouvert sur le seul chemin
+  // où personne ne regarde.
+  const settingsKnown = platformSettings != null;
   const pricingSettings = platformSettings ?? PRICING_SETTINGS_FALLBACK;
   // `null` tant que l'adresse n'est pas choisie — le devis n'est alors pas
   // demandé et on reste sur le tarif fixe du vendeur, comme le fait le serveur.
@@ -208,6 +215,7 @@ export default function PanierPage() {
     deliveryFee: vendorDeliveryFee,
     isDelivery,
     settings: pricingSettings,
+    settingsKnown,
     promoDiscount: promoResult?.valid ? (promoResult.discountAmount ?? 0) : 0,
     promoDeliveryFee: promoResult?.valid ? promoResult.newDeliveryFee : undefined,
     loyaltyPoints,
@@ -898,7 +906,13 @@ export default function PanierPage() {
                 )}
                 <div className="flex justify-between text-ink-700">
                   <span>Frais de service</span>
-                  <span>{formatCurrency(serviceFee)}</span>
+                  {estimate.settingsKnown ? (
+                    <span>{formatCurrency(serviceFee)}</span>
+                  ) : (
+                    // Le taux est inconnu : on le dit, plutôt que d'afficher un
+                    // montant que le paiement contredirait.
+                    <span className="text-ink-500">calculés au paiement</span>
+                  )}
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-emerald-600 font-medium">
