@@ -71,6 +71,12 @@ export async function POST(request: Request): Promise<Response> {
   // qu'on vient de demander.
   revalidateTag(`vendor-${restaurantId}`, 'minutes');
   revalidateTag('vendors', 'minutes');
+  // Les bannières aussi : `Banner.restaurantId` est facultatif, mais quand il
+  // est posé la bannière porte l'image et le nom du vendeur qui vient de
+  // changer. La liste est minuscule — une relecture de plus ne coûte rien —
+  // et sans cette ligne l'étiquette `banners` n'aurait aucun purgeur, donc
+  // aucune existence utile.
+  revalidateTag('banners', 'minutes');
 
   return Response.json({ revalidated: true, restaurantId });
 }

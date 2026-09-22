@@ -29,7 +29,6 @@ import { toast } from 'sonner';
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   MTN_MOMO: 'MTN Mobile Money',
   AIRTEL_MONEY: 'Airtel Money',
-  CASH_ON_DELIVERY: 'À la livraison',
 };
 
 /** Code USSD de secours quand la demande automatique n'arrive pas. */
@@ -324,9 +323,9 @@ function PaymentForm({
   const { data: providers } = usePaymentProviders();
   const createPayment = useCreatePayment(token);
 
-  const [method, setMethod] = useState<PaymentMethod>(
-    orderMethod === 'CASH_ON_DELIVERY' ? 'MTN_MOMO' : orderMethod,
-  );
+  // Le repli sur `MTN_MOMO` couvrait `CASH_ON_DELIVERY`, retiré de l'enum
+  // backend en mai 2026 : la commande porte forcément un opérateur Mobile Money.
+  const [method, setMethod] = useState<PaymentMethod>(orderMethod);
   // On redemande le numéro plutôt que de reprendre celui de la commande : le
   // téléphone donné au livreur n'est pas forcément celui qui paie, et une
   // seconde tentative vise souvent un autre compte — c'est précisément parce

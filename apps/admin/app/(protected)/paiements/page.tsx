@@ -79,13 +79,11 @@ const STATUS_STYLES: Record<PaymentStatus, string> = {
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   MTN_MOMO:         'MTN Mobile Money',
   AIRTEL_MONEY:     'Airtel Money',
-  CASH_ON_DELIVERY: 'À la livraison',
 };
 
 const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
   MTN_MOMO:         'bg-yellow-400',
   AIRTEL_MONEY:     'bg-red-500',
-  CASH_ON_DELIVERY: 'bg-zinc-400',
 };
 
 const formatXaf = (n: number) =>

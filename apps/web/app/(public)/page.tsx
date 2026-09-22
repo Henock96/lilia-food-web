@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { HeroSlider } from '@/components/home/hero-slider';
 import { CategoryRail } from '@/components/home/category-rail';
@@ -12,14 +13,28 @@ export const metadata: Metadata = {
   alternates: { canonical: '/' },
 };
 
-export default async function HomePage() {
+/**
+ * Le hero seul dépend du réseau — le reste de la page est prérendu.
+ *
+ * `fetchBanners()` appelle `connection()` : sans cette frontière `<Suspense>`,
+ * l'`await` remonterait jusqu'au composant de page et empêcherait la coquille
+ * d'être prérendue statiquement (PPR). C'est la règle déjà posée pour
+ * `getVendors` dans `FeaturedRestaurants`.
+ */
+async function HeroFromBanners() {
   const bannerSlides = await fetchBanners();
+  return <HeroSlider slides={bannerSlides} />;
+}
 
+export default function HomePage() {
   return (
     <div>
       <OrganizationJsonLd />
       <WebSiteJsonLd />
-      <HeroSlider slides={bannerSlides} />
+      {/* Repli : le hero sans bannière, exactement ce que rend `slides: []`. */}
+      <Suspense fallback={<HeroSlider slides={[]} />}>
+        <HeroFromBanners />
+      </Suspense>
       <CategoryRail />
       <FeaturedRestaurants />
       <HowItWorks />

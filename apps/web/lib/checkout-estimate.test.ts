@@ -374,3 +374,36 @@ describe('assiette des points (septembre 2026)', () => {
     expect(PRICING_SETTINGS_FALLBACK.loyaltyMinRedemption).toBe(1);
   });
 });
+
+describe('réglages inconnus (repli)', () => {
+  it('marque l’estimation comme non fiable quand le serveur n’a pas répondu', () => {
+    // Le repli reprend le `@default` du schéma (8 %), la production facture
+    // 15 %. Le montant reste calculé — il faut bien un total cohérent — mais
+    // l'écran doit savoir qu'il ne peut pas l'annoncer comme sûr.
+    const e = computeCheckoutEstimate({
+      subTotal: 10_000,
+      deliveryFee: 1000,
+      isDelivery: true,
+      settings: PRICING_SETTINGS_FALLBACK,
+      settingsKnown: false,
+    });
+
+    expect(e.settingsKnown).toBe(false);
+    // 8 % du repli : la valeur que l'interface doit justement TAIRE, parce que
+    // le débit réel serait de 1 500.
+    expect(e.serviceFee).toBe(800);
+  });
+
+  it('est fiable par défaut — les appelants avec réglages serveur ne changent pas', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 10_000,
+      deliveryFee: 1000,
+      isDelivery: true,
+      settings: PROD,
+    });
+
+    expect(e.settingsKnown).toBe(true);
+    expect(e.serviceFee).toBe(1500);
+  });
+});
+

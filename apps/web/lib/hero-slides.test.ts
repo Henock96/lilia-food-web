@@ -4,6 +4,19 @@ import type { Banner } from '@lilia/types';
 // Mock server-only avant d'importer le module
 vi.mock('server-only', () => ({}));
 
+/**
+ * `connection()` et les directives de cache sont des mécanismes Next, pas la
+ * logique testée ici.
+ *
+ * ⚠️ Sans ces doubles, `connection()` lève « called outside a request scope » :
+ * hors d'un rendu, elle n'a pas de contexte. Ce que ces tests vérifient est le
+ * **filtrage et le mappage** des bannières ; la frontière de cache elle-même
+ * est couverte par `server-fetch-cache.test.ts`, qui exige qu'elle soit
+ * déclarée.
+ */
+vi.mock('next/server', () => ({ connection: async () => {} }));
+vi.mock('next/cache', () => ({ cacheTag: () => {}, cacheLife: () => {} }));
+
 // Mock apiClientRaw
 const mockApi = vi.fn();
 vi.mock('@lilia/api-client', () => ({

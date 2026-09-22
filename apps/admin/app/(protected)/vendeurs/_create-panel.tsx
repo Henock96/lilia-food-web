@@ -56,7 +56,18 @@ export function CreateVendorPanel({
   onCreated?: (vendor: Restaurant) => void;
 }) {
   const { token } = useAuthStore();
-  const mutation = useCreateVendorOnboarding(token);
+  /**
+   * Générée **une fois** pour toute la session de création — pas à chaque
+   * appel. C'est ce qui rend l'en-tête utile : un double-clic ou un retry
+   * réseau rejoue alors la réponse du serveur au lieu de créer un second
+   * vendeur, un second compte Firebase et un second e-mail d'invitation.
+   *
+   * Le panneau est démonté à la fermeture (`onClose`), donc rouvrir le
+   * formulaire produit bien une nouvelle clé — une création volontairement
+   * distincte reste possible.
+   */
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const mutation = useCreateVendorOnboarding(token, idempotencyKey);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [fallbackLink, setFallbackLink] = useState<string | null>(null);
 

@@ -37,7 +37,21 @@ export interface PricingSettings {
  *
  * Il reprend les `@default` du modèle Prisma `PlatformSettings`, pas une
  * constante inventée côté web. Une panne de cette route ne doit pas fermer la
- * caisse ; l'écran signale alors que le montant est une estimation.
+ * caisse.
+ *
+ * ⚠️ **Ce repli est FAUX en production, et c'est assumé.** Le `@default` du
+ * schéma vaut 8 %, la production applique **15 %** : sur un panier de
+ * 10 000 XAF, ce repli annonce 800 XAF de frais pour un débit réel de 1 500.
+ *
+ * C'est précisément le défaut que ce module existe pour avoir corrigé — le
+ * panier calculait `subTotal * 0.08` en dur — et le repli le rouvrait en
+ * silence sur le seul chemin où personne ne regarde : la panne.
+ *
+ * On ne le remplace pas par `15` : écrire la valeur de production dans le code
+ * du client recrée exactement la constante en dur qu'on a retirée, et elle
+ * redeviendra fausse au premier changement de tarif. La sortie est ailleurs —
+ * `settingsKnown` ci-dessous : quand le serveur n'a pas répondu, l'écran
+ * **n'annonce aucun montant de frais** plutôt qu'un montant faux.
  */
 export const PRICING_SETTINGS_FALLBACK: PricingSettings = {
   serviceFeePercent: 8,
@@ -47,6 +61,17 @@ export const PRICING_SETTINGS_FALLBACK: PricingSettings = {
 
 export interface CheckoutEstimateInput {
   subTotal: number;
+  /**
+   * Le serveur a-t-il réellement répondu, ou travaille-t-on sur le repli ?
+   *
+   * `false` signifie « le taux de frais de service est INCONNU ». Les montants
+   * restent calculés — il faut bien afficher quelque chose de cohérent — mais
+   * l'interface doit cesser de les présenter comme des montants sûrs.
+   *
+   * Par défaut `true` : les appelants qui disposent des réglages serveur, y
+   * compris tous les tests existants, n'ont rien à changer.
+   */
+  settingsKnown?: boolean;
   /**
    * Frais de livraison **du vendeur**, tels que renvoyés par le serveur
    * (`GET /quartiers/delivery-fee` quand un quartier est connu, sinon
@@ -78,6 +103,13 @@ export interface CheckoutEstimate {
   loyaltyDiscount: number;
   loyaltyPointsUsed: number;
   total: number;
+  /**
+   * `false` quand `GET /platform-settings` n'a pas répondu et que le repli a
+   * servi. L'écran doit alors taire le montant des frais de service au lieu
+   * d'annoncer une valeur qu'il sait possiblement fausse : le `@default` du
+   * schéma (8 %) et la production (15 %) divergent.
+   */
+  settingsKnown: boolean;
 }
 
 /**
@@ -95,6 +127,7 @@ export function computeCheckoutEstimate({
   promoDeliveryFee,
   loyaltyPoints = 0,
   useLoyaltyPoints = false,
+  settingsKnown = true,
 }: CheckoutEstimateInput): CheckoutEstimate {
   // `OrderCalculatorService` : la livraison n'entre pas dans un retrait.
   const baseDeliveryFee = isDelivery ? Math.round(deliveryFee) : 0;
@@ -145,6 +178,7 @@ export function computeCheckoutEstimate({
     loyaltyDiscount,
     loyaltyPointsUsed,
     total: Math.max(0, remaining - loyaltyDiscount),
+    settingsKnown,
   };
 }
 
