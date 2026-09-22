@@ -10,7 +10,20 @@ export type OrderStatus =
   | 'EN_ROUTE'
   | 'LIVRER'
   | 'ANNULER';
-export type PaymentMethod = 'CASH_ON_DELIVERY' | 'MTN_MOMO' | 'AIRTEL_MONEY';
+/**
+ * Opérateur choisi par le client pour payer.
+ *
+ * ⚠️ `CASH_ON_DELIVERY` a été retiré : la valeur n'existe plus dans l'enum
+ * Prisma depuis la migration `20260515000000_remove_cash_on_delivery`. La
+ * garder ici obligeait chaque `Record<PaymentMethod, …>` à inventer un libellé
+ * et une couleur pour un mode qui n'est jamais servi, et laissait croire qu'on
+ * pouvait le proposer.
+ *
+ * Les opérateurs réellement proposables viennent de `GET /payments/providers`,
+ * qui porte aussi leur disponibilité du moment — un opérateur en panne est
+ * grisé sans publier de release.
+ */
+export type PaymentMethod = 'MTN_MOMO' | 'AIRTEL_MONEY';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 /**
  * Cycle de vie d'une course.

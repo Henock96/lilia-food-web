@@ -70,22 +70,66 @@ export function useVendorPreview(token: string | null, vendorId: string | null) 
 }
 
 /**
+ * Construit la requête de création de vendeur.
+ *
+ * Extrait de la mutation pour être **vérifiable** : l'en-tête vivait dans une
+ * closure de `useMutation`, donc hors de portée de tout test — c'est ce qui a
+ * laissé le défaut ci-dessous vivre sans être vu. Même remède que pour la
+ * pagination des commandes (`orders.contract.test.ts`).
+ */
+export function createVendorRequest({
+  dto,
+  token,
+  idempotencyKey,
+}: {
+  dto: CreateVendorOnboardingDto;
+  token: string | null;
+  idempotencyKey: string;
+}): { path: string; init: RequestInit & { token: string | null } } {
+  if (!idempotencyKey.trim()) {
+    // Fabriquer une clé ici rétablirait exactement le défaut d'origine, sans
+    // que rien ne le signale. Mieux vaut échouer chez l'appelant.
+    throw new Error(
+      "Idempotency-Key requise : elle doit être stable pour toute la session " +
+        'de création, sinon elle ne protège de rien.',
+    );
+  }
+
+  return {
+    path: '/admin/vendors',
+    init: {
+      method: 'POST',
+      token,
+      body: JSON.stringify(dto),
+      headers: { 'Idempotency-Key': idempotencyKey },
+    },
+  };
+}
+
+/**
  * Étape 1 — crée le vendeur et le compte de son propriétaire.
  *
- * L'`Idempotency-Key` est générée par requête : un double-clic ou un retry
- * réseau rejoue la réponse au lieu de créer un second vendeur avec un second
- * compte Firebase.
+ * ⚠️ `idempotencyKey` doit être **stable pour toute la session de création** :
+ * l'appelant la génère une fois (`useState(() => crypto.randomUUID())`), comme
+ * pour `useCreateOrder`.
+ *
+ * Elle était auparavant fabriquée **dans** `mutationFn`, donc renouvelée à
+ * chaque appel — et le commentaire affirmait pourtant qu'elle protégeait du
+ * double-clic et du retry réseau. Une clé neuve à chaque appel n'est pas une
+ * clé d'idempotence : deux clics créaient deux vendeurs, deux comptes Firebase
+ * et deux e-mails d'invitation. Le backend lit bien l'en-tête
+ * (`vendor-onboarding.controller.ts`) ; c'est le client qui désarmait la garde.
  */
-export function useCreateVendorOnboarding(token: string | null) {
+export function useCreateVendorOnboarding(
+  token: string | null,
+  idempotencyKey: string,
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dto: CreateVendorOnboardingDto) =>
-      apiClient<CreateVendorResponse>('/admin/vendors', {
-        method: 'POST',
-        token,
-        body: JSON.stringify(dto),
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
-      }),
+    mutationFn: (dto: CreateVendorOnboardingDto) => {
+      const { path, init } = createVendorRequest({ dto, token, idempotencyKey });
+      return apiClient<CreateVendorResponse>(path, init);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminVendorKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminVendorKeys.stats() });

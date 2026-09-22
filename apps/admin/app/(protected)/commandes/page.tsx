@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
 import { apiMessage } from '@/lib/api-message';
+import { nextOrderStatus } from '@/lib/order-transitions';
 import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
 import { AssignDriver } from '@/components/orders/assign-driver';
 
@@ -61,26 +62,11 @@ const STATUS_TABS: OrderStatus[] = [
   'ANNULER',
 ];
 
-// State machine backend : EN_ATTENTE → PAYER → EN_PREPARATION → PRET → EN_ROUTE → LIVRER.
-// La transition `EN_ATTENTE → PAYER` est réservée à ADMIN (confirmation manuelle du
-// virement MoMo/Airtel) — on l'affiche, mais on guarde via `canAdvanceStatus` plus bas
-// pour ne pas la proposer à un RESTAURATEUR.
-const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  EN_ATTENTE:     'PAYER',
-  PAYER:          'EN_PREPARATION',
-  EN_PREPARATION: 'PRET',
-  PRET:           'EN_ROUTE',
-  EN_ROUTE:       'LIVRER',
-};
-
-/**
- * RESTAURATEUR ne doit jamais déclencher `EN_ATTENTE → PAYER` (réservé à ADMIN).
- * On masque le bouton côté UI ; le backend refuserait de toute façon.
- */
-function canAdvanceStatus(currentStatus: OrderStatus, role: string | undefined): boolean {
-  if (currentStatus !== 'EN_ATTENTE') return true;
-  return role === 'ADMIN';
-}
+// La table de transitions vit désormais dans `lib/order-transitions.ts`, testée
+// ligne à ligne contre `ORDER_TRANSITION_MATRIX`. Elle était ici, recopiée à la
+// main et gardée par un seul contrôle sur `EN_ATTENTE` : le vendeur voyait donc
+// « En route » puis « Livrée » sur des commandes où le serveur lui répond 403,
+// et l'admin un bouton « En route » inatteignable par construction.
 
 // LIL-123 : Brazzaville n'a pas de DST, mais on passe toujours par Intl pour rester
 // portable si on déménage l'admin sur un fuseau différent. `en-CA` produit le
@@ -126,9 +112,12 @@ function OrderCard({
   onStatusUpdate: (id: string, status: OrderStatus) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const nextStatus = NEXT_STATUS[order.status];
-  const canAdvance = canAdvanceStatus(order.status, role);
-  const waitingForPayment = order.status === 'EN_ATTENTE' && !canAdvance;
+  const nextStatus = nextOrderStatus({
+    current: order.status,
+    role,
+    isDelivery: order.isDelivery,
+  });
+  const waitingForPayment = order.status === 'EN_ATTENTE' && nextStatus === null;
   const isPaid = PAID_STATUSES.has(order.status);
   const downloadReceipt = useDownloadReceipt(token);
 
@@ -206,7 +195,7 @@ function OrderCard({
               Annuler
             </button>
           )}
-          {nextStatus && canAdvance && (
+          {nextStatus && (
             <button
               onClick={() => onStatusUpdate(order.id, nextStatus)}
               className="text-xs px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"
