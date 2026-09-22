@@ -27,7 +27,10 @@ import {
   usePublicPlatformSettings,
   useDeliveryFeeQuote,
   apiClient,
+  ApiError,
+  pricingKeys,
 } from '@lilia/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
 import { formatCurrency, cn, isValidCongoPhone, isPreorderCart } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
@@ -40,6 +43,7 @@ import {
   PRICING_SETTINGS_FALLBACK,
 } from '@/lib/checkout-estimate';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
+import { maintenanceNotice } from '@/lib/maintenance';
 import { toast } from 'sonner';
 
 export default function PanierPage() {
@@ -98,6 +102,7 @@ export default function PanierPage() {
   // d'autres, et c'est le montant du serveur qui est débité : le client voyait
   // 800 XAF de frais sur une commande de 10 000 et payait 1 500.
   const { data: platformSettings } = usePublicPlatformSettings();
+  const queryClient = useQueryClient();
   // ⚠️ `settingsKnown` distingue « le serveur a répondu » de « on applique le
   // repli ». Le repli reprend le `@default` du schéma (8 %) alors que la
   // production facture 15 % : afficher son montant reviendrait à annoncer
@@ -106,6 +111,10 @@ export default function PanierPage() {
   // où personne ne regarde.
   const settingsKnown = platformSettings != null;
   const pricingSettings = platformSettings ?? PRICING_SETTINGS_FALLBACK;
+  // Fenêtre de maintenance déclarée par l'administrateur (MAINT-001) : on le
+  // dit en haut du panier et on désactive « Commander », au lieu de laisser le
+  // client remplir tout le checkout pour découvrir un 503 dans un toast.
+  const maintenance = maintenanceNotice(platformSettings);
   // `null` tant que l'adresse n'est pas choisie — le devis n'est alors pas
   // demandé et on reste sur le tarif fixe du vendeur, comme le fait le serveur.
   const selectedAdresse = adresses.find((a) => a.id === selectedAdresseId) ?? null;
@@ -288,6 +297,10 @@ export default function PanierPage() {
   }
 
   async function handleCheckout() {
+    if (maintenance) {
+      toast.error(maintenance);
+      return;
+    }
     // Même règle que `OrderValidator.validateMinimumOrderAmount` : le serveur
     // reste l'autorité, on lui évite juste un aller-retour perdu.
     if (minimumError) {
@@ -397,6 +410,12 @@ export default function PanierPage() {
 
       router.push(`/commandes/${result.id}`);
     } catch (err: unknown) {
+      // 503 : une maintenance a commencé depuis notre dernière lecture des
+      // réglages (jusqu'à 60 s). Les relire affiche le bandeau et désactive
+      // le bouton, au lieu d'un refus inexpliqué au prochain clic.
+      if (err instanceof ApiError && err.status === 503) {
+        void queryClient.invalidateQueries({ queryKey: pricingKeys.platformSettings });
+      }
       const msg = (err as { message?: string }).message;
       toast.error(msg ?? 'Impossible de passer la commande');
     } finally {
@@ -414,6 +433,19 @@ export default function PanierPage() {
       <h1 className="text-2xl font-bold text-ink-900 mb-8" style={{ fontFamily: 'var(--font-display)' }}>
         Mon panier
       </h1>
+
+      {maintenance && !isEmpty && (
+        <div
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="font-semibold">Commandes momentanément suspendues</p>
+            <p className="mt-0.5">{maintenance}</p>
+          </div>
+        </div>
+      )}
 
       {isEmpty ? (
         <motion.div
@@ -957,7 +989,7 @@ export default function PanierPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={checkoutLoading || isEmpty || pricingPending || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
+                disabled={!!maintenance || checkoutLoading || isEmpty || pricingPending || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (

@@ -35,9 +35,10 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'encrypted-tbn0.gstatic.com' },
     ],
   },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? 'https://lilia-backend.onrender.com',
-  },
+  // Plus de bloc `env` injectant l'URL de production par défaut (CFG-001) :
+  // il l'inlinait aussi en `next dev`, si bien qu'un poste sans `.env.local`
+  // écrivait dans la vraie base. Le repli de production vit désormais dans
+  // `@lilia/api-client` (`resolveApiUrl`), limité aux builds de production.
 
   /**
    * En-têtes de sécurité — la production n'en servait aucun en dehors de

@@ -1,0 +1,140 @@
+import { describe, expect, it } from 'vitest';
+import type { PlatformSettings } from '@lilia/types';
+import {
+  NUMBER_FIELD_SPECS,
+  appUpdateStatus,
+  buildSettingsPatch,
+  parseNumberField,
+  toSettingsForm,
+} from './platform-settings-form';
+
+/** Configuration de production au 22/09/2026. */
+const PROD: PlatformSettings = {
+  id: 'singleton',
+  serviceFeePercent: 15,
+  restaurantCommissionPercent: 10,
+  loyaltyPointsPerOrder: 1,
+  loyaltyPointValueXaf: 50,
+  loyaltyMinRedemption: 1,
+  referrerBonusPoints: 1,
+  maintenanceMode: false,
+  maintenanceMessage: '',
+  minAppVersion: '1.3.0',
+  latestAppVersion: '1.3.0',
+  updateUrlAndroid: 'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app',
+  updateUrlIos: null,
+  updateMessage: 'Nouvelle mise à jour Lilia Food disponible !🥳',
+  updatedAt: '2026-09-22T10:00:00.000Z',
+};
+
+function patchFrom(changes: Partial<ReturnType<typeof toSettingsForm>>, loaded = PROD) {
+  return buildSettingsPatch({ ...toSettingsForm(loaded), ...changes }, loaded);
+}
+
+describe('saisie numérique stricte (SET-003)', () => {
+  const decimal = NUMBER_FIELD_SPECS.serviceFeePercent;
+  const integer = NUMBER_FIELD_SPECS.loyaltyPointValueXaf;
+
+  it.each(['12,5', 'abc', '12foo', '', '  ', '-5', '1e3'])('refuse %p', (raw) => {
+    expect('error' in parseNumberField(raw, decimal)).toBe(true);
+  });
+  it('la virgule décimale est expliquée, pas seulement refusée', () => {
+    const r = parseNumberField('12,5', decimal);
+    expect('error' in r && r.error).toMatch(/point/);
+  });
+  it('accepte un décimal et un entier', () => {
+    expect(parseNumberField('12.5', decimal)).toEqual({ value: 12.5 });
+    expect(parseNumberField(' 15 ', decimal)).toEqual({ value: 15 });
+    expect(parseNumberField('50', integer)).toEqual({ value: 50 });
+  });
+  it('un entier attendu refuse un décimal', () => {
+    expect('error' in parseNumberField('12.5', integer)).toBe(true);
+  });
+  it('une saisie invalide bloque tout le PATCH — aucun envoi, aucun succès', () => {
+    const r = patchFrom({ serviceFeePercent: '12,5' });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe('PATCH minimal + verrou (SET-001)', () => {
+  it('rien de modifié : aucun champ, seulement le verrou', () => {
+    const r = patchFrom({});
+    expect(r).toEqual({
+      ok: true,
+      changed: false,
+      patch: { expectedUpdatedAt: PROD.updatedAt },
+    });
+  });
+  it('seul le champ modifié part — les réglages de mise à jour ne sont pas réécrits', () => {
+    const r = patchFrom({ serviceFeePercent: '12' });
+    expect(r.ok && r.patch).toEqual({ expectedUpdatedAt: PROD.updatedAt, serviceFeePercent: 12 });
+  });
+  it('maintenanceMessage "" en base et vide au formulaire : pas de faux changement', () => {
+    const r = patchFrom({ maintenanceMessage: '   ' });
+    expect(r.ok && r.changed).toBe(false);
+  });
+});
+
+describe('canal de mise à jour (CONFIG-UPDATE-001)', () => {
+  it('vider un champ envoie null, jamais ""', () => {
+    const r = patchFrom({ updateMessage: '', updateUrlAndroid: '' });
+    expect(r.ok && r.patch).toMatchObject({ updateMessage: null, updateUrlAndroid: null });
+  });
+  it('lever le blocage : null, sans confirmation', () => {
+    const r = patchFrom({ minAppVersion: '' });
+    expect(r.ok && r.patch).toMatchObject({ minAppVersion: null });
+  });
+  it('poser un nouveau blocage sans BLOQUER : refusé', () => {
+    const r = patchFrom({ minAppVersion: '1.3.1', latestAppVersion: '1.3.1' });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.errors.join(' ')).toMatch(/BLOQUER/);
+  });
+  it('poser un nouveau blocage avec BLOQUER (casse indifférente) : accepté', () => {
+    const r = patchFrom({ minAppVersion: '1.3.1', latestAppVersion: '1.3.1', blockConfirmation: 'bloquer' });
+    expect(r.ok && r.patch).toMatchObject({ minAppVersion: '1.3.1', latestAppVersion: '1.3.1' });
+    expect(r.ok && 'blockConfirmation' in r.patch).toBe(false);
+  });
+  it('min > latest : refusé', () => {
+    const r = patchFrom({ minAppVersion: '2.0.0', blockConfirmation: 'BLOQUER' });
+    expect(r.ok).toBe(false);
+  });
+  it('version invalide : refusée', () => {
+    expect(patchFrom({ latestAppVersion: 'abc' }).ok).toBe(false);
+  });
+  it('vider latest sous un blocage actif : refusé', () => {
+    expect(patchFrom({ latestAppVersion: '' }).ok).toBe(false);
+  });
+  it('URL iOS de mauvais domaine : refusée', () => {
+    expect(patchFrom({ updateUrlIos: 'https://example.com/app/id1234567890' }).ok).toBe(false);
+  });
+  it('« v1.3.0 » est normalisé et ne compte pas comme un changement', () => {
+    const r = patchFrom({ minAppVersion: 'v1.3.0' });
+    expect(r.ok && r.changed).toBe(false);
+  });
+  it('message de plus de 300 caractères : refusé', () => {
+    expect(patchFrom({ updateMessage: 'x'.repeat(301) }).ok).toBe(false);
+  });
+});
+
+describe('appUpdateStatus', () => {
+  it('blocage actif', () => {
+    expect(appUpdateStatus(PROD)).toEqual({ kind: 'blocking', minVersion: '1.3.0' });
+  });
+  it('recommandation seule', () => {
+    expect(appUpdateStatus({ minAppVersion: null, latestAppVersion: '1.4.0' })).toEqual({
+      kind: 'recommending',
+      latestVersion: '1.4.0',
+    });
+  });
+  it('rien', () => {
+    expect(appUpdateStatus({ minAppVersion: null, latestAppVersion: null })).toEqual({ kind: 'idle' });
+  });
+});
+
+describe('état hérité incohérent (aligné sur l’Admin Flutter)', () => {
+  it('un blocage sans dernière version en base bloque tout enregistrement jusqu’à correction', () => {
+    const legacy = { ...PROD, latestAppVersion: null };
+    const r = patchFrom({ serviceFeePercent: '12' }, legacy);
+    expect(r.ok).toBe(false);
+  });
+});

@@ -31,6 +31,7 @@ import {
   Settings,
   AlertTriangle,
   Gift,
+  ScrollText,
   Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -85,6 +86,9 @@ const NAV_ITEMS: {
   { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false, adminOnly: true  },
   { href: '/zones',       label: 'Zones',       icon: MapPin,          badge: false, adminOnly: true  },
   { href: '/parametres',  label: 'Paramètres',  icon: Settings,        badge: false, adminOnly: true  },
+  // Lecture seule. Seul l'Admin Flutter savait lire le journal : depuis un
+  // poste, impossible de savoir qui avait posé un blocage de version.
+  { href: '/journal',     label: "Journal d'audit", icon: ScrollText,  badge: false, adminOnly: true  },
 ];
 
 interface SidebarProps {

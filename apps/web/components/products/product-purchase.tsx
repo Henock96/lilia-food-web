@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Lock, Plus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductVariant, ProductVendorRef } from '@lilia/types';
@@ -37,6 +38,7 @@ export function ProductPurchase({
   vendor: ProductVendorRef | null;
 }) {
   const { token } = useAuthStore();
+  const router = useRouter();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
   const { data: cart } = useCart(token);
@@ -100,8 +102,11 @@ export function ProductPurchase({
       toast.error('Connectez-vous pour ajouter au panier', {
         action: {
           label: 'Se connecter',
+          // Navigation client (LINT-001) : `window.location.href` rechargeait
+          // toute l'application — état React, cache de requêtes, bundle — pour
+          // un simple changement de page interne.
           onClick: () => {
-            window.location.href = `/connexion?redirect=/produits/${product.id}`;
+            router.push(`/connexion?redirect=/produits/${product.id}`);
           },
         },
       });

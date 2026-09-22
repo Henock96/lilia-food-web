@@ -2,7 +2,6 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 import path from 'path';
 
-const BACKEND_URL = process.env.BACKEND_URL ?? 'https://lilia-backend.onrender.com';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -40,10 +39,21 @@ const nextConfig: NextConfig = {
    */
   async rewrites() {
     if (process.env.NODE_ENV === 'production') return [];
+    // Plus de repli silencieux sur la production (CFG-001) : sans
+    // `BACKEND_URL`, le proxy local relayait vers la vraie base. La cible doit
+    // être un choix écrit dans `.env.local` — y compris quand ce choix est la
+    // production.
+    const backendUrl = process.env.BACKEND_URL?.trim();
+    if (!backendUrl) {
+      throw new Error(
+        'BACKEND_URL absent de apps/admin/.env.local : le proxy /api-proxy ne sait pas ' +
+          'vers quel backend relayer. Il ne retombe plus sur la production.',
+      );
+    }
     return [
       {
         source: '/api-proxy/:path*',
-        destination: `${BACKEND_URL}/:path*`,
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },
