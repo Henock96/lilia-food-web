@@ -11,8 +11,10 @@ import type {
   PaymentsStats,
   Quartier,
   PlatformSettings,
+  UpdatePlatformSettingsPayload,
 } from '@lilia/types';
-import { apiClient, apiClientRaw } from '../client';
+import { ApiError, apiClient, apiClientRaw } from '../client';
+import { pricingKeys } from './pricing';
 
 export const adminOpsKeys = {
   payments: (page: number, status: string) => ['admin', 'payments', page, status] as const,
@@ -212,7 +214,7 @@ export function usePlatformSettings(token: string | null) {
 export function useUpdatePlatformSettings(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dto: Partial<PlatformSettings>) =>
+    mutationFn: (dto: UpdatePlatformSettingsPayload) =>
       apiClient<PlatformSettings>('/admin/platform-settings', {
         method: 'PATCH',
         body: JSON.stringify(dto),
@@ -220,6 +222,16 @@ export function useUpdatePlatformSettings(token: string | null) {
       }),
     onSuccess: (data) => {
       queryClient.setQueryData(adminOpsKeys.platformSettings, data);
+      // Les écrans qui lisent la vue publique (fidélité, parrainage) dans ce
+      // même back-office doivent voir la nouvelle valeur sans attendre 5 min.
+      void queryClient.invalidateQueries({ queryKey: pricingKeys.platformSettings });
+    },
+    onError: (error) => {
+      // 409 : la configuration a bougé depuis le chargement. Relire tout de
+      // suite, pour que « Recharger » montre les valeurs de l'autre admin.
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: adminOpsKeys.platformSettings });
+      }
     },
   });
 }

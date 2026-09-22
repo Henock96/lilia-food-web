@@ -1,9 +1,15 @@
 import { installationHeaders } from './installation-id';
+import { resolveApiUrl, serverSideExplicit } from './api-url';
 
-export const API_URL =
-  typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_API_URL ?? 'https://lilia-backend.onrender.com')
-    : (process.env.API_URL ?? 'https://lilia-backend.onrender.com');
+// `process.env.NEXT_PUBLIC_API_URL` est référencée **statiquement** : Next
+// l'inline au build dans le bundle navigateur. Règles : `api-url.ts`.
+export const API_URL = resolveApiUrl({
+  explicit:
+    typeof window !== 'undefined'
+      ? process.env.NEXT_PUBLIC_API_URL
+      : serverSideExplicit(process.env.API_URL, process.env.NEXT_PUBLIC_API_URL),
+  nodeEnv: process.env.NODE_ENV,
+});
 
 /**
  * Capacité de paiement annoncée à chaque requête.

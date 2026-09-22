@@ -1483,8 +1483,43 @@ export interface PlatformSettings {
   referrerBonusPoints: number;
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
+
+  // ── Canal de mise à jour du parc mobile (lilia-app) ──────────────────────
+  //
+  // Servis par le backend depuis le 08/09/2026, absents de ce type jusqu'au
+  // 22/09 (CONFIG-UPDATE-001) : l'Admin Web ne pouvait ni voir ni lever un
+  // blocage actif en production. Règles : `apps/admin/lib/app-update-rules.ts`.
+
+  /** Seuil **bloquant** : en dessous, le client ne peut plus commander. */
+  minAppVersion: string | null;
+  /** Dernière version publiée ; en dessous, invitation reportable. */
+  latestAppVersion: string | null;
+  /** Fiche Google Play ; `null` = repli compilé dans l'app. */
+  updateUrlAndroid: string | null;
+  /** Fiche App Store ; `null` = repli compilé (recherche « Lilia Food »). */
+  updateUrlIos: string | null;
+  /** Message affiché dans le dialogue de mise à jour (≤ 300 caractères). */
+  updateMessage: string | null;
+
+  /** Horodatage de la dernière écriture — renvoyé en `expectedUpdatedAt`. */
   updatedAt: string;
 }
+
+/**
+ * Corps de `PATCH /admin/platform-settings`.
+ *
+ * - N'y figurent que les champs **modifiés** : renvoyer le formulaire entier
+ *   réécrivait des valeurs périmées par-dessus celles d'un autre administrateur.
+ * - `null` **efface** (versions, URL, messages) ; `""` est refusé pour une
+ *   version et normalisé en `null` pour un message.
+ * - `expectedUpdatedAt` = `updatedAt` chargé : 409 si la configuration a changé
+ *   depuis (verrou optimiste).
+ */
+export type UpdatePlatformSettingsPayload = Partial<
+  Omit<PlatformSettings, 'id' | 'updatedAt'>
+> & {
+  expectedUpdatedAt?: string;
+};
 
 // --- Admin marketplace multi-vendeurs (LIL-113) ---
 
@@ -1956,5 +1991,60 @@ export interface DriverSettlement {
 
 export interface PaginatedDriverSettlements {
   data: DriverSettlement[];
+  meta: { page: number; limit: number; total: number };
+}
+
+// --- Journal d'audit (GET /admin/audit-log) ---
+
+/**
+ * Actions journalisées — miroir de l'enum Prisma `AdminAuditAction`.
+ * Liste exhaustive des libellés : `apps/admin/lib/audit-labels.ts`.
+ */
+export type AdminAuditAction =
+  | 'PAYOUT_REQUESTED'
+  | 'PAYOUT_RETRIED'
+  | 'PAYOUT_CANCELLED'
+  | 'VENDOR_PAYOUT_ACCOUNT_UPDATED'
+  | 'USER_ROLE_CHANGED'
+  | 'USER_BANNED'
+  | 'USER_UNBANNED'
+  | 'DRIVER_CREATED'
+  | 'DRIVER_UPDATED'
+  | 'DRIVER_ACTIVATED'
+  | 'DRIVER_DEACTIVATED'
+  | 'DRIVER_SETTLEMENT_RECORDED'
+  | 'DRIVER_SETTLEMENT_CANCELLED'
+  | 'VENDOR_DISPLAY_ORDER_CHANGED'
+  | 'VENDOR_FEATURED_TOGGLED'
+  | 'VENDOR_CREATED'
+  | 'VENDOR_ACTIVATED'
+  | 'VENDOR_COMMISSION_CHANGED'
+  | 'VENDOR_CATALOG_EDITED'
+  | 'VENDOR_APPROVED'
+  | 'VENDOR_SUSPENDED'
+  | 'VENDOR_ACTIVE_TOGGLED'
+  | 'PAYMENT_CONFIRMED'
+  | 'PAYMENT_REJECTED'
+  | 'REFUND_CREATED'
+  | 'REFUND_UPDATED'
+  | 'ORDER_STATUS_FORCED'
+  | 'LOYALTY_ADJUSTED'
+  | 'PLATFORM_SETTINGS_CHANGED'
+  | 'REFERRAL_REWARD_REVIEWED';
+
+export interface AdminAuditEntry {
+  id: string;
+  action: AdminAuditAction | string;
+  targetType: string;
+  targetId: string;
+  reason: string | null;
+  /** Pour `PLATFORM_SETTINGS_CHANGED` : `{ champ: { before, after } }`. */
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { id: string; nom: string | null; email: string | null } | null;
+}
+
+export interface PaginatedAuditLog {
+  data: AdminAuditEntry[];
   meta: { page: number; limit: number; total: number };
 }

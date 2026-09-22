@@ -14,6 +14,7 @@ const pageTitles: Record<string, string> = {
   '/livreurs': 'Livreurs',
   '/zones': 'Zones',
   '/parametres': 'Paramètres',
+  '/journal': "Journal d'audit",
   '/utilisateurs': 'Utilisateurs',
   '/profil': 'Mon profil',
 };

@@ -29,6 +29,9 @@ export interface PublicPlatformSettings {
   referrerBonusPoints: number;
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
+  // Les champs du canal de mise à jour mobile (`minAppVersion`…) sont aussi
+  // servis par cette route ; le site n'a pas de version installée et ne les
+  // déclare pas. Source des types admin : `PlatformSettings` (@lilia/types).
 }
 
 /**
@@ -74,9 +77,16 @@ export function usePublicPlatformSettings() {
   return useQuery({
     queryKey: pricingKeys.platformSettings,
     queryFn: () => apiClient<PublicPlatformSettings>('/platform-settings'),
-    // Le taux change rarement, mais une version installée ne doit pas garder
-    // l'ancien indéfiniment : 5 min borne l'écart entre l'écran et la caisse.
-    staleTime: 5 * 60 * 1000,
+    // Le taux change rarement, mais `maintenanceMode` vit ici aussi : une
+    // fenêtre de maintenance déclarée doit se voir au panier en une minute, pas
+    // en cinq (MAINT-001). 60 s = le cache du serveur lui-même
+    // (`PlatformSettingsService.CACHE_TTL_MS`) : relire plus souvent ne
+    // rapporterait rien de plus frais.
+    staleTime: 60 * 1000,
+    // Le `QueryClient` du site coupe la relecture au focus globalement. Pour
+    // cette requête minuscule, on la rétablit : revenir sur l'onglet après une
+    // pause est le moment où une maintenance a pu commencer — ou finir.
+    refetchOnWindowFocus: true,
   });
 }
 

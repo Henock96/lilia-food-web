@@ -1,34 +1,33 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { usePlatformSettings, useUpdatePlatformSettings } from '@lilia/api-client';
+import { useState } from 'react';
+import { ApiError, usePlatformSettings, useUpdatePlatformSettings } from '@lilia/api-client';
 import type { PlatformSettings } from '@lilia/types';
+import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import {
+  NUMBER_FIELD_SPECS,
+  type NumberFieldKey,
+  type SettingsForm,
+  appUpdateStatus,
+  buildSettingsPatch,
+  toSettingsForm,
+} from '@/lib/platform-settings-form';
+import { BLOCK_CONFIRMATION_WORD, requiresBlockConfirmation } from '@/lib/app-update-rules';
 
-/** Clés des champs numériques de la configuration. */
-type NumberFieldKey =
-  | 'serviceFeePercent'
-  | 'restaurantCommissionPercent'
-  | 'loyaltyPointsPerOrder'
-  | 'loyaltyPointValueXaf'
-  | 'loyaltyMinRedemption'
-  | 'referrerBonusPoints';
-
-/** Champs numériques éditables : clé → libellé + suffixe. */
+/** Champs numériques, par section, avec l'avertissement des réglages sensibles. */
 const NUMBER_FIELDS: {
   key: NumberFieldKey;
-  label: string;
   suffix: string;
   section: string;
   /** Avertissement affiché sous le champ, pour les réglages à effet rétroactif. */
   warning?: string;
 }[] = [
-  { key: 'serviceFeePercent',      label: 'Frais de service',           suffix: '%',   section: 'Frais de service' },
+  { key: 'serviceFeePercent', suffix: '%', section: 'Frais de service' },
   {
     key: 'restaurantCommissionPercent',
-    label: 'Commission vendeur',
     suffix: '%',
     section: 'Commission vendeur',
     // Ce champ n'était éditable par AUCUNE interface : absent du DTO serveur,
@@ -37,10 +36,9 @@ const NUMBER_FIELDS: {
     warning:
       "Retenue sur le vendeur au reversement — le client ne la paie pas (à ne pas confondre avec les frais de service). N'affecte que les commandes futures : le taux est figé sur chaque commande à sa création. Un taux propre à un vendeur, défini sur sa fiche, prime sur celui-ci.",
   },
-  { key: 'loyaltyPointsPerOrder',  label: 'Points / commande livrée',   suffix: 'pts', section: 'Fidélité' },
+  { key: 'loyaltyPointsPerOrder', suffix: 'pts', section: 'Fidélité' },
   {
     key: 'loyaltyPointValueXaf',
-    label: "Valeur d'un point",
     suffix: 'XAF',
     section: 'Fidélité',
     // Le seul champ de cet écran dont la modification a un effet RÉTROACTIF :
@@ -48,60 +46,44 @@ const NUMBER_FIELDS: {
     warning:
       'Effet rétroactif : ce montant revalorise tous les points déjà distribués. Ne pas modifier sans exécuter la procédure de redénomination (docs/LOYALTY.md).',
   },
-  { key: 'loyaltyMinRedemption',   label: "Seuil minimum d'usage",      suffix: 'pts', section: 'Fidélité' },
-  { key: 'referrerBonusPoints',    label: 'Bonus parrain',              suffix: 'pts', section: 'Parrainage' },
+  { key: 'loyaltyMinRedemption', suffix: 'pts', section: 'Fidélité' },
+  { key: 'referrerBonusPoints', suffix: 'pts', section: 'Parrainage' },
 ];
 const SECTIONS = ['Frais de service', 'Commission vendeur', 'Fidélité', 'Parrainage'];
 
-/**
- * État local du formulaire. Les champs numériques sont stockés en **chaîne**
- * pendant l'édition (saisie libre, on peut vider un champ), et parsés en
- * nombre seulement à l'enregistrement.
- */
-interface FormState {
-  serviceFeePercent: string;
-  restaurantCommissionPercent: string;
-  loyaltyPointsPerOrder: string;
-  loyaltyPointValueXaf: string;
-  loyaltyMinRedemption: string;
-  referrerBonusPoints: string;
-  maintenanceMode: boolean;
-  maintenanceMessage: string;
-}
-
-function toFormState(s: PlatformSettings): FormState {
-  return {
-    serviceFeePercent: String(s.serviceFeePercent),
-    restaurantCommissionPercent: String(s.restaurantCommissionPercent),
-    loyaltyPointsPerOrder: String(s.loyaltyPointsPerOrder),
-    loyaltyPointValueXaf: String(s.loyaltyPointValueXaf),
-    loyaltyMinRedemption: String(s.loyaltyMinRedemption),
-    referrerBonusPoints: String(s.referrerBonusPoints),
-    maintenanceMode: s.maintenanceMode,
-    maintenanceMessage: s.maintenanceMessage ?? '',
-  };
-}
+const INPUT =
+  'w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary-500';
+const CARD =
+  'bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5';
 
 export default function ParametresPage() {
   const { token } = useAuthStore();
-  const { data, isLoading, isError } = usePlatformSettings(token);
+  const { data, isLoading, isError, refetch } = usePlatformSettings(token);
   const update = useUpdatePlatformSettings(token);
-  const [form, setForm] = useState<FormState | null>(null);
-  // Le formulaire n'est hydraté qu'une seule fois — un refetch en arrière-plan
-  // ne doit pas écraser les modifications en cours de l'admin.
-  const initialised = useRef(false);
 
-  useEffect(() => {
-    if (data && !initialised.current) {
-      setForm(toFormState(data));
-      initialised.current = true;
-    }
-  }, [data]);
+  /**
+   * Configuration **telle que le formulaire l'a chargée** : base du diff et
+   * du verrou optimiste. Distincte de `data`, qui peut être rafraîchie en
+   * arrière-plan — on ne veut ni écraser la saisie en cours, ni envoyer un
+   * `expectedUpdatedAt` que l'administrateur n'a jamais vu.
+   */
+  const [loaded, setLoaded] = useState<PlatformSettings | null>(null);
+  const [form, setForm] = useState<SettingsForm | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [conflict, setConflict] = useState(false);
 
-  if (isError) {
+  // Hydratation unique, pendant le rendu (et non dans un effet) : c'est le
+  // motif React pour dériver un état d'une donnée arrivée — pas de rendu
+  // intermédiaire vide, pas de setState en cascade dans un effet.
+  if (data && !loaded) {
+    setLoaded(data);
+    setForm(toSettingsForm(data));
+  }
+
+  if (isError && !form) {
     return <p className="text-sm text-red-500">Impossible de charger la configuration.</p>;
   }
-  if (isLoading || !form) {
+  if (isLoading || !form || !loaded) {
     return (
       <div className="max-w-2xl space-y-4">
         <Skeleton className="h-40 rounded-2xl" />
@@ -110,52 +92,97 @@ export default function ParametresPage() {
     );
   }
 
+  const set = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) =>
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  /** La configuration a-t-elle bougé ailleurs depuis le chargement ? */
+  const staleElsewhere = !!data && data.updatedAt !== loaded.updatedAt;
+
+  function reloadFromServer(fresh: PlatformSettings) {
+    setLoaded(fresh);
+    setForm(toSettingsForm(fresh));
+    setErrors([]);
+    setConflict(false);
+  }
+
+  async function handleReload() {
+    const { data: fresh } = await refetch();
+    if (fresh) reloadFromServer(fresh);
+  }
+
   function handleSave() {
-    if (!form) return;
-    // Un champ vidé ou non numérique bloque l'enregistrement — évite de
-    // pousser silencieusement 0 (Number('') === 0).
-    const invalid = NUMBER_FIELDS.some((f) => {
-      const raw = form[f.key].trim();
-      return raw === '' || !Number.isFinite(Number(raw));
-    });
-    if (invalid) {
-      toast.error('Tous les champs numériques doivent être renseignés');
+    if (!form || !loaded || update.isPending) return;
+    const result = buildSettingsPatch(form, loaded);
+    if (!result.ok) {
+      setErrors(result.errors);
+      toast.error('Configuration non enregistrée : corrigez les champs signalés.');
       return;
     }
-    update.mutate(
-      {
-        serviceFeePercent: Number(form.serviceFeePercent),
-        restaurantCommissionPercent: Number(form.restaurantCommissionPercent),
-        loyaltyPointsPerOrder: Number(form.loyaltyPointsPerOrder),
-        loyaltyPointValueXaf: Number(form.loyaltyPointValueXaf),
-        loyaltyMinRedemption: Number(form.loyaltyMinRedemption),
-        referrerBonusPoints: Number(form.referrerBonusPoints),
-        maintenanceMode: form.maintenanceMode,
-        maintenanceMessage: form.maintenanceMessage,
+    setErrors([]);
+    if (!result.changed) {
+      toast.info('Aucune modification à enregistrer.');
+      return;
+    }
+    update.mutate(result.patch, {
+      onSuccess: (saved) => {
+        reloadFromServer(saved);
+        toast.success('Configuration enregistrée');
       },
-      {
-        onSuccess: () => toast.success('Configuration enregistrée'),
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement"),
+      onError: (e) => {
+        if (e instanceof ApiError && e.status === 409) {
+          setConflict(true);
+          toast.error('Un autre administrateur a modifié la configuration entre-temps.');
+          return;
+        }
+        toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
       },
-    );
+    });
   }
+
+  const status = appUpdateStatus(loaded);
+  const needsBlockConfirmation = requiresBlockConfirmation(form.minAppVersion, loaded.minAppVersion);
 
   return (
     <div className="max-w-2xl space-y-4">
+      {(conflict || staleElsewhere) && (
+        <div
+          role="alert"
+          className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4"
+        >
+          <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+          <p className="flex-1 text-sm text-amber-800 dark:text-amber-200">
+            {conflict
+              ? "Vos changements n'ont pas été enregistrés : la configuration a été modifiée par un autre administrateur depuis que vous l'avez ouverte."
+              : 'La configuration a été modifiée ailleurs depuis que vous avez ouvert cette page.'}{' '}
+            Rechargez pour voir les valeurs actuelles, puis refaites vos changements.
+          </p>
+          <button
+            type="button"
+            onClick={handleReload}
+            className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+          >
+            <RefreshCw size={14} /> Recharger
+          </button>
+        </div>
+      )}
+
       {SECTIONS.map((section) => (
-        <div key={section} className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5">
+        <div key={section} className={CARD}>
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">{section}</h3>
           <div className="space-y-3">
             {NUMBER_FIELDS.filter((f) => f.section === section).map((f) => (
               <div key={f.key}>
                 <div className="flex items-center justify-between gap-4">
-                  <label className="text-sm text-zinc-600 dark:text-zinc-300">{f.label}</label>
+                  <label htmlFor={f.key} className="text-sm text-zinc-600 dark:text-zinc-300">
+                    {NUMBER_FIELD_SPECS[f.key].label}
+                  </label>
                   <div className="flex items-center gap-2">
                     <input
-                      type="number"
-                      min={0}
+                      id={f.key}
+                      type="text"
+                      inputMode={NUMBER_FIELD_SPECS[f.key].integer ? 'numeric' : 'decimal'}
                       value={form[f.key]}
-                      onChange={(e) => setForm((prev) => (prev ? { ...prev, [f.key]: e.target.value } : prev))}
+                      onChange={(e) => set(f.key, e.target.value)}
                       className="w-24 px-2.5 py-1.5 text-sm text-right rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-500 tabular-nums"
                     />
                     <span className="text-xs text-zinc-400 w-8">{f.suffix}</span>
@@ -173,15 +200,17 @@ export default function ParametresPage() {
       ))}
 
       {/* Maintenance */}
-      <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5">
+      <div className={CARD}>
         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Maintenance</h3>
         <div className="space-y-3">
           <label className="flex items-center justify-between gap-4 cursor-pointer">
-            <span className="text-sm text-zinc-600 dark:text-zinc-300">Mode maintenance (bloque les nouvelles commandes)</span>
+            <span className="text-sm text-zinc-600 dark:text-zinc-300">
+              Mode maintenance (bloque les nouvelles commandes, le catalogue reste visible)
+            </span>
             <input
               type="checkbox"
               checked={form.maintenanceMode}
-              onChange={(e) => setForm((prev) => (prev ? { ...prev, maintenanceMode: e.target.checked } : prev))}
+              onChange={(e) => set('maintenanceMode', e.target.checked)}
               className="w-4 h-4 accent-primary-500"
             />
           </label>
@@ -190,23 +219,196 @@ export default function ParametresPage() {
             <input
               type="text"
               value={form.maintenanceMessage}
-              onChange={(e) => setForm((prev) => (prev ? { ...prev, maintenanceMessage: e.target.value } : prev))}
+              onChange={(e) => set('maintenanceMessage', e.target.value)}
               placeholder="La plateforme est en maintenance…"
-              className="w-full px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className={INPUT}
             />
           </div>
         </div>
       </div>
 
+      {/* Mise à jour de l'application */}
+      <div className={CARD}>
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+          Mise à jour de l&apos;application
+        </h3>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3">
+          Réglages de l&apos;application mobile cliente. Vider un champ efface la valeur.
+        </p>
+
+        <AppUpdateStatusPanel status={status} />
+
+        <div className="space-y-3 mt-4">
+          <Field label="Dernière version publiée" hint="Sous cette version, invitation reportable (24 h).">
+            <input
+              type="text"
+              value={form.latestAppVersion}
+              onChange={(e) => set('latestAppVersion', e.target.value)}
+              placeholder="1.3.0 ou 1.3.0+34"
+              className={INPUT}
+            />
+          </Field>
+          <Field label="Message affiché au client" hint={`${form.updateMessage.trim().length}/300`}>
+            <input
+              type="text"
+              maxLength={300}
+              value={form.updateMessage}
+              onChange={(e) => set('updateMessage', e.target.value)}
+              placeholder="Nouveautés du panier…"
+              className={INPUT}
+            />
+          </Field>
+          <Field label="URL Android" hint="Fiche Google Play de Lilia Food. Vide = lien compilé dans l'app.">
+            <input
+              type="url"
+              value={form.updateUrlAndroid}
+              onChange={(e) => set('updateUrlAndroid', e.target.value)}
+              placeholder="https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app"
+              className={INPUT}
+            />
+          </Field>
+          <Field label="URL iOS" hint="Fiche App Store (…/id<chiffres>). Vide = recherche « Lilia Food » dans l'App Store.">
+            <input
+              type="url"
+              value={form.updateUrlIos}
+              onChange={(e) => set('updateUrlIos', e.target.value)}
+              placeholder="https://apps.apple.com/app/lilia-food/id…"
+              className={INPUT}
+            />
+          </Field>
+
+          <UserPreview form={form} />
+
+          <div className="rounded-xl border border-red-200 dark:border-red-900/60 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={16} className="text-red-600" />
+              <span className="text-sm font-semibold text-red-700 dark:text-red-400">
+                Blocage du parc (avancé)
+              </span>
+            </div>
+            <p className="text-[11px] leading-snug text-red-700/80 dark:text-red-300/80">
+              En dessous de cette version, les clients ne peuvent plus commander. Réservé à une faille de sécurité ou
+              une rupture de contrat d&apos;API. Pour pousser une nouveauté, utilisez « Dernière version publiée ».
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                aria-label="Version minimale"
+                value={form.minAppVersion}
+                onChange={(e) => set('minAppVersion', e.target.value)}
+                placeholder="vide = aucun blocage"
+                className={INPUT}
+              />
+              {loaded.minAppVersion && (
+                <button
+                  type="button"
+                  onClick={() => set('minAppVersion', '')}
+                  className="shrink-0 text-xs font-medium px-3 rounded-lg border border-zinc-300 dark:border-dark-border text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  Lever le blocage
+                </button>
+              )}
+            </div>
+            {needsBlockConfirmation && (
+              <Field label={`Tapez ${BLOCK_CONFIRMATION_WORD} pour confirmer le blocage`}>
+                <input
+                  type="text"
+                  value={form.blockConfirmation}
+                  onChange={(e) => set('blockConfirmation', e.target.value)}
+                  placeholder={BLOCK_CONFIRMATION_WORD}
+                  className={INPUT}
+                />
+              </Field>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {errors.length > 0 && (
+        <ul role="alert" className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 p-4 space-y-1">
+          {errors.map((e) => (
+            <li key={e} className="text-sm text-red-700 dark:text-red-300">
+              {e}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={update.isPending}
+          disabled={update.isPending || conflict}
           className="text-sm font-medium px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-50"
         >
           {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Ce que l'utilisateur lira, et où le bouton l'enverra — d'après la saisie. */
+function UserPreview({ form }: { form: SettingsForm }) {
+  const message = form.updateMessage.trim() || 'Message par défaut de l’application.';
+  const android = form.updateUrlAndroid.trim() || 'Fiche Google Play compilée dans l’app (com.dreesis.lilia.lilia_app)';
+  const ios = form.updateUrlIos.trim() || 'Recherche « Lilia Food » dans l’App Store (l’app n’a pas encore de fiche iOS)';
+  return (
+    <div className="rounded-xl bg-zinc-50 dark:bg-zinc-800/60 p-3 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
+      <p className="font-medium text-zinc-800 dark:text-zinc-100 mb-1">Ce que verra l&apos;utilisateur</p>
+      <p>« {message} »</p>
+      <p className="mt-1 break-all">
+        Android → {android}
+        <br />
+        iOS → {ios}
+      </p>
+    </div>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2 mb-1">
+        <label className="text-sm text-zinc-600 dark:text-zinc-300">{label}</label>
+        {hint && <span className="text-[11px] text-zinc-400 text-right">{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Ce qui est **actuellement** imposé en production — lu sur la configuration
+ * chargée, jamais sur la saisie en cours.
+ */
+function AppUpdateStatusPanel({ status }: { status: ReturnType<typeof appUpdateStatus> }) {
+  if (status.kind === 'blocking') {
+    return (
+      <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-950/30 p-3">
+        <ShieldAlert size={16} className="text-red-600 mt-0.5 shrink-0" />
+        <p className="text-sm text-red-800 dark:text-red-200">
+          <strong>Blocage actif</strong> — version minimale : {status.minVersion}. Les applications plus anciennes
+          (qui connaissent ce mécanisme) ne peuvent plus commander.
+        </p>
+      </div>
+    );
+  }
+  if (status.kind === 'recommending') {
+    return (
+      <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3">
+        <Sparkles size={16} className="text-amber-600 mt-0.5 shrink-0" />
+        <p className="text-sm text-amber-800 dark:text-amber-200">
+          <strong>Mise à jour recommandée</strong> — dernière version : {status.latestVersion}. Aucun blocage.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-start gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-3">
+      <CheckCircle2 size={16} className="text-emerald-600 mt-0.5 shrink-0" />
+      <p className="text-sm text-emerald-800 dark:text-emerald-200">
+        <strong>Aucun blocage</strong> — aucune mise à jour n&apos;est proposée.
+      </p>
     </div>
   );
 }
