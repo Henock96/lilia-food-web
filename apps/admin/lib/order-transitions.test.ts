@@ -33,11 +33,13 @@ import { nextOrderStatus } from './order-transitions';
  * B-1 côté backend, où la spec « exhaustive » dérivait de la matrice.
  */
 describe('nextOrderStatus', () => {
-  describe('EN_ATTENTE — confirmation manuelle du virement', () => {
-    it('propose PAYER à l’ADMIN', () => {
+  describe('EN_ATTENTE — en attente de paiement', () => {
+    it('ne propose RIEN à l’ADMIN — « payée » ne se déclare pas (F-07)', () => {
+      // Le serveur refuse désormais EN_ATTENTE → PAYER sur la route de statut ;
+      // la confirmation passe par l'écran Paiements.
       expect(
         nextOrderStatus({ current: 'EN_ATTENTE', role: 'ADMIN', isDelivery: true }),
-      ).toBe('PAYER');
+      ).toBeNull();
     });
 
     it('ne propose rien au RESTAURATEUR', () => {

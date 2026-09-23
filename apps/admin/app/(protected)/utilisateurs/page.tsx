@@ -38,6 +38,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const ROLES: Role[] = ['CLIENT', 'RESTAURATEUR', 'LIVREUR', 'ADMIN'];
 
+/**
+ * Rôles qu'on peut ATTRIBUER depuis cet écran. ADMIN n'y figure pas (Master
+ * Audit v1, F-08) : le serveur refuse la promotion à ADMIN par l'API, pour
+ * qu'un compte administrateur compromis ne puisse pas en fabriquer d'autres.
+ * `ROLES` reste complet pour le filtre de la liste.
+ */
+const ASSIGNABLE_ROLES: Role[] = ['CLIENT', 'RESTAURATEUR', 'LIVREUR'];
+
 const ROLE_STYLES: Record<Role, string> = {
   ADMIN: 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400',
   RESTAURATEUR: 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400',
@@ -328,7 +336,7 @@ function UserDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
                   className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-zinc-100"
                 >
                   <option value="">Choisir un rôle…</option>
-                  {ROLES.filter((r) => r !== user.role).map((r) => (
+                  {ASSIGNABLE_ROLES.filter((r) => r !== user.role).map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
