@@ -1,0 +1,44 @@
+name: CI
+
+# Validation bloquante du monorepo web (L0-7, blueprint Phase 3).
+#
+# Ce dépôt n'avait aucune CI : type-check, lint et tests ne tournaient que sur
+# le poste de développement. La Phase 3 touche les deux apps (web client et
+# admin) et le contrat partagé `@lilia/types` ; une régression de type entre
+# eux ne doit plus pouvoir atteindre Vercel.
+#
+# Volontairement sans build : `next build` exige les variables d'environnement
+# Vercel (Firebase, Sentry, API). Vercel construit à chaque déploiement, et la
+# règle « le build n'appelle jamais le backend » est gardée par le code
+# (`connection()` + `Suspense`), pas par ce fichier.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # Version lue dans `packageManager` du package.json racine.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Types, lint, tests
+        run: pnpm turbo type-check lint test

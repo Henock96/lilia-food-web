@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 import path from 'path';
+import { cspReporting } from './lib/csp-report';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -53,6 +54,10 @@ const nextConfig: NextConfig = {
    * `Content-Security-Policy` une fois la politique stabilisée.
    */
   async headers() {
+    // Rapports envoyés à Sentry (L0-10) : sans destination, le mode
+    // Report-Only n'observait rien. Absent en local, faute de DSN.
+    const reporting = cspReporting(process.env.NEXT_PUBLIC_SENTRY_DSN, process.env.VERCEL_ENV);
+
     const csp = [
       "default-src 'self'",
       // `unsafe-inline` et `unsafe-eval` : requis par le bootstrap de Next.
@@ -71,6 +76,7 @@ const nextConfig: NextConfig = {
       "form-action 'self'",
       "frame-ancestors 'none'",
       'upgrade-insecure-requests',
+      ...reporting.directives,
     ].join('; ');
 
     return [
@@ -78,6 +84,7 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           { key: 'Content-Security-Policy-Report-Only', value: csp },
+          ...reporting.headers,
           // Empêche le navigateur de réinterpréter le type MIME déclaré.
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           // Doublon volontaire de `frame-ancestors`, pour les navigateurs
