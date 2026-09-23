@@ -156,6 +156,11 @@ export interface OrderDelivery {
   pickedUpAt?: string | null;
   deliveredAt?: string | null;
   estimatedArrival?: string | null;
+  /**
+   * Code de remise à 4 chiffres (Master Audit v1, F-06). Renvoyé au CLIENT
+   * seul, et seulement pendant que la commande roule vers lui ; `null` sinon.
+   */
+  handoverCode?: string | null;
 }
 export type DriverStatus = 'AVAILABLE' | 'ON_DELIVERY' | 'OFFLINE';
 export type DeliveryPriceMode = 'FIXED' | 'ZONE_BASED';

@@ -95,3 +95,53 @@ export function useUpdateIncident(token: string | null, id: string) {
 }
 
 export const INCIDENTS_PAGE_SIZE = PAGE_SIZE;
+
+// ─── Signalement client (Master Audit v1, F-06) ─────────────────────────────
+
+/** Motifs qu'un client peut signaler — même liste fermée que le serveur. */
+export const ORDER_ISSUE_KINDS = [
+  { kind: 'NOT_RECEIVED', label: 'Je n’ai pas reçu ma commande' },
+  { kind: 'WRONG_ORDER', label: 'Commande erronée ou incomplète' },
+  { kind: 'LATE', label: 'Ma commande est très en retard' },
+  { kind: 'OTHER', label: 'Autre problème' },
+] as const;
+
+export type OrderIssueKind = (typeof ORDER_ISSUE_KINDS)[number]['kind'];
+
+/** Requête de signalement, exécutable sans React (tests de contrat). */
+export function reportOrderIssueRequest(
+  orderId: string,
+  kind: OrderIssueKind,
+  message?: string,
+) {
+  const trimmed = message?.trim();
+  return {
+    path: `/incidents/orders/${orderId}/report`,
+    body: { kind, ...(trimmed ? { message: trimmed } : {}) },
+  };
+}
+
+/**
+ * Le client signale un problème sur SA commande. Le serveur ouvre un incident
+ * (un seul ouvert par commande) et prévient l'équipe.
+ */
+export function useReportOrderIssue(token: string | null) {
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      kind,
+      message,
+    }: {
+      orderId: string;
+      kind: OrderIssueKind;
+      message?: string;
+    }) => {
+      const { path, body } = reportOrderIssueRequest(orderId, kind, message);
+      return apiClientRaw<{ message?: string }>(path, {
+        method: 'POST',
+        token,
+        body: JSON.stringify(body),
+      });
+    },
+  });
+}

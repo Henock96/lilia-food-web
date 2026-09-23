@@ -50,8 +50,12 @@ export function nextOrderStatus({
 
   switch (current) {
     case 'EN_ATTENTE':
-      // Confirmation manuelle d'un virement : ADMIN uniquement.
-      return isAdmin ? 'PAYER' : null;
+      // Rien, pour personne (Master Audit v1, F-07). « Payée » n'est plus un
+      // statut qu'on déclare : le serveur refuse `EN_ATTENTE → PAYER` sur la
+      // route de statut, même à l'ADMIN. Un virement manuel se confirme depuis
+      // l'écran Paiements (`POST /payments/:id/confirm`), qui écrit la ligne
+      // `Payment` avec la transition.
+      return null;
 
     case 'PAYER':
       return 'EN_PREPARATION';

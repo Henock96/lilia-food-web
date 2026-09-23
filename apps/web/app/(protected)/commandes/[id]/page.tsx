@@ -11,6 +11,7 @@ import type { OrderStatus } from '@lilia/types';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
+import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
 import { toast } from 'sonner';
 
 const STATUS_STEPS: { status: OrderStatus; icon: React.ElementType; label: string }[] = [
@@ -108,6 +109,11 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           {formatOrderStatus(order.status)}
         </span>
       </div>
+
+      {/* F-06 : code de remise, pendant que le repas roule vers le client */}
+      {order.status === 'EN_ROUTE' && (
+        <HandoverCodePanel orderId={order.id} token={token} />
+      )}
 
       {/* Timeline des statuts */}
       {!isCancelled && (
@@ -263,6 +269,11 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <Download className="w-4 h-4" />
           {downloadReceipt.isPending ? 'Génération...' : 'Télécharger le reçu'}
         </button>
+      )}
+
+      {/* F-06 : signalement — payée et non annulée (le serveur borne aussi à 72 h après livraison) */}
+      {isPaid && !isCancelled && (
+        <ReportIssuePanel orderId={order.id} token={token} />
       )}
 
       {/* Reorder */}
