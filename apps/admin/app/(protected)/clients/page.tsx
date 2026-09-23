@@ -57,8 +57,9 @@ interface DetailData {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  EN_ATTENTE: 'En attente', PAYER: 'Payé', EN_PREPARATION: 'En préparation',
+  EN_ATTENTE: 'En attente', PAYER: 'Payé', ACCEPTEE: 'Accepté', EN_PREPARATION: 'En préparation',
   PRET: 'Prêt', EN_ROUTE: 'En route', LIVRER: 'Livré', ANNULER: 'Annulé',
+  ECHEC_LIVRAISON: 'Livraison non aboutie',
 };
 
 function formatTxnDate(iso: string): string {

@@ -5,12 +5,19 @@ import {
   ORDERS_PAGE_SIZE,
   useAdminOrders,
   useUpdateOrderStatus,
+  useAcceptOrder,
+  useRejectOrder,
   useDownloadReceipt,
   type OrderStatusFilter,
 } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { AdminOrder, OrderStatus, OrderStatusCounts } from '@lilia/types';
+import type {
+  AdminOrder,
+  OrderStatus,
+  OrderStatusCounts,
+  VendorRejectionReason,
+} from '@lilia/types';
 import Link from 'next/link';
 import {
   RefreshCw,
@@ -27,34 +34,39 @@ import {
 import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
 import { apiMessage } from '@/lib/api-message';
-import { nextOrderStatus } from '@/lib/order-transitions';
+import { OrderActions } from '@/components/orders/order-actions';
 import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
 import { AssignDriver } from '@/components/orders/assign-driver';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   EN_ATTENTE:     'En attente',
   PAYER:          'Payé',
+  ACCEPTEE:       'Accepté',
   EN_PREPARATION: 'En préparation',
   PRET:           'Prêt',
   EN_ROUTE:       'En route',
   LIVRER:         'Livré',
   ANNULER:        'Annulé',
+  ECHEC_LIVRAISON: 'Livraison non aboutie',
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   EN_ATTENTE:     'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
   PAYER:          'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
+  ACCEPTEE:       'bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-400',
   EN_PREPARATION: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400',
   PRET:           'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-400',
   EN_ROUTE:       'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400',
   LIVRER:         'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
   ANNULER:        'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+  ECHEC_LIVRAISON: 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300',
 };
 
 /** Ordre des onglets — celui du cycle de vie, pas celui de l'enum. */
 const STATUS_TABS: OrderStatus[] = [
   'EN_ATTENTE',
   'PAYER',
+  'ACCEPTEE',
   'EN_PREPARATION',
   'PRET',
   'EN_ROUTE',
@@ -98,26 +110,37 @@ function formatScheduledFull(iso: string): string {
   return `${date} à ${time}`;
 }
 
-const PAID_STATUSES = new Set<OrderStatus>(['PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE', 'LIVRER']);
+const PAID_STATUSES = new Set<OrderStatus>([
+  'PAYER',
+  'ACCEPTEE',
+  'EN_PREPARATION',
+  'PRET',
+  'EN_ROUTE',
+  'LIVRER',
+  'ECHEC_LIVRAISON',
+]);
 
 function OrderCard({
   order,
   role,
   token,
   onStatusUpdate,
+  onAccept,
+  onReject,
+  pending,
 }: {
   order: AdminOrder;
   role: string | undefined;
   token: string | null;
   onStatusUpdate: (id: string, status: OrderStatus) => void;
+  onAccept: (id: string, prepMinutes: number) => void;
+  onReject: (id: string, reason: VendorRejectionReason, note?: string) => void;
+  pending?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const nextStatus = nextOrderStatus({
-    current: order.status,
-    role,
-    isDelivery: order.isDelivery,
-  });
-  const waitingForPayment = order.status === 'EN_ATTENTE' && nextStatus === null;
+  // Personne ne déclare une commande payée (F-07) : un virement manuel se
+  // confirme depuis l'écran Paiements.
+  const waitingForPayment = order.status === 'EN_ATTENTE';
   const isPaid = PAID_STATUSES.has(order.status);
   const downloadReceipt = useDownloadReceipt(token);
 
@@ -187,22 +210,15 @@ function OrderCard({
               {downloadReceipt.isPending ? '...' : 'Reçu'}
             </button>
           )}
-          {order.status !== 'LIVRER' && order.status !== 'ANNULER' && (
-            <button
-              onClick={() => onStatusUpdate(order.id, 'ANNULER')}
-              className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-            >
-              Annuler
-            </button>
-          )}
-          {nextStatus && (
-            <button
-              onClick={() => onStatusUpdate(order.id, nextStatus)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"
-            >
-              → {STATUS_LABELS[nextStatus]}
-            </button>
-          )}
+          {/* Gestes publiés par le serveur (`allowedActions`, règle R1). */}
+          <OrderActions
+            order={order}
+            role={role}
+            pending={pending}
+            onStatusUpdate={onStatusUpdate}
+            onAccept={onAccept}
+            onReject={onReject}
+          />
         </div>
       </div>
 
@@ -345,6 +361,8 @@ export default function CommandesPage() {
 
   const isSearching = debouncedSearch.trim().length > 0;
   const { mutate: updateStatus } = useUpdateOrderStatus(token);
+  const acceptOrder = useAcceptOrder(token);
+  const rejectOrder = useRejectOrder(token);
 
   const orders = data?.data ?? [];
   const meta = data?.meta;
@@ -423,6 +441,26 @@ export default function CommandesPage() {
         // n'a récupéré cette commande ») : les remplacer par « Erreur » jette
         // la seule information exploitable de la réponse.
         onError: (e) => toast.error(apiMessage(e, 'Erreur lors de la mise à jour')),
+      },
+    );
+  }
+
+  function handleAccept(orderId: string, prepMinutes: number) {
+    acceptOrder.mutate(
+      { orderId, prepMinutes },
+      {
+        onSuccess: () => toast.success(`Commande acceptée — prête dans ${prepMinutes} min`),
+        onError: (e) => toast.error(apiMessage(e, 'Impossible d’accepter la commande')),
+      },
+    );
+  }
+
+  function handleReject(orderId: string, reason: VendorRejectionReason, note?: string) {
+    rejectOrder.mutate(
+      { orderId, reason, note },
+      {
+        onSuccess: () => toast.success('Commande refusée — le client est remboursé'),
+        onError: (e) => toast.error(apiMessage(e, 'Impossible de refuser la commande')),
       },
     );
   }
@@ -564,7 +602,16 @@ export default function CommandesPage() {
       ) : (
         <div className={`space-y-3 ${isPlaceholderData ? 'opacity-60' : ''}`}>
           {visible.map((order) => (
-            <OrderCard key={order.id} order={order} role={role} token={token} onStatusUpdate={handleStatusUpdate} />
+            <OrderCard
+              key={order.id}
+              order={order}
+              role={role}
+              token={token}
+              onStatusUpdate={handleStatusUpdate}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              pending={acceptOrder.isPending || rejectOrder.isPending}
+            />
           ))}
         </div>
       )}

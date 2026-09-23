@@ -5,11 +5,13 @@ import type { DashboardOrderStats } from '@lilia/types';
 const statusConfig: Record<string, { label: string; color: string }> = {
   EN_ATTENTE:    { label: 'En attente',   color: '#f59e0b' },
   PAYER:         { label: 'Payé',         color: '#3b82f6' },
+  ACCEPTEE:      { label: 'Accepté',      color: '#84cc16' },
   EN_PREPARATION:{ label: 'En préparation', color: '#8b5cf6' },
   PRET:          { label: 'Prêt',         color: '#06b6d4' },
   EN_ROUTE:      { label: 'En route',     color: '#f97316' },
   LIVRER:        { label: 'Livré',        color: '#10b981' },
   ANNULER:       { label: 'Annulé',       color: '#f43f5e' },
+  ECHEC_LIVRAISON: { label: 'Livraison non aboutie', color: '#ea580c' },
 };
 
 interface OrderStatsProps {

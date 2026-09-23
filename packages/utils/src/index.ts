@@ -140,11 +140,13 @@ export function formatOrderStatus(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
     EN_ATTENTE: 'En attente',
     PAYER: 'Payé',
+    ACCEPTEE: 'Accepté',
     EN_PREPARATION: 'En préparation',
     PRET: 'Prêt',
     EN_ROUTE: 'En route',
     LIVRER: 'Livré',
     ANNULER: 'Annulé',
+    ECHEC_LIVRAISON: 'Livraison non aboutie',
   };
   return labels[status] ?? status;
 }
@@ -153,11 +155,13 @@ export function getOrderStatusColor(status: OrderStatus): string {
   const colors: Record<OrderStatus, string> = {
     EN_ATTENTE: 'text-amber-600 bg-amber-50 border-amber-200',
     PAYER: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+    ACCEPTEE: 'text-lime-700 bg-lime-50 border-lime-200',
     EN_PREPARATION: 'text-blue-600 bg-blue-50 border-blue-200',
     PRET: 'text-purple-600 bg-purple-50 border-purple-200',
     EN_ROUTE: 'text-orange-600 bg-orange-50 border-orange-200',
     LIVRER: 'text-emerald-700 bg-emerald-100 border-emerald-300',
     ANNULER: 'text-rose-600 bg-rose-50 border-rose-200',
+    ECHEC_LIVRAISON: 'text-orange-700 bg-orange-50 border-orange-200',
   };
   return colors[status] ?? 'text-zinc-600 bg-zinc-100 border-zinc-200';
 }

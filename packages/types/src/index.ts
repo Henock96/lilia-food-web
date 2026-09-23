@@ -5,11 +5,36 @@ export type VehicleType = 'MOTO' | 'VELO' | 'VOITURE' | 'PIETON';
 export type OrderStatus =
   | 'EN_ATTENTE'
   | 'PAYER'
+  /** Acceptée par le vendeur, pas encore en préparation (Phase 3, F3-01). */
+  | 'ACCEPTEE'
   | 'EN_PREPARATION'
   | 'PRET'
   | 'EN_ROUTE'
   | 'LIVRER'
-  | 'ANNULER';
+  | 'ANNULER'
+  /** Terminal : le repas est parti et n'est pas arrivé (F3-05). */
+  | 'ECHEC_LIVRAISON';
+
+/**
+ * Geste qu'une interface peut proposer sur une commande, publié par le
+ * serveur dans `allowedActions` (règle R1, Phase 3). Les interfaces ne
+ * recopient plus la matrice de transitions.
+ */
+export type OrderAction =
+  | 'ACCEPT'
+  | 'REJECT'
+  | 'START_PREPARATION'
+  | 'MARK_READY'
+  | 'HAND_OVER'
+  | 'CANCEL';
+
+/** Motif d'un refus vendeur — liste fermée, identique à l'enum serveur. */
+export type VendorRejectionReason =
+  | 'OUT_OF_STOCK'
+  | 'TOO_BUSY'
+  | 'CLOSING'
+  | 'OUT_OF_ZONE'
+  | 'OTHER';
 /**
  * Opérateur choisi par le client pour payer.
  *
@@ -68,7 +93,7 @@ export interface RestaurantRankingRow {
 }
 
 /** Les trois états qui composent une commande « bloquée ». */
-export type StuckOrderStatus = 'PAYER' | 'EN_PREPARATION' | 'PRET';
+export type StuckOrderStatus = 'PAYER' | 'ACCEPTEE' | 'EN_PREPARATION' | 'PRET';
 
 /**
  * Décompte des commandes bloquées (`GET /orders/restaurant/stuck`).
@@ -640,6 +665,17 @@ export interface Order {
   isPreorder?: boolean;
   /** LIL-121 : créneau de retrait/livraison demandé (ISO 8601 UTC). */
   scheduledFor?: string | null;
+  /**
+   * Gestes que le SERVEUR acceptera sur cette commande, pour ce compte (F3-01).
+   * Absent sur un serveur antérieur ; liste vide = aucun geste permis.
+   */
+  allowedActions?: OrderAction[];
+  /** Au-delà, une commande payée non acceptée est annulée et remboursée. */
+  acceptDeadlineAt?: string | null;
+  acceptedAt?: string | null;
+  /** Heure de fin de préparation annoncée au client à l'acceptation. */
+  estimatedReadyAt?: string | null;
+  vendorRejectionReason?: VendorRejectionReason | null;
   createdAt: string;
   updatedAt: string;
 }

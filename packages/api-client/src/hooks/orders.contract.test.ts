@@ -322,7 +322,12 @@ describe('stuckOrdersQueryOptions', () => {
 
     expect(res.total).toBe(0);
     expect(res.oldestMinutes).toBeNull();
-    expect(res.byStatus).toEqual({ PAYER: 0, EN_PREPARATION: 0, PRET: 0 });
+    expect(res.byStatus).toEqual({
+      PAYER: 0,
+      ACCEPTEE: 0,
+      EN_PREPARATION: 0,
+      PRET: 0,
+    });
   });
 
   it('ne part pas sans jeton', () => {
