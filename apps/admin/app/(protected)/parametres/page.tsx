@@ -15,6 +15,7 @@ import {
   type SettingsForm,
   appUpdateStatus,
   buildSettingsPatch,
+  isStaleSettingsConflict,
   toSettingsForm,
 } from '@/lib/platform-settings-form';
 import { BLOCK_CONFIRMATION_WORD, requiresBlockConfirmation } from '@/lib/app-update-rules';
@@ -143,7 +144,7 @@ export default function ParametresPage() {
         toast.success('Configuration enregistrée');
       },
       onError: (e) => {
-        if (e instanceof ApiError && e.status === 409) {
+        if (e instanceof ApiError && isStaleSettingsConflict(e)) {
           setConflict(true);
           toast.error('Un autre administrateur a modifié la configuration entre-temps.');
           return;

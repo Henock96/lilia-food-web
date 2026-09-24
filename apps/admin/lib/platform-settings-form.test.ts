@@ -4,6 +4,7 @@ import {
   NUMBER_FIELD_SPECS,
   appUpdateStatus,
   buildSettingsPatch,
+  isStaleSettingsConflict,
   parseNumberField,
   toSettingsForm,
 } from './platform-settings-form';
@@ -153,5 +154,38 @@ describe('état hérité incohérent (aligné sur l’Admin Flutter)', () => {
     const legacy = { ...PROD, latestAppVersion: null };
     const r = patchFrom({ serviceFeePercent: '12' }, legacy);
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('409 : conflit entre administrateurs ou refus métier (24/09/2026)', () => {
+  it('SETTINGS_STALE : conflit, on propose de recharger', () => {
+    expect(isStaleSettingsConflict({ status: 409, code: 'SETTINGS_STALE' })).toBe(true);
+  });
+
+  it('grille non publiée : PAS un conflit, le message du serveur doit s’afficher', () => {
+    expect(
+      isStaleSettingsConflict({
+        status: 409,
+        code: 'DELIVERY_TARIFF_NOT_PUBLISHED',
+        message: 'Publiez une grille de livraison avant de passer la tarification en mode plateforme.',
+      }),
+    ).toBe(false);
+  });
+
+  it('serveur antérieur au code : reconnu par son texte', () => {
+    expect(
+      isStaleSettingsConflict({
+        status: 409,
+        message:
+          'La configuration a été modifiée par un autre administrateur depuis que vous l’avez ouverte.',
+      }),
+    ).toBe(true);
+    expect(
+      isStaleSettingsConflict({ status: 409, message: 'Publiez une grille de livraison…' }),
+    ).toBe(false);
+  });
+
+  it('autre statut : jamais un conflit', () => {
+    expect(isStaleSettingsConflict({ status: 400, code: 'SETTINGS_STALE' })).toBe(false);
   });
 });
