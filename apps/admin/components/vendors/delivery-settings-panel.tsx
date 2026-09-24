@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import {
+  useCurrentDeliveryTariff,
+  useDeliverySubsidySimulation,
+  useUpdateDeliverySubsidy,
   useCreateDeliveryZone,
   useDeleteDeliveryZone,
   useQuartiers,
@@ -11,7 +14,12 @@ import {
   deliveryZoneKeys,
 } from '@lilia/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import type { DeliveryPriceMode, DeliveryZone } from '@lilia/types';
+import type {
+  DeliveryPriceMode,
+  DeliverySubsidyMode,
+  DeliveryZone,
+  UpdateDeliverySubsidyDto,
+} from '@lilia/types';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -102,10 +110,165 @@ export function DeliverySettingsPanel({
 
   return (
     <div className="space-y-4">
+      {query.data.supportsDelivery && (
+        <PlatformPricingSection data={query.data} vendorId={vendorId} token={token} />
+      )}
       <ModeSection data={query.data} vendorId={vendorId} token={token} />
       {query.data.supportsDelivery && (
         <ZonesSection data={query.data} vendorId={vendorId} token={token} />
       )}
+    </div>
+  );
+}
+
+// ─── Grille Lilia + part offerte par le vendeur (F3-02) ─────────────────────
+
+const SUBSIDY_OPTIONS: ReadonlyArray<[DeliverySubsidyMode, string]> = [
+  ['NONE', 'Aucune'],
+  ['FIXED', 'Montant fixe par commande'],
+  ['FREE_ABOVE', 'Offerte à partir d’un panier'],
+];
+
+/**
+ * En mode plateforme, le prix de la course appartient à Lilia : le vendeur
+ * le **lit** (la grille) et peut seulement en offrir une part, retenue sur son
+ * reversement. Le réglage se prépare aussi en mode vendeur — il ne s'applique
+ * qu'après la bascule.
+ */
+function PlatformPricingSection({
+  data,
+  vendorId,
+  token,
+}: {
+  data: PanelData;
+  vendorId: string;
+  token: string | null;
+}) {
+  const current = useCurrentDeliveryTariff(token);
+  const update = useUpdateDeliverySubsidy(token, vendorId);
+  const [mode, setMode] = useState<DeliverySubsidyMode>(data.deliverySubsidyMode ?? 'NONE');
+  const [amount, setAmount] = useState(String(data.deliverySubsidyXaf ?? ''));
+  const [threshold, setThreshold] = useState(String(data.freeDeliveryThresholdXaf ?? ''));
+
+  const platform = current.data?.mode === 'PLATFORM';
+  const bands = current.data?.tariff?.bands ?? [];
+
+  const dto: UpdateDeliverySubsidyDto | null = (() => {
+    if (mode === 'NONE') return { mode };
+    const raw = mode === 'FIXED' ? amount : threshold;
+    const n = Number(raw);
+    if (raw.trim() === '' || !Number.isInteger(n) || n < 1) return null;
+    return mode === 'FIXED' ? { mode, amountXaf: n } : { mode, thresholdXaf: n };
+  })();
+  const simulation = useDeliverySubsidySimulation(token, vendorId, dto?.mode === 'NONE' ? null : dto);
+
+  function save() {
+    if (!dto) {
+      toast.error(
+        mode === 'FIXED' ? 'Indiquez un montant entier en FCFA.' : 'Indiquez un seuil entier en FCFA.',
+      );
+      return;
+    }
+    update.mutate(dto, {
+      onSuccess: () => toast.success('Part offerte enregistrée'),
+      onError: (e) => toast.error(apiMessage(e, 'Enregistrement impossible')),
+    });
+  }
+
+  return (
+    <div className={`${cardCls} space-y-4`}>
+      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        Prix de la livraison
+      </h3>
+
+      {current.isLoading ? (
+        <Skeleton className="h-16 rounded-xl" />
+      ) : platform ? (
+        <div className="space-y-2 text-sm">
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Le prix de chaque livraison est fixé par Lilia selon la distance
+            {current.data?.tariff ? ` (grille v${current.data.tariff.version})` : ''}. Les
+            tarifs et zones ci-dessous ne fixent plus de prix ; les zones délimitent seulement
+            où vous livrez.
+          </p>
+          {bands.length > 0 && (
+            <ul className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+              {bands.map((b, i) => (
+                <li key={b.maxKm} className="rounded-lg bg-zinc-50 px-2 py-1 text-xs dark:bg-zinc-800">
+                  {i === 0 ? 0 : bands[i - 1].maxKm}–{b.maxKm} km :{' '}
+                  <strong>{fmt(b.feeXaf)}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-500">
+          Les prix sont encore fixés par le vendeur (ci-dessous). La part offerte se prépare dès
+          maintenant et s&apos;appliquera au passage à la grille Lilia.
+        </p>
+      )}
+
+      <Field label="Offrir une partie de la livraison à vos clients">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {SUBSIDY_OPTIONS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              className={`px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${
+                mode === value
+                  ? 'bg-primary-500 text-white border-primary-500'
+                  : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      {mode === 'FIXED' && (
+        <Field label="Montant offert par commande (FCFA)" hint="Plafonné au prix de la course.">
+          <input
+            type="number"
+            min="1"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+      )}
+      {mode === 'FREE_ABOVE' && (
+        <Field label="Livraison offerte à partir d’un panier de (FCFA)">
+          <input
+            type="number"
+            min="1"
+            value={threshold}
+            onChange={(e) => setThreshold(e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+      )}
+
+      {mode !== 'NONE' && simulation.data && (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+          {simulation.data.orders === 0
+            ? 'Pas encore de commande payée à rejouer : le coût ne peut pas être estimé.'
+            : `Sur vos ${simulation.data.orders} dernières commandes, ce réglage vous aurait coûté ${fmt(simulation.data.costXaf)} (${simulation.data.subsidizedOrders} commande(s) concernée(s)), retenus sur vos reversements.`}
+        </p>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={save}
+          disabled={update.isPending}
+          className="rounded-xl bg-primary-500 px-4 py-2 text-xs font-medium text-white disabled:opacity-60"
+        >
+          {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </div>
     </div>
   );
 }

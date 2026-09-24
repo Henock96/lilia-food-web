@@ -187,24 +187,35 @@ export function computeCheckoutEstimate({
  * `OrderCheckoutService` :
  *
  * ```
- * effectiveDeliveryFee = restaurant.fixedDeliveryFee
- * si livraison && ZONE_BASED && quartier connu → tarif de la zone
+ * mode PLATFORM (F3-02)  → le devis de la grille, et rien d'autre
+ * sinon : restaurant.fixedDeliveryFee,
+ *         ou, si livraison && ZONE_BASED && quartier connu, le tarif de la zone
  * ```
  *
  * `quotedFee` est la réponse de `GET /quartiers/delivery-fee` — c'est le
  * serveur qui arbitre le repli « quartier hors zone → tarif fixe », pas nous.
+ *
+ * En mode plateforme, `fixedDeliveryFee` ne veut plus rien dire : sans devis
+ * (pas encore de quartier, ou requête en cours), le prix est **inconnu** et la
+ * fonction rend `null`. Rendre le prix du vendeur serait annoncer un montant
+ * que le checkout ne facturera pas.
  */
 export function resolveDeliveryFee({
   fixedDeliveryFee,
   deliveryPriceMode,
   quartierId,
   quotedFee,
+  pricingMode = 'VENDOR_LEGACY',
 }: {
   fixedDeliveryFee: number;
   deliveryPriceMode: 'FIXED' | 'ZONE_BASED';
   quartierId: string | null | undefined;
   quotedFee: number | null | undefined;
-}): number {
+  pricingMode?: 'VENDOR_LEGACY' | 'PLATFORM';
+}): number | null {
+  if (pricingMode === 'PLATFORM') {
+    return quartierId && typeof quotedFee === 'number' ? quotedFee : null;
+  }
   if (
     deliveryPriceMode === 'ZONE_BASED' &&
     quartierId &&

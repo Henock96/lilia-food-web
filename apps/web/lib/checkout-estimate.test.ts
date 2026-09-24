@@ -289,6 +289,56 @@ describe('resolveDeliveryFee', () => {
   });
 });
 
+describe('resolveDeliveryFee — mode plateforme (F3-02)', () => {
+  it('prend le devis de la grille, même pour un vendeur au tarif fixe', () => {
+    expect(
+      resolveDeliveryFee({
+        fixedDeliveryFee: 0,
+        deliveryPriceMode: 'FIXED',
+        quartierId: 'q1',
+        quotedFee: 1500,
+        pricingMode: 'PLATFORM',
+      }),
+    ).toBe(1500);
+  });
+
+  it('sans quartier : inconnu, jamais le prix du vendeur', () => {
+    expect(
+      resolveDeliveryFee({
+        fixedDeliveryFee: 1000,
+        deliveryPriceMode: 'FIXED',
+        quartierId: null,
+        quotedFee: undefined,
+        pricingMode: 'PLATFORM',
+      }),
+    ).toBeNull();
+  });
+
+  it('devis pas encore arrivé : inconnu', () => {
+    expect(
+      resolveDeliveryFee({
+        fixedDeliveryFee: 1000,
+        deliveryPriceMode: 'ZONE_BASED',
+        quartierId: 'q1',
+        quotedFee: undefined,
+        pricingMode: 'PLATFORM',
+      }),
+    ).toBeNull();
+  });
+
+  it('un devis à 0 (livraison offerte) reste un prix connu', () => {
+    expect(
+      resolveDeliveryFee({
+        fixedDeliveryFee: 1000,
+        deliveryPriceMode: 'FIXED',
+        quartierId: 'q1',
+        quotedFee: 0,
+        pricingMode: 'PLATFORM',
+      }),
+    ).toBe(0);
+  });
+});
+
 describe('minimumOrderError', () => {
   it('rend le message serveur mot pour mot', () => {
     expect(minimumOrderError(2000, 5000, 'Maison Kayser')).toBe(

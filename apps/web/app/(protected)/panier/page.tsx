@@ -119,17 +119,27 @@ export default function PanierPage() {
   // demandé et on reste sur le tarif fixe du vendeur, comme le fait le serveur.
   const selectedAdresse = adresses.find((a) => a.id === selectedAdresseId) ?? null;
   const deliveryQuartierId = isDelivery ? (selectedAdresse?.quartierId ?? null) : null;
+  // F3-02 — en mode plateforme, le prix de la course vient de la grille :
+  // le devis est la seule source, quel que soit le mode du vendeur.
+  const platformPricing = platformSettings?.deliveryPricingMode === 'PLATFORM';
+  // Le sous-total accompagne le devis pour le seul seuil « livraison offerte
+  // dès X » du vendeur ; le checkout le recalcule sur le panier serveur.
+  const quoteSubTotal = (cart?.items ?? []).reduce(
+    (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
+    0,
+  );
   const { data: deliveryQuote, isPending: quotePending } = useDeliveryFeeQuote(
     firstItemRestaurantId || null,
     deliveryQuartierId,
+    platformPricing ? quoteSubTotal : null,
   );
-  // Tant que le tarif du vendeur (et, en zone, son devis) n'est pas arrivé, on
-  // n'affiche pas de total : un montant provisoire affiché est un montant que
-  // le client croit être le sien.
+  // Tant que le tarif du vendeur (et, en zone ou en mode plateforme, son
+  // devis) n'est pas arrivé, on n'affiche pas de total : un montant provisoire
+  // affiché est un montant que le client croit être le sien.
   const pricingPending =
     vendorPending ||
     (isDelivery &&
-      vendorRestaurant?.deliveryPriceMode === 'ZONE_BASED' &&
+      (platformPricing || vendorRestaurant?.deliveryPriceMode === 'ZONE_BASED') &&
       !!deliveryQuartierId &&
       quotePending);
 
@@ -210,18 +220,29 @@ export default function PanierPage() {
     (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
     0,
   );
-  // Tarif du vendeur (FIXED) ou devis de zone du serveur (ZONE_BASED).
+  // Tarif du vendeur (FIXED), devis de zone (ZONE_BASED) ou, en mode
+  // plateforme, devis de la grille. `null` = prix encore inconnu.
   const vendorDeliveryFee = resolveDeliveryFee({
     fixedDeliveryFee: vendorRestaurant?.fixedDeliveryFee ?? 0,
     deliveryPriceMode: vendorRestaurant?.deliveryPriceMode ?? 'FIXED',
     quartierId: deliveryQuartierId,
     quotedFee: deliveryQuote?.fee,
+    pricingMode: platformPricing ? 'PLATFORM' : 'VENDOR_LEGACY',
   });
+  // Mode plateforme sans quartier (adresse ancienne) : le serveur chiffrera à
+  // la commande. On ne l'invente pas ici, on le dit.
+  const deliveryFeeKnown = !isDelivery || vendorDeliveryFee !== null;
+  // Part offerte par le vendeur et seuil de livraison offerte (F3-02) : le
+  // devis les porte, on les explique sans rien recalculer.
+  const vendorSubsidy = platformPricing ? (deliveryQuote?.vendorSubsidy ?? 0) : 0;
+  const freeDeliveryThreshold = platformPricing
+    ? (deliveryQuote?.freeDeliveryThreshold ?? null)
+    : null;
 
   const loyaltyPoints = referralStats?.loyaltyPoints ?? 0;
   const estimate = computeCheckoutEstimate({
     subTotal,
-    deliveryFee: vendorDeliveryFee,
+    deliveryFee: vendorDeliveryFee ?? 0,
     isDelivery,
     settings: pricingSettings,
     settingsKnown,
@@ -249,7 +270,14 @@ export default function PanierPage() {
       const result = await apiClient<PromoValidationResult>('/promo/validate', {
         method: 'POST',
         token,
-        body: JSON.stringify({ code: promoCode, restaurantId, subTotal, deliveryFee } satisfies ValidatePromoDto),
+        body: JSON.stringify({
+          code: promoCode,
+          restaurantId,
+          subTotal,
+          deliveryFee,
+          // Chiffre un code « livraison offerte » sur le devis de ce quartier.
+          ...(deliveryQuartierId ? { quartierId: deliveryQuartierId } : {}),
+        } satisfies ValidatePromoDto),
       });
       setPromoResult(result);
       if (result.valid) {
@@ -921,7 +949,15 @@ export default function PanierPage() {
                   <span>Sous-total</span>
                   <span>{formatCurrency(subTotal)}</span>
                 </div>
-                {isDelivery && (
+                {isDelivery && !deliveryFeeKnown && (
+                  <div className="flex justify-between text-ink-700">
+                    <span>Livraison</span>
+                    <span className="text-ink-500">
+                      {deliveryQuartierId ? '…' : 'selon votre quartier'}
+                    </span>
+                  </div>
+                )}
+                {isDelivery && deliveryFeeKnown && (
                   <div className="flex justify-between text-ink-700">
                     <span>Livraison</span>
                     {deliveryDiscount > 0 ? (
@@ -931,11 +967,35 @@ export default function PanierPage() {
                           {estimate.deliveryFee === 0 ? 'Gratuit' : formatCurrency(estimate.deliveryFee)}
                         </span>
                       </span>
+                    ) : vendorSubsidy > 0 ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="line-through text-ink-500">
+                          {formatCurrency(deliveryQuote?.baseFee ?? estimate.deliveryFee)}
+                        </span>
+                        <span className="text-emerald-600 font-medium">
+                          {estimate.deliveryFee === 0 ? 'Offerte' : formatCurrency(estimate.deliveryFee)}
+                        </span>
+                      </span>
                     ) : (
                       <span>{formatCurrency(estimate.deliveryFee)}</span>
                     )}
                   </div>
                 )}
+                {isDelivery && vendorSubsidy > 0 && deliveryDiscount === 0 && (
+                  <p className="text-xs text-emerald-700">
+                    {vendorRestaurant?.nom ?? 'Le vendeur'} vous offre{' '}
+                    {formatCurrency(vendorSubsidy)} sur la livraison
+                  </p>
+                )}
+                {isDelivery &&
+                  freeDeliveryThreshold != null &&
+                  vendorSubsidy === 0 &&
+                  subTotal < freeDeliveryThreshold && (
+                    <p className="text-xs text-ink-500">
+                      Livraison offerte dès {formatCurrency(freeDeliveryThreshold)} (encore{' '}
+                      {formatCurrency(freeDeliveryThreshold - subTotal)})
+                    </p>
+                  )}
                 <div className="flex justify-between text-ink-700">
                   <span>Frais de service</span>
                   {estimate.settingsKnown ? (
@@ -962,7 +1022,7 @@ export default function PanierPage() {
                 )}
                 <div className="h-px bg-cream-200 my-1" />
                 <div className="flex justify-between font-bold text-ink-900 text-base">
-                  <span>Total</span>
+                  <span>{deliveryFeeKnown ? 'Total' : 'Total hors livraison'}</span>
                   <span>{pricingPending ? '…' : formatCurrency(total)}</span>
                 </div>
               </div>

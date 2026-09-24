@@ -189,6 +189,106 @@ export interface OrderDelivery {
 }
 export type DriverStatus = 'AVAILABLE' | 'ON_DELIVERY' | 'OFFLINE';
 export type DeliveryPriceMode = 'FIXED' | 'ZONE_BASED';
+
+// --- Tarification de livraison plateforme (F3-02) ---
+
+/**
+ * Qui fixe le prix de la course. `VENDOR_LEGACY` : le prix du vendeur
+ * (`fixedDeliveryFee` / zones). `PLATFORM` : la grille publiée par Lilia ; le
+ * vendeur ne peut plus qu'en offrir une part (`DeliverySubsidyMode`).
+ */
+export type DeliveryPricingMode = 'VENDOR_LEGACY' | 'PLATFORM';
+
+/** Part de la livraison offerte par le vendeur, retenue sur son reversement. */
+export type DeliverySubsidyMode = 'NONE' | 'FIXED' | 'FREE_ABOVE';
+
+export type DeliveryTariffStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
+
+/** Tranche : jusqu'à `maxKm` inclus (km routiers), le client paie `feeXaf`. */
+export interface DeliveryTariffBand {
+  maxKm: number;
+  feeXaf: number;
+}
+
+/** Prix explicite d'un quartier à un autre — prime sur les tranches. */
+export interface DeliveryTariffOverride {
+  originQuartierId: string;
+  destQuartierId: string;
+  feeXaf: number;
+}
+
+/** `GET /admin/delivery-tariffs` — une version de la grille. */
+export interface DeliveryTariff {
+  id: string;
+  version: number;
+  status: DeliveryTariffStatus;
+  roadFactor: number;
+  note: string | null;
+  createdBy: string;
+  publishedAt: string | null;
+  publishedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  bands: DeliveryTariffBand[];
+  overrides: DeliveryTariffOverride[];
+}
+
+/** Corps de `POST` / `PATCH /admin/delivery-tariffs` (remplacement complet). */
+export interface DeliveryTariffDraftDto {
+  roadFactor: number;
+  bands: DeliveryTariffBand[];
+  overrides?: DeliveryTariffOverride[];
+  note?: string | null;
+}
+
+/** `POST /admin/delivery-tariffs/:id/simulate`. */
+export interface DeliveryTariffSimulation {
+  version: number;
+  windowDays: number;
+  replay: {
+    orders: number;
+    historicalBaseXaf: number;
+    simulatedBaseXaf: number;
+    deltaXaf: number;
+    fallbackOrders: number;
+    byBasis: Record<'OVERRIDE' | 'BAND' | 'FALLBACK', number>;
+  };
+  matrix: Array<{
+    vendorId: string;
+    vendorName: string;
+    quartierId: string;
+    quartierName: string;
+    baseFeeXaf: number;
+    distanceKm: number | null;
+    basis: 'OVERRIDE' | 'BAND' | 'FALLBACK';
+  }>;
+}
+
+/** `GET /delivery-tariffs/current` — la grille en vigueur, vue vendeur. */
+export interface CurrentDeliveryTariff {
+  mode: DeliveryPricingMode;
+  tariff: {
+    version: number;
+    roadFactor: number;
+    publishedAt: string | null;
+    bands: DeliveryTariffBand[];
+    overridesCount: number;
+  } | null;
+}
+
+/** Corps de `PATCH /vendors/:id/delivery-subsidy` (et paramètres du simulateur). */
+export interface UpdateDeliverySubsidyDto {
+  mode: DeliverySubsidyMode;
+  amountXaf?: number;
+  thresholdXaf?: number;
+}
+
+/** `GET /vendors/:id/delivery-subsidy/simulate`. */
+export interface DeliverySubsidySimulation {
+  orders: number;
+  costXaf: number;
+  subsidizedOrders: number;
+}
 export type MenuType = 'COMBO' | 'PLAT_SPECIAL';
 export type DayOfWeek =
   | 'LUNDI'
@@ -385,6 +485,14 @@ export interface Restaurant {
   manualOverride: boolean;
   deliveryPriceMode: DeliveryPriceMode;
   fixedDeliveryFee: number;
+  /**
+   * Réglage de subvention (F3-02). Présent **seulement** sur les vues
+   * gestionnaire (`/restaurants/mine`, admin) : le serveur le retient des
+   * lectures publiques, le client n'en voit que l'effet dans le devis.
+   */
+  deliverySubsidyMode?: DeliverySubsidyMode;
+  deliverySubsidyXaf?: number | null;
+  freeDeliveryThresholdXaf?: number | null;
   estimatedDeliveryTimeMin: number;
   estimatedDeliveryTimeMax: number;
   minimumOrderAmount: number;
@@ -1088,9 +1196,15 @@ export interface AddToCartDto {
 
 export interface ValidatePromoDto {
   code: string;
-  restaurantId: string;
-  subTotal: number;
-  deliveryFee: number;
+  /**
+   * Quartier de l'adresse choisie (F3-02) : en mode plateforme, l'aperçu d'un
+   * code « livraison offerte » chiffre la course par le devis de ce quartier.
+   */
+  quartierId?: string;
+  /** ⚠️ Ignorés par le serveur depuis le fix L6 (lus sur le panier serveur). */
+  restaurantId?: string;
+  subTotal?: number;
+  deliveryFee?: number;
 }
 
 export interface UpdateProfileDto {
@@ -1504,6 +1618,11 @@ export interface PlatformSettings {
   id: string;
   serviceFeePercent: number;
   /**
+   * F3-02 — `PLATFORM` refusé (409) tant qu'aucune grille n'est publiée. Le
+   * retour à `VENDOR_LEGACY` est la sortie de secours, toujours permise.
+   */
+  deliveryPricingMode: DeliveryPricingMode;
+  /**
    * Commission vendeur par défaut, retenue **sur le vendeur** au reversement —
    * jamais payée par le client, à ne pas confondre avec `serviceFeePercent`.
    *
@@ -1783,6 +1902,10 @@ export interface VendorDeliveryZones {
   estimatedDeliveryTimeMax: number;
   supportsDelivery: boolean;
   supportsPickup: boolean;
+  /** F3-02 — part de la livraison offerte par le vendeur (vue gestionnaire). */
+  deliverySubsidyMode: DeliverySubsidyMode;
+  deliverySubsidyXaf: number | null;
+  freeDeliveryThresholdXaf: number | null;
   zones: DeliveryZone[];
   coverage: DeliveryZoneCoverage;
 }

@@ -12,6 +12,7 @@ import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/a
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { VendorTypeBadge } from './vendor-type-badge';
+import { DeliveryFeeText } from './delivery-fee-text';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -168,7 +169,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             </span>
             <span className="flex items-center gap-1">
               <Bike className="w-3.5 h-3.5" aria-hidden />
-              {restaurant.fixedDeliveryFee === 0 ? 'Livraison gratuite' : formatCurrency(restaurant.fixedDeliveryFee)}
+              <DeliveryFeeText fixedDeliveryFee={restaurant.fixedDeliveryFee} />
             </span>
             {restaurant.minimumOrderAmount > 0 && (
               <span className="text-ink-500">

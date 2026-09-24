@@ -42,6 +42,8 @@ export const NUMBER_FIELD_SPECS: Record<NumberFieldKey, { label: string; integer
 };
 
 export interface SettingsForm extends Record<NumberFieldKey, string> {
+  /** F3-02 — qui fixe le prix de la livraison. */
+  deliveryPricingMode: PlatformSettings['deliveryPricingMode'];
   maintenanceMode: boolean;
   maintenanceMessage: string;
   minAppVersion: string;
@@ -61,6 +63,7 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     loyaltyPointValueXaf: String(s.loyaltyPointValueXaf),
     loyaltyMinRedemption: String(s.loyaltyMinRedemption),
     referrerBonusPoints: String(s.referrerBonusPoints),
+    deliveryPricingMode: s.deliveryPricingMode ?? 'VENDOR_LEGACY',
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage ?? '',
     minAppVersion: s.minAppVersion ?? '',
@@ -124,6 +127,12 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
     } else if (parsed.value !== loaded[key]) {
       patch[key] = parsed.value;
     }
+  }
+
+  // Le serveur refuse `PLATFORM` (409) tant qu'aucune grille n'est publiée ;
+  // son message dit quoi faire, on le laisse parler.
+  if (form.deliveryPricingMode !== (loaded.deliveryPricingMode ?? 'VENDOR_LEGACY')) {
+    patch.deliveryPricingMode = form.deliveryPricingMode;
   }
 
   if (form.maintenanceMode !== loaded.maintenanceMode) {

@@ -7,11 +7,12 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Star, Clock, Bike, Heart } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
 import { cardVariants, buttonTap } from '@lilia/motion';
-import { formatCurrency, formatDeliveryTime, cn, coverImage } from '@lilia/utils';
+import { formatDeliveryTime, cn, coverImage } from '@lilia/utils';
 import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { VendorTypeBadge } from './vendor-type-badge';
+import { DeliveryFeeText } from './delivery-fee-text';
 
 /**
  * Carte vendeur utilisée sur la home (« Les plus courus ») et sur /restaurants.
@@ -180,7 +181,7 @@ export function VendorCard({ restaurant }: VendorCardProps) {
             </span>
             <span className="flex items-center gap-1.5">
               <Bike className="h-3.5 w-3.5" aria-hidden />
-              {restaurant.fixedDeliveryFee === 0 ? 'Gratuit' : formatCurrency(restaurant.fixedDeliveryFee)}
+              <DeliveryFeeText fixedDeliveryFee={restaurant.fixedDeliveryFee} freeLabel="Gratuit" />
             </span>
           </div>
         </div>
