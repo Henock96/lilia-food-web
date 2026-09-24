@@ -2265,3 +2265,39 @@ export interface PublicHoliday {
   label: string;
   country: string;
 }
+
+// --- Cockpit ops « À traiter » (F3-04) ---
+
+export type OpsBucketKey =
+  | 'acceptance_late'
+  | 'no_driver'
+  | 'en_route_long'
+  | 'delivery_failed'
+  | 'refunds_pending'
+  | 'payouts_failed'
+  | 'incidents_open'
+  | 'outbox_failed';
+
+export interface OpsItem {
+  id: string;
+  orderId: string | null;
+  title: string;
+  detail: string | null;
+  since: string;
+}
+
+export interface OpsBucket {
+  key: OpsBucketKey;
+  label: string;
+  severity: 'HIGH' | 'MEDIUM';
+  count: number;
+  oldestAt: string | null;
+  items: OpsItem[];
+}
+
+/** `GET /admin/ops/queue`. */
+export interface OpsQueue {
+  generatedAt: string;
+  total: number;
+  buckets: OpsBucket[];
+}

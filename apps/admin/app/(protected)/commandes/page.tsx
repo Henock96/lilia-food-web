@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   ORDERS_PAGE_SIZE,
   useAdminOrders,
@@ -327,14 +328,28 @@ function StatusTab({
   );
 }
 
+/**
+ * `?q=` pré-remplit la recherche : c'est ainsi que le cockpit « À traiter »
+ * (F3-04) ouvre une commande précise. `useSearchParams` impose une frontière
+ * `Suspense`, d'où l'enveloppe.
+ */
 export default function CommandesPage() {
+  return (
+    <Suspense fallback={null}>
+      <CommandesPageContent />
+    </Suspense>
+  );
+}
+
+function CommandesPageContent() {
   const { token, user } = useAuthStore();
   const role = user?.role;
   const [filterStatus, setFilterStatus] = useState<OrderStatusFilter>('ALL');
   const [page, setPage] = useState(1);
   const [todayOnly, setTodayOnly] = useState(false);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const initialSearch = useSearchParams().get('q') ?? '';
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
 
   // Debounce 350 ms + retour page 1 : la frappe ne doit pas envoyer une requête
   // par caractère, et rester en page 4 d'une recherche qui n'a qu'une page
