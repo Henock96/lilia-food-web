@@ -2305,3 +2305,43 @@ export interface OpsQueue {
   total: number;
   buckets: OpsBucket[];
 }
+
+// --- Échec de livraison (F3-05) ---
+
+export type DeliveryFailureReason =
+  | 'CUSTOMER_UNREACHABLE'
+  | 'ADDRESS_NOT_FOUND'
+  | 'CUSTOMER_REFUSED'
+  | 'ACCIDENT'
+  | 'LOST_OR_DAMAGED'
+  | 'DRIVER_NO_SHOW'
+  | 'OTHER';
+
+/** Qui répond d'un échec conclu : décide de l'argent (matrice R-05.3). */
+export type FailureLiability = 'CLIENT' | 'DRIVER' | 'VENDOR' | 'PLATFORM';
+
+/** `GET /admin/orders/:id/failure-evidence`. */
+export interface DeliveryFailureReport {
+  id: string;
+  reportedBy: string;
+  reportedByRole: string;
+  reason: DeliveryFailureReason | null;
+  note: string | null;
+  distanceToDestM: number | null;
+  callAttempts: number;
+  smsSentAt: string | null;
+  protocolStartedAt: string | null;
+  declaredAt: string | null;
+  createdAt: string;
+}
+
+/** `POST /admin/orders/:id/conclude-failure` — montants de la matrice. */
+export interface FailureConclusion {
+  orderId: string;
+  liability: FailureLiability;
+  refundXaf: number;
+  vendorPaid: boolean;
+  driverPayXaf: number;
+  reason: DeliveryFailureReason | null;
+  dryRun: boolean;
+}
