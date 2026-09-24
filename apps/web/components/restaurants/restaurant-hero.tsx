@@ -6,6 +6,7 @@ import type { Restaurant } from '@lilia/types';
 import { formatCurrency, formatDeliveryTime, galleryImages } from '@lilia/utils';
 import { ImageCarousel } from '@/components/ui';
 import { DeliveryFeeText } from './delivery-fee-text';
+import { openingLabel } from '@/lib/opening-label';
 
 interface RestaurantHeroProps {
   restaurant: Restaurant;
@@ -48,7 +49,7 @@ export function RestaurantHero({ restaurant }: RestaurantHeroProps) {
             ) : (
               <span className="flex items-center gap-1 px-2.5 py-1 bg-ink-500 text-white text-xs font-semibold rounded-full">
                 <XCircle className="w-3 h-3" />
-                Fermé
+                {openingLabel(restaurant)}
               </span>
             )}
           </div>
