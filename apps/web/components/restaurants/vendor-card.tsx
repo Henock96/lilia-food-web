@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { VendorTypeBadge } from './vendor-type-badge';
 import { DeliveryFeeText } from './delivery-fee-text';
+import { openingLabel } from '@/lib/opening-label';
 
 /**
  * Carte vendeur utilisée sur la home (« Les plus courus ») et sur /restaurants.
@@ -119,7 +120,7 @@ export function VendorCard({ restaurant }: VendorCardProps) {
                 restaurant.isOpen ? 'bg-success text-white' : 'bg-ink-500 text-white',
               )}
             >
-              {restaurant.isOpen ? 'Ouvert' : 'Fermé'}
+              {openingLabel(restaurant)}
             </span>
             <VendorTypeBadge vendorType={vendorType} />
           </div>

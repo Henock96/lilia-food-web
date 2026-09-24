@@ -493,6 +493,11 @@ export interface Restaurant {
   deliverySubsidyMode?: DeliverySubsidyMode;
   deliverySubsidyXaf?: number | null;
   freeDeliveryThresholdXaf?: number | null;
+  /**
+   * F3-03 — pause datée : « fermé jusqu'à 14h30 ». Publique (une échéance,
+   * pas un motif). Absente d'un serveur antérieur, `null` sans pause.
+   */
+  pausedUntil?: string | null;
   estimatedDeliveryTimeMin: number;
   estimatedDeliveryTimeMax: number;
   minimumOrderAmount: number;
@@ -2211,4 +2216,52 @@ export interface AdminAuditEntry {
 export interface PaginatedAuditLog {
   data: AdminAuditEntry[];
   meta: { page: number; limit: number; total: number };
+}
+
+// --- Fermetures datées (F3-03) ---
+
+/** Pourquoi la boutique est ouverte ou fermée, selon la règle serveur. */
+export type VendorOpeningReason =
+  | 'OPEN'
+  | 'PAUSED'
+  | 'CLOSURE'
+  | 'HOLIDAY'
+  | 'MANUAL'
+  | 'OUTSIDE_HOURS';
+
+export interface VendorClosure {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  reason: string | null;
+}
+
+/** `GET /vendors/:id/opening` — vue gestionnaire. */
+export interface VendorOpeningState {
+  isOpen: boolean;
+  reason: VendorOpeningReason;
+  /** Fin de la fermeture datée (pause ou congé), sinon `null`. */
+  until: string | null;
+  pausedUntil: string | null;
+  pauseReason: string | null;
+  closedOnHolidays: boolean;
+  closures: VendorClosure[];
+}
+
+/** `POST /vendors/:id/pause` — une durée **ou** une échéance (≤ 7 jours). */
+export type PauseVendorDto =
+  | { minutes: number; until?: undefined; reason?: string }
+  | { minutes?: undefined; until: string; reason?: string };
+
+export interface CreateVendorClosureDto {
+  startsAt: string;
+  endsAt: string;
+  reason?: string;
+}
+
+export interface PublicHoliday {
+  /** « AAAA-MM-JJ » (colonne date, sérialisée en ISO minuit UTC). */
+  date: string;
+  label: string;
+  country: string;
 }

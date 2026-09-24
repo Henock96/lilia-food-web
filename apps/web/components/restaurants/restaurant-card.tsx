@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { VendorTypeBadge } from './vendor-type-badge';
 import { DeliveryFeeText } from './delivery-fee-text';
+import { openingLabel } from '@/lib/opening-label';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -99,7 +100,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
               'px-2.5 py-1 text-xs font-semibold rounded-full',
               restaurant.isOpen ? 'bg-success text-white' : 'bg-ink-500 text-white',
             )}>
-              {restaurant.isOpen ? 'Ouvert' : 'Fermé'}
+              {openingLabel(restaurant)}
             </span>
             {restaurant.vendorType && (
               <VendorTypeBadge vendorType={restaurant.vendorType} />

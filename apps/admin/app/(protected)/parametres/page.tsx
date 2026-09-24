@@ -6,6 +6,7 @@ import { ApiError, usePlatformSettings, useUpdatePlatformSettings } from '@lilia
 import type { PlatformSettings } from '@lilia/types';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { PublicHolidaysCard } from '@/components/public-holidays-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
@@ -245,6 +246,9 @@ export default function ParametresPage() {
           ))}
         </div>
       </div>
+
+      {/* Jours fériés (F3-03) — enregistrés à part, pas par le bouton du bas. */}
+      <PublicHolidaysCard token={token} />
 
       {/* Maintenance */}
       <div className={CARD}>

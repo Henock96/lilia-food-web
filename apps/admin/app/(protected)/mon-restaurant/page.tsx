@@ -11,8 +11,9 @@ import { useAuthStore } from '@/store/auth';
 import { useIsAdmin } from '@/lib/use-role';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeliverySettingsPanel } from '@/components/vendors/delivery-settings-panel';
+import { ClosuresPanel } from '@/components/vendors/closures-panel';
 import { toast } from 'sonner';
-import { Store, Bike, Clock, AlertCircle } from 'lucide-react';
+import { Store, Bike, Clock, AlertCircle, CalendarOff } from 'lucide-react';
 
 const DAYS: { key: string; label: string }[] = [
   { key: 'LUNDI', label: 'Lundi' },
@@ -186,12 +187,13 @@ function HoursSection({ restaurant, token }: { restaurant: Restaurant; token: st
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-type Tab = 'general' | 'delivery' | 'hours';
+type Tab = 'general' | 'delivery' | 'hours' | 'closures';
 
 const TABS: { key: Tab; label: string; icon: typeof Store }[] = [
   { key: 'general', label: 'Général', icon: Store },
   { key: 'delivery', label: 'Livraison', icon: Bike },
   { key: 'hours', label: 'Horaires', icon: Clock },
+  { key: 'closures', label: 'Fermetures', icon: CalendarOff },
 ];
 
 export default function MonRestaurantPage() {
@@ -279,6 +281,10 @@ export default function MonRestaurantPage() {
             <DeliverySettingsPanel vendorId={restaurant.id} token={token} />
           )}
           {tab === 'hours' && <HoursSection restaurant={restaurant} token={token} />}
+          {/* F3-03 — pause qui se termine seule, congés, jours fériés. */}
+          {tab === 'closures' && (
+            <ClosuresPanel vendorId={restaurant.id} token={token} />
+          )}
         </div>
       )}
     </div>
