@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { ApiError, usePlatformSettings, useUpdatePlatformSettings } from '@lilia/api-client';
 import type { PlatformSettings } from '@lilia/types';
@@ -123,6 +124,18 @@ export default function ParametresPage() {
       toast.info('Aucune modification à enregistrer.');
       return;
     }
+    // F3-02 — la bascule change le prix de toutes les prochaines commandes et
+    // l'assiette de la paie des livreurs : on la fait confirmer.
+    if (
+      result.patch.deliveryPricingMode &&
+      !window.confirm(
+        result.patch.deliveryPricingMode === 'PLATFORM'
+          ? 'Passer la livraison en tarification plateforme ?\n\nLe prix de chaque course viendra de la grille publiée ; les tarifs et zones des vendeurs ne fixeront plus de prix.'
+          : 'Revenir aux prix fixés par les vendeurs ?\n\nLa grille plateforme cessera de s’appliquer aux prochaines commandes.',
+      )
+    ) {
+      return;
+    }
     update.mutate(result.patch, {
       onSuccess: (saved) => {
         reloadFromServer(saved);
@@ -198,6 +211,40 @@ export default function ParametresPage() {
           </div>
         </div>
       ))}
+
+      {/* Tarification de la livraison (F3-02) */}
+      <div className={CARD}>
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+          Tarification de la livraison
+        </h3>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3">
+          En mode plateforme, le prix vient de la{' '}
+          <Link href="/tarifs-livraison" className="text-primary-600 hover:underline dark:text-primary-400">
+            grille publiée
+          </Link>{' '}
+          ; le vendeur peut seulement offrir une part de la livraison. Le retour au mode
+          vendeur reste toujours possible.
+        </p>
+        <div className="space-y-2">
+          {(
+            [
+              ['VENDOR_LEGACY', 'Prix fixés par chaque vendeur'],
+              ['PLATFORM', 'Grille plateforme'],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+              <input
+                type="radio"
+                name="deliveryPricingMode"
+                checked={form.deliveryPricingMode === value}
+                onChange={() => set('deliveryPricingMode', value)}
+                className="accent-primary-500"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
 
       {/* Maintenance */}
       <div className={CARD}>

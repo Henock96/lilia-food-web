@@ -19,6 +19,7 @@ export * from './hooks/admin-operations';
 export * from './hooks/admin-vendors';
 export * from './hooks/vendor-onboarding';
 export * from './hooks/delivery-zones';
+export * from './hooks/delivery-tariffs';
 export * from './hooks/incidents';
 export * from './hooks/photos';
 export * from './hooks/admin-payouts';

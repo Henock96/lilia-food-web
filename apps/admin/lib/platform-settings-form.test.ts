@@ -12,6 +12,7 @@ import {
 const PROD: PlatformSettings = {
   id: 'singleton',
   serviceFeePercent: 15,
+  deliveryPricingMode: 'VENDOR_LEGACY',
   restaurantCommissionPercent: 10,
   loyaltyPointsPerOrder: 1,
   loyaltyPointValueXaf: 50,
@@ -72,6 +73,22 @@ describe('PATCH minimal + verrou (SET-001)', () => {
   it('maintenanceMessage "" en base et vide au formulaire : pas de faux changement', () => {
     const r = patchFrom({ maintenanceMessage: '   ' });
     expect(r.ok && r.changed).toBe(false);
+  });
+});
+
+describe('tarification de la livraison (F3-02)', () => {
+  it('la bascule vers la grille plateforme part seule', () => {
+    const r = patchFrom({ deliveryPricingMode: 'PLATFORM' });
+    expect(r).toEqual({
+      ok: true,
+      changed: true,
+      patch: { expectedUpdatedAt: PROD.updatedAt, deliveryPricingMode: 'PLATFORM' },
+    });
+  });
+
+  it('mode inchangé : pas de champ dans le PATCH', () => {
+    const r = patchFrom({});
+    expect(r.ok && 'deliveryPricingMode' in r.patch).toBe(false);
   });
 });
 

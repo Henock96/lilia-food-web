@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import type { DeliveryPricingMode } from '@lilia/types';
 import { apiClient } from '../client';
 
 /**
@@ -13,6 +14,17 @@ import { apiClient } from '../client';
  */
 export interface PublicPlatformSettings {
   serviceFeePercent: number;
+  /**
+   * F3-02 — qui fixe le prix de la course. En `PLATFORM`, le
+   * `fixedDeliveryFee` d'un vendeur ne veut plus rien dire : le prix vient du
+   * devis `GET /quartiers/delivery-fee`, jamais d'un calcul local.
+   */
+  deliveryPricingMode: DeliveryPricingMode;
+  /**
+   * Prix le plus bas de la grille publiée (« Livraison dès X »). `null` en
+   * `VENDOR_LEGACY` ou sans grille.
+   */
+  deliveryFeeFromXaf: number | null;
   /**
    * Forfait de points gagné par commande livrée. A remplacé
    * `loyaltyPointsPer100Xaf` : le gain n'est plus proportionnel au montant.
@@ -43,6 +55,11 @@ export interface PublicPlatformSettings {
  */
 export const PUBLIC_PLATFORM_SETTINGS_FALLBACK: PublicPlatformSettings = {
   serviceFeePercent: 8,
+  // Le `@default` du schéma. Un serveur injoignable en mode plateforme ferait
+  // retomber le panier sur le prix du vendeur : le panier le signale par
+  // `settingsKnown` et ne présente pas ce montant comme sûr.
+  deliveryPricingMode: 'VENDOR_LEGACY',
+  deliveryFeeFromXaf: null,
   loyaltyPointsPerOrder: 1,
   loyaltyPointValueXaf: 50,
   loyaltyMinRedemption: 1,
@@ -69,8 +86,8 @@ export function pointsToXaf(
 
 export const pricingKeys = {
   platformSettings: ['platform-settings'] as const,
-  deliveryQuote: (restaurantId: string, quartierId: string) =>
-    ['delivery-fee', restaurantId, quartierId] as const,
+  deliveryQuote: (restaurantId: string, quartierId: string, subTotal: number | null) =>
+    ['delivery-fee', restaurantId, quartierId, subTotal] as const,
 };
 
 export function usePublicPlatformSettings() {
@@ -90,40 +107,70 @@ export function usePublicPlatformSettings() {
   });
 }
 
-/** Réponse de `GET /quartiers/delivery-fee`. */
+/**
+ * Réponse de `GET /quartiers/delivery-fee`.
+ *
+ * `fee` est **toujours** le prix que paie le client, dans les trois modes :
+ * c'est la seule clé à lire pour un montant. Les champs du mode `PLATFORM`
+ * (F3-02) servent à l'expliquer — part offerte par le vendeur, seuil de
+ * livraison offerte.
+ */
 export interface DeliveryFeeQuote {
-  mode: 'FIXED' | 'ZONE_BASED';
+  mode: 'FIXED' | 'ZONE_BASED' | 'PLATFORM';
   fee: number;
-  zoneName: string | null;
+  zoneName?: string | null;
   quartierName?: string;
   /** Le quartier n'appartient à aucune zone : le serveur retombe sur le fixe. */
   isDefaultZone?: boolean;
+  /** `PLATFORM` — prix de base de la grille, avant la part offerte. */
+  baseFee?: number;
+  /** `PLATFORM` — part offerte par le vendeur, retenue sur son reversement. */
+  vendorSubsidy?: number;
+  distanceKm?: number | null;
+  tariffVersion?: number;
+  /** `PLATFORM` — « livraison offerte dès X FCFA », `null` sinon. */
+  freeDeliveryThreshold?: number | null;
 }
 
 /**
  * Devis de livraison du serveur pour un vendeur et un quartier
  * (`GET /quartiers/delivery-fee`, public).
  *
- * C'est **la même méthode** que celle appelée au checkout
- * (`QuartiersService.calculateDeliveryFee`), y compris son repli « quartier
- * hors zone → tarif fixe ». Le web n'a donc aucune règle de zone à reproduire.
+ * C'est **la même méthode** que celle appelée au checkout, y compris son repli
+ * « quartier hors zone → tarif fixe » et, en mode plateforme, la grille et la
+ * part offerte par le vendeur. Le web n'a aucune règle de prix à reproduire.
+ *
+ * `subTotal` ne sert qu'au seuil « livraison offerte dès X » : le devis ne
+ * dépend du panier que par lui.
  */
 export function useDeliveryFeeQuote(
   restaurantId: string | null | undefined,
   quartierId: string | null | undefined,
+  subTotal?: number | null,
 ) {
+  const sub = subTotal != null ? Math.max(0, Math.round(subTotal)) : null;
   return useQuery({
-    queryKey: pricingKeys.deliveryQuote(restaurantId ?? '', quartierId ?? ''),
+    queryKey: pricingKeys.deliveryQuote(restaurantId ?? '', quartierId ?? '', sub),
     queryFn: () => {
       const params = new URLSearchParams({
         restaurantId: restaurantId!,
         quartierId: quartierId!,
       });
+      if (sub != null) params.set('subTotal', String(sub));
       return apiClient<DeliveryFeeQuote>(
         `/quartiers/delivery-fee?${params.toString()}`,
       );
     },
     enabled: !!restaurantId && !!quartierId,
     staleTime: 5 * 60 * 1000,
+    // Changer une quantité change la clé : garder le devis précédent affiché
+    // évite de faire clignoter le total à chaque clic. Seulement pour le même
+    // vendeur et le même quartier — un autre quartier est un autre prix, et
+    // l'afficher le temps de la requête serait annoncer un montant faux.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === (restaurantId ?? '') &&
+      previousQuery?.queryKey[2] === (quartierId ?? '')
+        ? previous
+        : undefined,
   });
 }

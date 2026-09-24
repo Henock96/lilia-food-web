@@ -5,6 +5,7 @@ import { Star, Clock, Bike, Phone, MapPin, CheckCircle, XCircle } from 'lucide-r
 import type { Restaurant } from '@lilia/types';
 import { formatCurrency, formatDeliveryTime, galleryImages } from '@lilia/utils';
 import { ImageCarousel } from '@/components/ui';
+import { DeliveryFeeText } from './delivery-fee-text';
 
 interface RestaurantHeroProps {
   restaurant: Restaurant;
@@ -96,9 +97,7 @@ export function RestaurantHero({ restaurant }: RestaurantHeroProps) {
                 </div>
                 <div className="flex items-center gap-1.5 text-ink-700">
                   <Bike className="w-4 h-4 text-ink-500" />
-                  {restaurant.fixedDeliveryFee === 0
-                    ? 'Livraison gratuite'
-                    : `Livraison ${formatCurrency(restaurant.fixedDeliveryFee)}`}
+                  <DeliveryFeeText fixedDeliveryFee={restaurant.fixedDeliveryFee} prefix="Livraison" />
                 </div>
                 {restaurant.minimumOrderAmount > 0 && (
                   <div className="text-ink-500 text-xs">

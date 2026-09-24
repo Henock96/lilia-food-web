@@ -33,6 +33,7 @@ import {
   Gift,
   ScrollText,
   Undo2,
+  Route,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -85,6 +86,8 @@ const NAV_ITEMS: {
   { href: '/incidents',   label: 'Incidents',   icon: AlertTriangle,   badge: false, adminOnly: true  },
   { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false, adminOnly: true  },
   { href: '/zones',       label: 'Zones',       icon: MapPin,          badge: false, adminOnly: true  },
+  // Grille de livraison plateforme (F3-02) : versions, simulateur, publication.
+  { href: '/tarifs-livraison', label: 'Tarifs livraison', icon: Route, badge: false, adminOnly: true  },
   { href: '/parametres',  label: 'Paramètres',  icon: Settings,        badge: false, adminOnly: true  },
   // Lecture seule. Seul l'Admin Flutter savait lire le journal : depuis un
   // poste, impossible de savoir qui avait posé un blocage de version.
