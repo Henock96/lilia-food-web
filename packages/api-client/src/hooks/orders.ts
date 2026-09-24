@@ -13,6 +13,7 @@ import type {
   Order,
   OrderStatus,
   StuckOrders,
+  VendorRejectionReason,
 } from '@lilia/types';
 import { apiClient, apiClientRaw, API_URL, ApiError } from '../client';
 
@@ -114,7 +115,7 @@ export function useCancelOrder(token: string | null) {
 const NO_STUCK_ORDERS: StuckOrders = {
   thresholdMinutes: 0,
   total: 0,
-  byStatus: { PAYER: 0, EN_PREPARATION: 0, PRET: 0 },
+  byStatus: { PAYER: 0, ACCEPTEE: 0, EN_PREPARATION: 0, PRET: 0 },
   oldestMinutes: null,
 };
 
@@ -340,6 +341,74 @@ export function useDownloadReceipt(token: string | null) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+    },
+  });
+}
+
+/**
+ * Acceptation vendeur (Phase 3, F3-01) — requêtes construites par des
+ * fonctions pures, vérifiables sans React (`order-acceptance.test.ts`).
+ */
+export function acceptOrderRequest(orderId: string, prepMinutes: number) {
+  return {
+    path: `/orders/${encodeURIComponent(orderId)}/accept`,
+    method: 'POST' as const,
+    body: { prepMinutes },
+  };
+}
+
+export function rejectOrderRequest(
+  orderId: string,
+  rejection: { reason: VendorRejectionReason; note?: string },
+) {
+  const note = rejection.note?.trim();
+  return {
+    path: `/orders/${encodeURIComponent(orderId)}/reject`,
+    method: 'POST' as const,
+    body: { reason: rejection.reason, ...(note ? { note } : {}) },
+  };
+}
+
+/** Accepter une commande payée : le temps de préparation est annoncé au client. */
+export function useAcceptOrder(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, prepMinutes }: { orderId: string; prepMinutes: number }) => {
+      const req = acceptOrderRequest(orderId, prepMinutes);
+      return apiClient<Order>(req.path, {
+        method: req.method,
+        token,
+        body: JSON.stringify(req.body),
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+  });
+}
+
+/** Refuser une commande payée ou acceptée : le client est remboursé. */
+export function useRejectOrder(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      reason,
+      note,
+    }: {
+      orderId: string;
+      reason: VendorRejectionReason;
+      note?: string;
+    }) => {
+      const req = rejectOrderRequest(orderId, { reason, note });
+      return apiClient<Order>(req.path, {
+        method: req.method,
+        token,
+        body: JSON.stringify(req.body),
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
     },
   });
 }

@@ -60,6 +60,11 @@ export function nextOrderStatus({
     case 'PAYER':
       return 'EN_PREPARATION';
 
+    case 'ACCEPTEE':
+      // Jamais rendu par un serveur antérieur à la Phase 3 (seul cas où cette
+      // fonction sert encore de repli) ; traité pour l'exhaustivité.
+      return 'EN_PREPARATION';
+
     case 'EN_PREPARATION':
       return 'PRET';
 
@@ -80,6 +85,7 @@ export function nextOrderStatus({
 
     case 'LIVRER':
     case 'ANNULER':
+    case 'ECHEC_LIVRAISON':
       return null;
   }
 }

@@ -13,6 +13,7 @@ const LATE_MINUTES = 30;
 /** Ce que chaque état bloqué veut dire, du point de vue de qui doit agir. */
 const STUCK_LABELS: Record<StuckOrderStatus, string> = {
   PAYER: 'payée, non ouverte par le vendeur',
+  ACCEPTEE: 'acceptée, pas encore en préparation',
   EN_PREPARATION: 'en préparation',
   PRET: 'prête, aucun livreur',
 };

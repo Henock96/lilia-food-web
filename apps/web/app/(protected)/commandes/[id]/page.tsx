@@ -4,7 +4,7 @@ import { use, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw, Download } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw, Download, ThumbsUp } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia/api-client';
 import type { OrderStatus } from '@lilia/types';
@@ -13,17 +13,22 @@ import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
 import { toast } from 'sonner';
+import {
+  canClientCancel,
+  cancellationNotice,
+  readyAtLabel,
+  timelinePosition,
+} from '@/lib/order-status-view';
 
 const STATUS_STEPS: { status: OrderStatus; icon: React.ElementType; label: string }[] = [
   { status: 'EN_ATTENTE', icon: Clock, label: 'En attente' },
   { status: 'PAYER', icon: CheckCircle, label: 'Paiement confirmé' },
+  { status: 'ACCEPTEE', icon: ThumbsUp, label: 'Acceptée par le vendeur' },
   { status: 'EN_PREPARATION', icon: ChefHat, label: 'En préparation' },
   { status: 'PRET', icon: Package, label: 'Prêt' },
   { status: 'EN_ROUTE', icon: Truck, label: 'En route' },
   { status: 'LIVRER', icon: Home, label: 'Livré' },
 ];
-
-const STATUS_ORDER: OrderStatus[] = ['EN_ATTENTE', 'PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE', 'LIVRER'];
 
 function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -83,11 +88,15 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  const currentStepIndex = STATUS_ORDER.indexOf(order.status);
+  const currentStepIndex = timelinePosition(order.status);
   const isCancelled = order.status === 'ANNULER';
-  const canCancel = order.status === 'EN_ATTENTE';
+  // Le serveur publie les gestes permis (F3-01, règle R1).
+  const canCancel = canClientCancel(order);
   // Reçu disponible une fois la commande payée (PAYER et au-delà, hors annulée).
-  const isPaid = STATUS_ORDER.indexOf(order.status) >= STATUS_ORDER.indexOf('PAYER');
+  const isPaid =
+    currentStepIndex >= timelinePosition('PAYER') || order.status === 'ECHEC_LIVRAISON';
+  const cancelled = isCancelled ? cancellationNotice(order) : null;
+  const readyAt = readyAtLabel(order.estimatedReadyAt);
 
   return (
     <motion.div
@@ -116,12 +125,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       )}
 
       {/* Timeline des statuts */}
-      {!isCancelled && (
+      {currentStepIndex >= 0 && (
         <div className="bg-white rounded-2xl border border-cream-200 p-5 mb-4">
           <h3 className="font-semibold text-ink-900 text-sm mb-5">Suivi de commande</h3>
           <div className="flex flex-col gap-0">
             {STATUS_STEPS.map((step, index) => {
-              const isCompleted = STATUS_ORDER.indexOf(step.status) <= currentStepIndex;
+              const isCompleted = timelinePosition(step.status) <= currentStepIndex;
               const isCurrent = step.status === order.status;
               const isLast = index === STATUS_STEPS.length - 1;
               return (
@@ -160,6 +169,9 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     <p className={cn('text-sm font-medium', isCompleted ? 'text-ink-900' : 'text-ink-500')}>
                       {step.label}
                     </p>
+                    {step.status === 'ACCEPTEE' && isCompleted && readyAt && (
+                      <p className="text-xs text-ink-700 mt-0.5">{readyAt}</p>
+                    )}
                     {isCurrent && (
                       <motion.p
                         initial={{ opacity: 0 }}
@@ -189,12 +201,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
         token={token}
       />
 
-      {isCancelled && (
+      {cancelled && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 mb-4">
           <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
           <div>
-            <p className="font-medium text-rose-800 text-sm">Commande annulée</p>
-            <p className="text-xs text-rose-600 mt-0.5">Cette commande a été annulée</p>
+            <p className="font-medium text-rose-800 text-sm">{cancelled.title}</p>
+            <p className="text-xs text-rose-600 mt-0.5">{cancelled.detail}</p>
           </div>
         </div>
       )}
