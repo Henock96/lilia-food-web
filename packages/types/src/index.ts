@@ -1574,7 +1574,7 @@ export interface PaginatedDelivererMissions {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-/** Type d'incident (aligne backend Prisma `IncidentType` — 11 valeurs). */
+/** Type d'incident (aligne backend Prisma `IncidentType` — 13 valeurs). */
 export type IncidentType =
   | 'ORDER_CANCELLED'
   | 'ORDER_DELAYED'
@@ -1586,7 +1586,11 @@ export type IncidentType =
   | 'STOCK_ISSUE'
   | 'WRONG_DELIVERY'
   | 'REFUND_REQUEST'
-  | 'OTHER';
+  | 'OTHER'
+  /** F3-04 — ouvert et clos par le système (file « À traiter » en retard). */
+  | 'OPS_SLA_BREACH'
+  /** F3-04 — indicateur anormal (ex. taux d'échec de paiement). */
+  | 'METRIC_ANOMALY';
 
 export type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -2264,4 +2268,40 @@ export interface PublicHoliday {
   date: string;
   label: string;
   country: string;
+}
+
+// --- Cockpit ops « À traiter » (F3-04) ---
+
+export type OpsBucketKey =
+  | 'acceptance_late'
+  | 'no_driver'
+  | 'en_route_long'
+  | 'delivery_failed'
+  | 'refunds_pending'
+  | 'payouts_failed'
+  | 'incidents_open'
+  | 'outbox_failed';
+
+export interface OpsItem {
+  id: string;
+  orderId: string | null;
+  title: string;
+  detail: string | null;
+  since: string;
+}
+
+export interface OpsBucket {
+  key: OpsBucketKey;
+  label: string;
+  severity: 'HIGH' | 'MEDIUM';
+  count: number;
+  oldestAt: string | null;
+  items: OpsItem[];
+}
+
+/** `GET /admin/ops/queue`. */
+export interface OpsQueue {
+  generatedAt: string;
+  total: number;
+  buckets: OpsBucket[];
 }

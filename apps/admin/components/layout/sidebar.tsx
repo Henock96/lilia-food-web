@@ -10,6 +10,7 @@ import {
   useDashboardOverview,
   useAdminPendingVendors,
   usePendingRefundsCount,
+  useOpsQueue,
 } from '@lilia/api-client';
 import { useIsAdmin, useIsRestaurateur } from '@/lib/use-role';
 import {
@@ -34,6 +35,7 @@ import {
   ScrollText,
   Undo2,
   Route,
+  Siren,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -48,7 +50,7 @@ import { toast } from 'sonner';
  * Clients (de son resto), Promos. Les sections globales (Paiements,
  * Incidents, Livreurs, Zones, Paramètres plateforme) sont admin-only.
  */
-type BadgeKind = false | 'orders' | 'vendors' | 'refunds';
+type BadgeKind = false | 'orders' | 'vendors' | 'refunds' | 'ops';
 
 const NAV_ITEMS: {
   href: string;
@@ -59,6 +61,8 @@ const NAV_ITEMS: {
   adminOnly: boolean;
 }[] = [
   { href: '/dashboard',   label: 'Dashboard',   icon: LayoutDashboard, badge: false,    adminOnly: false },
+  // Cockpit ops (F3-04) : ce qui doit être fait maintenant, calculé par le serveur.
+  { href: '/a-traiter',   label: 'À traiter',   icon: Siren,           badge: 'ops',    adminOnly: true  },
   { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: 'orders', adminOnly: false },
   { href: '/produits',    label: 'Produits',    icon: Package,         badge: false,    adminOnly: false },
   { href: '/categories',  label: 'Catégories',  icon: FolderTree,      badge: false,    adminOnly: false },
@@ -118,6 +122,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { data: pendingRefundsCount = 0 } = usePendingRefundsCount(
     isAdmin ? token : null,
   );
+  const { data: opsQueue } = useOpsQueue(isAdmin ? token : null);
+  const opsCount = opsQueue?.total ?? 0;
 
   // Filtre les items globaux pour les RESTAURATEUR + ajuste les labels.
   const visibleNavItems = NAV_ITEMS.filter(
@@ -219,6 +225,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               badge === 'orders' ? pending
               : badge === 'vendors' ? pendingVendorsCount
               : badge === 'refunds' ? pendingRefundsCount
+              : badge === 'ops' ? opsCount
               : 0;
             const showBadge = badgeCount > 0;
             return (
