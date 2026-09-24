@@ -37,6 +37,7 @@ import { exportToCsv } from '@/lib/export-csv';
 import { apiMessage } from '@/lib/api-message';
 import { OrderActions } from '@/components/orders/order-actions';
 import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
+import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration-panel';
 import { AssignDriver } from '@/components/orders/assign-driver';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -280,6 +281,16 @@ function OrderCard({
               commission qu'on retient, ni la marge de la plateforme. Le
               reversement est de toute façon interdit aux autres rôles côté
               serveur ; on ne charge simplement pas la donnée. */}
+          {/* F3-05 — échec déclaré, commande pas encore conclue : l'admin
+              choisit le responsable (ou réassigne ci-dessus). */}
+          {role === 'ADMIN' &&
+            order.delivery?.status === 'ECHEC' &&
+            (order.status === 'PRET' || order.status === 'EN_ROUTE') && (
+              <div className="pt-2">
+                <FailureArbitrationPanel orderId={order.id} token={token} />
+              </div>
+            )}
+
           {role === 'ADMIN' && (
             <div className="pt-2">
               <OrderFinancialsCard orderId={order.id} token={token} />
