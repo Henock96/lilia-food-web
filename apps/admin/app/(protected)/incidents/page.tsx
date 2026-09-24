@@ -32,6 +32,8 @@ const TYPES: IncidentType[] = [
   'WRONG_DELIVERY',
   'REFUND_REQUEST',
   'OTHER',
+  'OPS_SLA_BREACH',
+  'METRIC_ANOMALY',
 ];
 
 const STATUS_LABELS: Record<IncidentStatus, string> = {
@@ -60,6 +62,8 @@ export const TYPE_LABELS: Record<IncidentType, string> = {
   WRONG_DELIVERY: 'Mauvaise livraison',
   REFUND_REQUEST: 'Demande de remboursement',
   OTHER: 'Autre',
+  OPS_SLA_BREACH: 'À traiter en retard',
+  METRIC_ANOMALY: 'Indicateur anormal',
 };
 
 const STATUS_STYLES: Record<IncidentStatus, string> = {

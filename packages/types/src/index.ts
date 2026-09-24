@@ -1574,7 +1574,7 @@ export interface PaginatedDelivererMissions {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-/** Type d'incident (aligne backend Prisma `IncidentType` — 11 valeurs). */
+/** Type d'incident (aligne backend Prisma `IncidentType` — 13 valeurs). */
 export type IncidentType =
   | 'ORDER_CANCELLED'
   | 'ORDER_DELAYED'
@@ -1586,7 +1586,11 @@ export type IncidentType =
   | 'STOCK_ISSUE'
   | 'WRONG_DELIVERY'
   | 'REFUND_REQUEST'
-  | 'OTHER';
+  | 'OTHER'
+  /** F3-04 — ouvert et clos par le système (file « À traiter » en retard). */
+  | 'OPS_SLA_BREACH'
+  /** F3-04 — indicateur anormal (ex. taux d'échec de paiement). */
+  | 'METRIC_ANOMALY';
 
 export type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
