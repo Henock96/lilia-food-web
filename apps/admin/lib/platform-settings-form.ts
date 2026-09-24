@@ -207,3 +207,25 @@ export function appUpdateStatus(s: Pick<PlatformSettings, 'minAppVersion' | 'lat
   if (s.latestAppVersion) return { kind: 'recommending', latestVersion: s.latestAppVersion };
   return { kind: 'idle' };
 }
+
+/**
+ * Ce 409 dit-il « un autre administrateur a modifié la configuration » ?
+ *
+ * Seul le code `SETTINGS_STALE` le dit. La bascule en tarification plateforme
+ * sans grille publiée est **aussi** un 409 (`DELIVERY_TARIFF_NOT_PUBLISHED`) :
+ * la traiter en conflit masquait son message — « Publiez une grille de
+ * livraison… » — derrière une fausse invitation à recharger (24/09/2026).
+ * Le texte exact du conflit reste reconnu pour un serveur antérieur au code.
+ */
+export const SETTINGS_STALE_MESSAGE_PREFIX =
+  'La configuration a été modifiée par un autre administrateur';
+
+export function isStaleSettingsConflict(error: {
+  status?: number;
+  code?: string;
+  message?: string;
+}): boolean {
+  if (error.status !== 409) return false;
+  if (error.code) return error.code === 'SETTINGS_STALE';
+  return (error.message ?? '').startsWith(SETTINGS_STALE_MESSAGE_PREFIX);
+}
