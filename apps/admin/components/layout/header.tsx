@@ -8,6 +8,7 @@ import { UserMenu } from '@/components/layout/user-menu';
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/a-traiter': 'À traiter',
+  '/approbations': 'Approbations',
   '/commandes': 'Commandes',
   '/restaurants': 'Restaurants',
   '/clients': 'Clients',

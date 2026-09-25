@@ -13,6 +13,7 @@ import type {
   PayoutRequestResult,
   PayoutStatus,
   VendorPayoutAccount,
+  ApprovalRequested,
 } from '@lilia/types';
 import { apiClient, apiClientRaw } from '../client';
 import { adminVendorKeys } from './admin-vendors';
@@ -144,7 +145,10 @@ export function useUpdateVendorPayoutAccount(
       payoutProvider: PayoutProvider;
       payoutAccountName?: string;
     }) =>
-      apiClient<VendorPayoutAccount>(
+      // F3-08 — REMPLACER un numéro existant rend une demande d'approbation
+      // (`approvalRequired`) : rien n'a changé tant qu'un second admin n'a
+      // pas approuvé. La première saisie, elle, s'applique directement.
+      apiClient<VendorPayoutAccount | ApprovalRequested>(
         `/admin/vendors/${vendorId}/payout-account`,
         { method: 'PATCH', token, body: JSON.stringify(payload) },
       ),

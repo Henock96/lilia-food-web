@@ -34,3 +34,4 @@ export * from './hooks/deliveries';
 export * from './hooks/refunds';
 
 export * from './hooks/claims';
+export * from './hooks/approvals';
