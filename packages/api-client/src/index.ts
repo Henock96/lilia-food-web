@@ -33,3 +33,4 @@ export * from './hooks/admin-users';
 export * from './hooks/deliveries';
 export * from './hooks/refunds';
 
+export * from './hooks/claims';

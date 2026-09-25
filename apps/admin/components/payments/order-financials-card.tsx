@@ -125,6 +125,12 @@ export function OrderFinancialsCard({
             value={-restaurant.commissionAmount}
             tone="zinc"
           />
+          {!!restaurant.refundDeductionAmount && (
+            <Line
+              label="Remboursements à sa charge"
+              value={-restaurant.refundDeductionAmount}
+            />
+          )}
           <Line label="Net à reverser" value={restaurant.payoutAmount} strong />
           <p className="text-[11px] text-zinc-400 pt-1">
             {restaurant.payoutAccount.configured
@@ -209,12 +215,17 @@ export function OrderFinancialsCard({
         </span>
       </div>
 
-      {refund && (
-        <div className="px-3 py-2 border-t border-zinc-100 dark:border-dark-border flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+      {/* F3-06 — une commande peut être remboursée en plusieurs fois. */}
+      {(data.refunds ?? (refund ? [refund] : [])).map((r) => (
+        <div
+          key={r.id}
+          className="px-3 py-2 border-t border-zinc-100 dark:border-dark-border flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400"
+        >
           <AlertTriangle size={13} className="shrink-0" />
-          Remboursement {refund.status.toLowerCase()} de {formatXaf(refund.amount)}
+          Remboursement {r.status.toLowerCase()} de {formatXaf(r.amount)}
+          {'bearer' in r && r.bearer === 'VENDOR' ? ' · à la charge du vendeur' : ''}
         </div>
-      )}
+      ))}
 
       {/* ── Le geste ───────────────────────────────────────────────────── */}
       <div className="px-3 py-3 border-t border-zinc-100 dark:border-dark-border">

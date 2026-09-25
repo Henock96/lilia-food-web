@@ -61,6 +61,11 @@ export class ApiError extends Error {
      * deux réactions opposées.
      */
     public code?: string,
+    /**
+     * Le reste de `error` — ce qu'un refus porte en plus de son code, comme
+     * l'identifiant de la réclamation déjà ouverte (`CLAIM_ALREADY_OPEN`).
+     */
+    public details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -81,14 +86,19 @@ async function toApiError(response: Response): Promise<ApiError> {
     .catch(() => ({ message: response.statusText }))) as {
     message?: string | string[];
     code?: string;
-    error?: { code?: string } | string | null;
+    error?: ({ code?: string } & Record<string, unknown>) | string | null;
   };
   const message = Array.isArray(body.message)
     ? body.message.join(' ')
     : (body.message ?? `HTTP ${response.status}`);
-  const nested =
-    body.error && typeof body.error === 'object' ? body.error.code : undefined;
-  return new ApiError(response.status, message, body.code ?? nested);
+  const details =
+    body.error && typeof body.error === 'object' ? body.error : undefined;
+  return new ApiError(
+    response.status,
+    message,
+    body.code ?? details?.code,
+    details,
+  );
 }
 
 /**

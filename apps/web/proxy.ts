@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED_PATHS = ['/panier', '/commandes', '/profil'];
+const PROTECTED_PATHS = ['/panier', '/commandes', '/profil', '/demandes'];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

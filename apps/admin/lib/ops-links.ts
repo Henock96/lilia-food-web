@@ -13,6 +13,8 @@ export function opsItemHref(bucket: OpsBucketKey, item: OpsItem): string | null 
       return item.orderId ? `/commandes?q=${encodeURIComponent(item.orderId)}` : null;
     case 'refunds_pending':
       return '/remboursements';
+    case 'claims_unanswered':
+      return `/reclamations/${encodeURIComponent(item.id)}`;
     case 'payouts_failed':
       return '/paiements/reversements';
     case 'incidents_open':

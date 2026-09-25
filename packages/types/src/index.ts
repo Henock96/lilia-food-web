@@ -135,6 +135,13 @@ export interface Refund {
   processedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** F3-06 — motif codé ; les quatre premiers sont des remboursements totaux automatiques. */
+  reasonCode?: RefundReasonCode;
+  /** F3-06 — qui supporte la perte. */
+  bearer?: RefundBearer;
+  incidentId?: string | null;
+  /** F3-06 — vide = remboursement total (historique ou automatique). */
+  lines?: RefundLine[];
   order?: {
     id: string;
     total: number;
@@ -144,6 +151,177 @@ export interface Refund {
     user: { id: string; nom: string | null; phone: string | null } | null;
     restaurant: { id: string; nom: string } | null;
   };
+}
+
+// --- Remboursements partiels et réclamations (F3-06) ---
+
+export type RefundReasonCode =
+  | 'ORDER_CANCELLED'
+  | 'VENDOR_REJECTED'
+  | 'VENDOR_TIMEOUT'
+  | 'DELIVERY_FAILED'
+  | 'MISSING_ITEM'
+  | 'WRONG_ITEM'
+  | 'DAMAGED'
+  | 'LATE'
+  | 'GOODWILL'
+  | 'OTHER';
+
+/** Motifs proposés par le composeur (les autres sont automatiques). */
+export type ManualRefundReasonCode = Extract<
+  RefundReasonCode,
+  'MISSING_ITEM' | 'WRONG_ITEM' | 'DAMAGED' | 'LATE' | 'GOODWILL' | 'OTHER'
+>;
+
+export type RefundBearer = 'VENDOR' | 'PLATFORM' | 'DRIVER';
+export type RefundLineKind = 'ITEM' | 'DELIVERY_FEE' | 'SERVICE_FEE' | 'GOODWILL';
+
+export interface RefundLine {
+  id?: string;
+  kind: RefundLineKind;
+  orderItemId: string | null;
+  quantity: number | null;
+  amountXaf: number;
+  label?: string;
+  orderItem?: { variant: string; product: { nom: string } } | null;
+}
+
+export interface RefundLineInput {
+  kind: RefundLineKind;
+  orderItemId?: string;
+  quantity?: number;
+  amountXaf?: number;
+}
+
+export interface ComposeRefundInput {
+  lines: RefundLineInput[];
+  reasonCode: ManualRefundReasonCode;
+  bearer?: RefundBearer;
+  incidentId?: string;
+  note?: string;
+  /** Virer tout de suite (défaut serveur : oui). */
+  execute?: boolean;
+}
+
+export interface RefundableItem {
+  orderItemId: string;
+  label: string;
+  orderedQty: number;
+  refundedQty: number;
+  unitPriceXaf: number;
+}
+
+/** `POST /admin/orders/:id/refunds/quote` — calcul serveur, rien d'écrit. */
+export interface RefundQuote {
+  lines: (RefundLine & { label: string })[];
+  totalXaf: number;
+  remainingAfterXaf: number;
+  refundable: {
+    paidXaf: number;
+    alreadyRefundedXaf: number;
+    remainingXaf: number;
+    deliveryFeeRemainingXaf: number;
+    serviceFeeRemainingXaf: number;
+    items: RefundableItem[];
+  };
+  suggestedBearer: RefundBearer | null;
+  inFlight: boolean;
+  /** R-06.5 — ce que l'écriture refusera, dit avant le clic. */
+  blockedReason: string | null;
+}
+
+export interface ComposedRefund {
+  refundId: string;
+  amountXaf: number;
+  bearer: RefundBearer;
+  lines: (RefundLine & { label: string })[];
+  remainingAfterXaf: number;
+  execution: { executed: boolean; status: string; message: string };
+}
+
+export type ClaimReason = 'MISSING_ITEM' | 'WRONG_ITEM' | 'DAMAGED' | 'LATE' | 'OTHER';
+export type ClaimOutcome = 'REFUNDED' | 'VOUCHER' | 'REJECTED';
+export type MessageVisibility = 'ALL' | 'STAFF_ONLY';
+
+export interface ClaimSummary {
+  id: string;
+  orderId: string;
+  orderRef: string;
+  status: IncidentStatus;
+  /** Motif client ; les signalements Phase 2 portent leur ancien `kind`. */
+  reason: ClaimReason | 'NOT_RECEIVED' | 'WRONG_ORDER' | string;
+  summary: string;
+  outcome: ClaimOutcome | null;
+  resolution: string | null;
+  messagesCount: number;
+  createdAt: string;
+  resolvedAt: string | null;
+  title?: string;
+}
+
+export interface ClaimsPage {
+  data: ClaimSummary[];
+  meta: { page: number; limit: number; total: number };
+}
+
+export interface ClaimMessage {
+  id: string;
+  authorRole: 'CLIENT' | 'RESTAURATEUR' | 'LIVREUR' | 'ADMIN';
+  authorLabel: string;
+  mine: boolean;
+  body: string;
+  attachments: string[];
+  createdAt: string;
+  /** Présent pour le support et le vendeur seulement. */
+  visibility?: MessageVisibility;
+}
+
+export interface ClaimDetail {
+  id: string;
+  orderId: string;
+  orderRef: string;
+  status: IncidentStatus;
+  reason: ClaimSummary['reason'];
+  summary: string;
+  items: { orderItemId: string; quantity: number; label: string }[];
+  photoUrls: string[];
+  outcome: ClaimOutcome | null;
+  resolution: string | null;
+  voucher: { code: string; amountXaf: number; expiresAt: string } | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  claimWindowClosesAt: string | null;
+  order: {
+    id: string;
+    total: number;
+    status: OrderStatus;
+    createdAt: string;
+    restaurant: { id: string; nom: string };
+  };
+  messages: ClaimMessage[];
+  refunds: {
+    id: string;
+    amountXaf: number;
+    status: RefundStatus;
+    createdAt: string;
+    processedAt: string | null;
+    fromThisClaim: boolean;
+    bearer?: RefundBearer;
+    reasonCode?: RefundReasonCode;
+  }[];
+  /** Vendeur et support : ce qui sera retenu sur le reversement. */
+  vendorImpactXaf?: number;
+  /** Support seulement. */
+  title?: string;
+  customer?: { id: string; nom: string | null; phone: string | null };
+  abuse?: { claims30d: number; accepted30d: number; manualReviewRequired: boolean };
+}
+
+export interface CreateClaimInput {
+  reason: ClaimReason;
+  items?: { orderItemId: string; quantity: number }[];
+  note?: string;
+  photoUrls?: string[];
 }
 
 export interface RefundsPage {
@@ -1370,6 +1548,8 @@ export interface OrderFinancials {
     grossAmount: number;
     commissionPercent: number;
     commissionAmount: number;
+    /** F3-06 — remboursements à la charge du vendeur, retenus sur le virement. */
+    refundDeductionAmount?: number;
     payoutAmount: number;
     payoutAccount: {
       /** Masqué par le serveur — le numéro complet ne sort jamais de la base. */
@@ -1469,7 +1649,21 @@ export interface OrderFinancials {
     netMargin: number | null;
     currency: string;
   };
+  /** Le plus récent — conservé pour les écrans antérieurs à F3-06. */
   refund: { id: string; status: string; amount: number } | null;
+  /** F3-06 — tous les remboursements de la commande, du plus ancien au plus récent. */
+  refunds?: {
+    id: string;
+    status: RefundStatus;
+    amount: number;
+    bearer: RefundBearer;
+    reasonCode: RefundReasonCode;
+    incidentId: string | null;
+    createdAt: string;
+    processedAt: string | null;
+  }[];
+  /** Σ des remboursements non rejetés. */
+  refundedXaf?: number;
   eligibility: PayoutEligibility;
 }
 
@@ -2278,6 +2472,7 @@ export type OpsBucketKey =
   | 'en_route_long'
   | 'delivery_failed'
   | 'refunds_pending'
+  | 'claims_unanswered'
   | 'payouts_failed'
   | 'incidents_open'
   | 'outbox_failed';

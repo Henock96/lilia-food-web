@@ -57,6 +57,20 @@ const FILTERS: { value: RefundStatusFilter; label: string }[] = [
 
 const formatXaf = (n: number) => n.toLocaleString('fr-FR');
 
+/** Une ligne de remboursement partiel, lisible (F3-06). */
+function refundLineLabel(line: NonNullable<Refund['lines']>[number]): string {
+  switch (line.kind) {
+    case 'ITEM':
+      return `${line.quantity ?? 1} × ${line.orderItem?.product.nom ?? 'article'} (${formatXaf(line.amountXaf)} F)`;
+    case 'DELIVERY_FEE':
+      return `livraison (${formatXaf(line.amountXaf)} F)`;
+    case 'SERVICE_FEE':
+      return `frais de service (${formatXaf(line.amountXaf)} F)`;
+    default:
+      return `geste commercial (${formatXaf(line.amountXaf)} F)`;
+  }
+}
+
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString('fr-FR', {
     timeZone: 'Africa/Brazzaville',
@@ -182,6 +196,20 @@ function RefundRow({
         <span className="text-zinc-400">Motif : </span>
         {refund.reason}
       </p>
+
+      {/* F3-06 — remboursement partiel : ce qui est rendu, et qui le paie. */}
+      {refund.lines && refund.lines.length > 0 && (
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-zinc-400">Détail : </span>
+          {refund.lines.map(refundLineLabel).join(', ')}
+        </p>
+      )}
+      {refund.bearer && refund.bearer !== 'PLATFORM' && (
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-zinc-400">À la charge : </span>
+          {refund.bearer === 'VENDOR' ? 'du vendeur (retenu sur son reversement)' : 'du livreur'}
+        </p>
+      )}
 
       {refund.notes && (
         <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">

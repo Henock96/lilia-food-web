@@ -12,6 +12,7 @@ import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor,
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
+import { ClaimPanel } from '@/components/orders/claim-panel';
 import { toast } from 'sonner';
 import {
   canClientCancel,
@@ -283,9 +284,14 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
         </button>
       )}
 
-      {/* F-06 : signalement — payée et non annulée (le serveur borne aussi à 72 h après livraison) */}
-      {isPaid && !isCancelled && (
-        <ReportIssuePanel orderId={order.id} token={token} />
+      {/* F3-06 : commande livrée → réclamation détaillée (articles, photo, fil
+          avec le service client), 24 h après la livraison. Avant livraison, le
+          signalement F-06 reste le recours (non reçue, retard). */}
+      {order.status === 'LIVRER' ? (
+        <ClaimPanel orderId={order.id} items={order.items} token={token} />
+      ) : (
+        isPaid &&
+        !isCancelled && <ReportIssuePanel orderId={order.id} token={token} />
       )}
 
       {/* Reorder */}

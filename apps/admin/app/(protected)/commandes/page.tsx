@@ -38,6 +38,7 @@ import { apiMessage } from '@/lib/api-message';
 import { OrderActions } from '@/components/orders/order-actions';
 import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
 import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration-panel';
+import { RefundComposer } from '@/components/refunds/refund-composer';
 import { AssignDriver } from '@/components/orders/assign-driver';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -140,6 +141,7 @@ function OrderCard({
   pending?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
   // Personne ne déclare une commande payée (F-07) : un virement manuel se
   // confirme depuis l'écran Paiements.
   const waitingForPayment = order.status === 'EN_ATTENTE';
@@ -296,6 +298,28 @@ function OrderCard({
               <OrderFinancialsCard orderId={order.id} token={token} />
             </div>
           )}
+
+          {/* F3-06 — remboursement partiel d'une commande terminée. */}
+          {role === 'ADMIN' &&
+            (order.status === 'LIVRER' || order.status === 'ECHEC_LIVRAISON') && (
+              <div className="pt-2">
+                {showRefund ? (
+                  <RefundComposer
+                    orderId={order.id}
+                    token={token}
+                    onDone={() => setShowRefund(false)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowRefund(true)}
+                    className="text-xs font-medium text-red-600 hover:underline"
+                  >
+                    Rembourser une partie de la commande…
+                  </button>
+                )}
+              </div>
+            )}
         </div>
       )}
     </div>
