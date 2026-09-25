@@ -45,6 +45,8 @@ import {
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { maintenanceNotice } from '@/lib/maintenance';
 import { toast } from 'sonner';
+import { CartLineDetails } from '@/components/cart/cart-line-details';
+import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
 export default function PanierPage() {
   const router = useRouter();
@@ -124,10 +126,8 @@ export default function PanierPage() {
   const platformPricing = platformSettings?.deliveryPricingMode === 'PLATFORM';
   // Le sous-total accompagne le devis pour le seul seuil « livraison offerte
   // dès X » du vendeur ; le checkout le recalcule sur le panier serveur.
-  const quoteSubTotal = (cart?.items ?? []).reduce(
-    (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
-    0,
-  );
+  // F3-09 — sous-total SERVEUR (options comprises, menu compté une fois).
+  const quoteSubTotal = cartSubtotal(cart);
   const { data: deliveryQuote, isPending: quotePending } = useDeliveryFeeQuote(
     firstItemRestaurantId || null,
     deliveryQuartierId,
@@ -174,10 +174,7 @@ export default function PanierPage() {
   // un nouvel objet à chaque rafraîchissement (interrogation, retour d'onglet),
   // et l'effet se rejouerait à chaque fois pour un panier identique.
   const cartItemCount = cart?.items?.length ?? 0;
-  const cartTotal = (cart?.items ?? []).reduce(
-    (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
-    0,
-  );
+  const cartTotal = cartSubtotal(cart);
   useEffect(() => {
     if (cartItemCount === 0) return;
     analytics.track('view_cart', {
@@ -216,10 +213,9 @@ export default function PanierPage() {
   const items = cart?.items ?? [];
   const isEmpty = items.length === 0;
 
-  const subTotal = items.reduce(
-    (sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite,
-    0,
-  );
+  // F3-09 — le serveur chiffre le panier : `variant.prix × quantite`
+  // ignorait les options et comptait un menu produit par produit.
+  const subTotal = cartSubtotal(cart);
   // Tarif du vendeur (FIXED), devis de zone (ZONE_BASED) ou, en mode
   // plateforme, devis de la grille. `null` = prix encore inconnu.
   const vendorDeliveryFee = resolveDeliveryFee({
@@ -524,8 +520,9 @@ export default function PanierPage() {
                       {item.variant?.label && (
                         <p className="text-xs text-ink-500">{item.variant.label}</p>
                       )}
+                      <CartLineDetails item={item} />
                       <p className="font-bold text-tomato-700 text-sm mt-0.5">
-                        {formatCurrency((item.variant?.prix ?? 0) * item.quantite)}
+                        {formatCurrency(cartLineUnitPrice(item) * item.quantite)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

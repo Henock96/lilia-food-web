@@ -47,6 +47,9 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
   /** F3-07 — versement automatique au vendeur (et son délai, en minutes). */
   vendorPayoutAutoEnabled: boolean;
   vendorPayoutDelayMinutes: string;
+  /** F3-09 — options côté clients, puis éditeur vendeur (dans cet ordre). */
+  modifiersEnabled: boolean;
+  modifiersManagementEnabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   minAppVersion: string;
@@ -69,6 +72,8 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     deliveryPricingMode: s.deliveryPricingMode ?? 'VENDOR_LEGACY',
     vendorPayoutAutoEnabled: s.vendorPayoutAutoEnabled ?? false,
     vendorPayoutDelayMinutes: String(s.vendorPayoutDelayMinutes ?? 60),
+    modifiersEnabled: s.modifiersEnabled ?? false,
+    modifiersManagementEnabled: s.modifiersManagementEnabled ?? false,
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage ?? '',
     minAppVersion: s.minAppVersion ?? '',
@@ -160,6 +165,20 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
     } else if (delay.value !== loaded.vendorPayoutDelayMinutes) {
       patch.vendorPayoutDelayMinutes = delay.value;
     }
+  }
+
+  // F3-09 — l'éditeur vendeur exige les options côté clients : le serveur le
+  // refuse (409 `MODIFIERS_ROLLOUT_ORDER`), on le dit avant l'envoi.
+  if (form.modifiersManagementEnabled && !form.modifiersEnabled) {
+    errors.push(
+      "Éditeur d'options : activez d'abord les options côté clients (après publication des applications).",
+    );
+  }
+  if (form.modifiersEnabled !== (loaded.modifiersEnabled ?? false)) {
+    patch.modifiersEnabled = form.modifiersEnabled;
+  }
+  if (form.modifiersManagementEnabled !== (loaded.modifiersManagementEnabled ?? false)) {
+    patch.modifiersManagementEnabled = form.modifiersManagementEnabled;
   }
 
   if (form.maintenanceMode !== loaded.maintenanceMode) {

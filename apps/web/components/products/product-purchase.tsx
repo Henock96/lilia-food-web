@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Lock, Plus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductVariant, ProductVendorRef } from '@lilia/types';
 import { useAddToCart, useCart, useClearCart } from '@lilia/api-client';
-import { cn, formatCurrency, galleryImages, hasPreorderConflict, isPreorderCart } from '@lilia/utils';
+import {
+  cn,
+  formatCurrency,
+  galleryImages,
+  hasModifiers,
+  hasPreorderConflict,
+  isPreorderCart,
+  modifierBlockingReason,
+  selectedOptionsCount,
+  selectedOptionsValue,
+  toSelectedOptions,
+  type ModifierSelection,
+} from '@lilia/utils';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { analytics } from '@/lib/analytics';
@@ -15,6 +27,7 @@ import { computePurchaseState } from '@/lib/product-purchase-state';
 import { ImageCarousel } from '@/components/ui';
 import { QuantityStepper } from '@/components/ui/quantity-stepper';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
+import { ModifierGroupPicker } from '@/components/products/modifier-group-picker';
 
 /**
  * Bloc d'achat de la fiche produit : galerie, variante, quantité, ajout.
@@ -50,8 +63,31 @@ export function ProductPurchase({
   const [added, setAdded] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
 
+  // F3-09 — options choisies. Toutes les variantes partagent les mêmes
+  // groupes (limite de la V1).
+  const groups = product.modifierGroups ?? [];
+  const [selection, setSelection] = useState<ModifierSelection>({});
+  const optionsBlocker = modifierBlockingReason(groups, selection);
+  const optionsValue = selectedOptionsValue(groups, selection);
+
+  // `product_options_view` — à l'ouverture de la fiche, seulement si elle
+  // propose un choix (même motif que `TrackProductView`).
+  const withOptions = hasModifiers(product);
+  const groupCount = groups.length;
+  useEffect(() => {
+    if (!withOptions) return;
+    analytics.track('product_options_view', {
+      product_id: product.id,
+      product_name: product.nom,
+      restaurant_id: product.restaurantId,
+      group_count: groupCount,
+    });
+  }, [withOptions, product.id, product.nom, product.restaurantId, groupCount]);
+
   const state = computePurchaseState(product, vendor);
-  const unitPrice = selectedVariant?.prix ?? product.prixOriginal;
+  // Affichage seulement : le panier montrera le prix unitaire du serveur.
+  const variantPrice = selectedVariant?.prix ?? product.prixOriginal;
+  const unitPrice = variantPrice + optionsValue;
   const total = unitPrice * quantity;
   const images = galleryImages(product, product.nom);
 
@@ -72,8 +108,11 @@ export function ProductPurchase({
       product_id: product.id,
       product_name: product.nom,
       restaurant_id: product.restaurantId,
-      price: unitPrice,
+      // `price` garde son sens (prix du format) ; les options voyagent à part.
+      price: variantPrice,
       quantity,
+      options_count: selectedOptionsCount(selection),
+      options_value: optionsValue,
     });
   }
 
@@ -85,10 +124,13 @@ export function ProductPurchase({
 
   async function addNow() {
     if (!selectedVariant) return;
+    const options = toSelectedOptions(groups, selection);
     await addToCart.mutateAsync({
       productId: product.id,
       variantId: selectedVariant.id,
       quantite: quantity,
+      // Envoyé seulement s'il y a des options : corps inchangé sinon.
+      ...(options.length > 0 && { options }),
     });
     confirmAdded();
   }
@@ -203,6 +245,11 @@ export function ProductPurchase({
         </fieldset>
       )}
 
+      {/* F3-09 — options & suppléments. */}
+      {groups.length > 0 && state.canAdd && (
+        <ModifierGroupPicker groups={groups} selection={selection} onChange={setSelection} />
+      )}
+
       {/* Quantité — masquée quand le produit n'est pas commandable : choisir
           une quantité qu'on ne pourra pas valider est une impasse. */}
       {state.canAdd && (
@@ -230,10 +277,10 @@ export function ProductPurchase({
 
       <button
         onClick={handleAdd}
-        disabled={!state.canAdd || addToCart.isPending}
+        disabled={!state.canAdd || !!optionsBlocker || addToCart.isPending}
         className={cn(
           'flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold transition-all',
-          state.canAdd
+          state.canAdd && !optionsBlocker
             ? added
               ? 'bg-success text-white'
               : 'bg-tomato-600 text-white shadow-sm shadow-tomato-100 hover:bg-tomato-700'
@@ -260,6 +307,11 @@ export function ProductPurchase({
             <motion.span key="blocked" className="flex items-center gap-2">
               <Lock className="h-4 w-4" aria-hidden />
               Indisponible
+            </motion.span>
+          ) : optionsBlocker ? (
+            // Dire lequel : « désactivé » sans raison ressemble à une panne.
+            <motion.span key="options" className="flex items-center gap-2">
+              {optionsBlocker}
             </motion.span>
           ) : (
             <motion.span key="add" className="flex items-center gap-2">

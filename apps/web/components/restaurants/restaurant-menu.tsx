@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check } from 'lucide-react';
 import type { Restaurant, Product, ProductVariant } from '@lilia/types';
@@ -13,6 +14,7 @@ import {
   hasPreorderConflict,
   isPreorderCart,
   coverImage,
+  hasModifiers,
 } from '@lilia/utils';
 import { useAuthStore } from '@/store/auth';
 import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
@@ -111,6 +113,9 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   const clearCart = useClearCart(token);
   const { data: cart } = useCart(token);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const router = useRouter();
+  /** F3-09 — un produit à options s'ajoute depuis sa fiche, où le choix se fait. */
+  const withOptions = hasModifiers(product);
   /**
    * Variante retenue pour l'ajout au panier.
    *
@@ -137,7 +142,8 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   // `stockRestant` sa convention (`null` = illimité, `0` = épuisé).
   const { orderable, badge } = menuItemState(product, restaurantOpen);
   const isOutOfStock = badge === 'rupture';
-  const canAdd = orderable && !!selectedVariant;
+  // Produit à options : le bouton ouvre la fiche — le format s'y choisit aussi.
+  const canAdd = orderable && (withOptions || !!selectedVariant);
   const cover = coverImage(product);
 
   /**
@@ -159,10 +165,20 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       restaurant_id: product.restaurantId,
       price: selectedVariant?.prix ?? product.prixOriginal,
       quantity: 1,
+      // Ce chemin n'ajoute jamais d'option (produit à options → fiche).
+      options_count: 0,
+      options_value: 0,
     });
   }
 
   async function handleAdd() {
+    // F3-09 — jamais d'ajout « en un clic » d'un produit à options : un choix
+    // obligatoire serait refusé par le serveur (`MODIFIER_REQUIRED`), et un
+    // supplément facultatif ne serait même pas proposé.
+    if (withOptions) {
+      router.push(`/produits/${product.id}`);
+      return;
+    }
     if (!token) {
       toast.error('Connectez-vous pour ajouter au panier');
       return;
@@ -323,7 +339,9 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
                 ? `${product.nom} — en rupture`
                 : !restaurantOpen
                   ? `${product.nom} — boutique fermée`
-                  : !selectedVariant
+                  : withOptions
+                    ? `Choisir les options de ${product.nom}`
+                    : !selectedVariant
                     ? `Choisissez un format pour ${product.nom}`
                     : `Ajouter ${product.nom} au panier`
             }

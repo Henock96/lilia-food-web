@@ -26,6 +26,7 @@ import {
   Package,
   Tag,
   FolderTree,
+  ListChecks,
   UtensilsCrossed,
   CreditCard,
   Bike,
@@ -69,6 +70,8 @@ const NAV_ITEMS: {
   { href: '/reclamations', label: 'Réclamations', icon: MessageSquareWarning, badge: 'claims', adminOnly: false },
   { href: '/produits',    label: 'Produits',    icon: Package,         badge: false,    adminOnly: false },
   { href: '/categories',  label: 'Catégories',  icon: FolderTree,      badge: false,    adminOnly: false },
+  // F3-09 — options & suppléments (accompagnement au choix, + œuf…).
+  { href: '/options',     label: 'Options',     icon: ListChecks,      badge: false,    adminOnly: false },
   { href: '/menus',       label: 'Menus',       icon: UtensilsCrossed, badge: false,    adminOnly: false },
   { href: '/restaurants', label: 'Restaurants', restaurateurLabel: 'Ma vitrine', icon: Store, badge: false, adminOnly: false },
   { href: '/mon-restaurant', label: 'Mon Restaurant', icon: Settings,  badge: false,    adminOnly: false },

@@ -9,6 +9,7 @@ export * from './hooks/adresses';
 export * from './hooks/profile';
 export * from './hooks/products';
 export * from './hooks/categories';
+export * from './hooks/modifiers';
 export * from './hooks/menus';
 export * from './hooks/promo';
 export * from './hooks/pricing';

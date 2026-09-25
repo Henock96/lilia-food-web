@@ -26,6 +26,8 @@ const PROD: PlatformSettings = {
   updateUrlAndroid: 'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app',
   updateUrlIos: null,
   updateMessage: 'Nouvelle mise à jour Lilia Food disponible !🥳',
+  modifiersEnabled: false,
+  modifiersManagementEnabled: false,
   updatedAt: '2026-09-22T10:00:00.000Z',
 };
 
@@ -217,5 +219,26 @@ describe('409 : conflit entre administrateurs ou refus métier (24/09/2026)', ()
 
   it('autre statut : jamais un conflit', () => {
     expect(isStaleSettingsConflict({ status: 400, code: 'SETTINGS_STALE' })).toBe(false);
+  });
+});
+
+describe('F3-09 — options & suppléments : ordre de déploiement', () => {
+  it('allumer les options côté clients : seul champ envoyé', () => {
+    const r = patchFrom({ modifiersEnabled: true });
+    expect(r).toMatchObject({ ok: true, patch: { modifiersEnabled: true } });
+    if (r.ok) expect(r.patch).not.toHaveProperty('modifiersManagementEnabled');
+  });
+
+  it('éditeur vendeur sans options côté clients : refusé avant l’envoi', () => {
+    const r = patchFrom({ modifiersManagementEnabled: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toMatch(/activez d'abord les options/);
+  });
+
+  it('les deux ensemble : accepté', () => {
+    expect(patchFrom({ modifiersEnabled: true, modifiersManagementEnabled: true })).toMatchObject({
+      ok: true,
+      patch: { modifiersEnabled: true, modifiersManagementEnabled: true },
+    });
   });
 });

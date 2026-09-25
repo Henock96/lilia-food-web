@@ -42,6 +42,7 @@ import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration
 import { RefundComposer } from '@/components/refunds/refund-composer';
 import { AssignDriver } from '@/components/orders/assign-driver';
 import { deliveryProofSummary } from '@/lib/delivery-proof';
+import { formatLineOptions } from '@lilia/utils';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   EN_ATTENTE:     'En attente',
@@ -279,6 +280,13 @@ function OrderCard({
               <span className="text-zinc-600 dark:text-zinc-400">
                 {item.quantite}× {item.product?.nom ?? 'Produit'}
                 {item.variantLabel ? ` (${item.variantLabel})` : ''}
+                {/* F3-09 — options figées ; `prix` les inclut déjà. En gras :
+                    c'est ce que la cuisine doit préparer. */}
+                {item.options && item.options.length > 0 && (
+                  <span className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    {formatLineOptions(item.options, (n) => `${n.toLocaleString('fr-FR')} FCFA`)}
+                  </span>
+                )}
               </span>
               <span className="text-zinc-700 dark:text-zinc-300 tabular-nums">
                 {(item.prix ?? 0).toLocaleString('fr-FR')} FCFA
