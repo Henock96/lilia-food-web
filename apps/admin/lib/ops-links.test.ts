@@ -7,6 +7,8 @@ describe('cockpit ops (F3-04)', () => {
   it('une carte commande ouvre la commande par la recherche', () => {
     expect(opsItemHref('acceptance_late', item)).toBe('/commandes?q=cmorder1');
     expect(opsItemHref('delivery_failed', item)).toBe('/commandes?q=cmorder1');
+    // F3-07 — retrait non confirmé : la commande, pour relancer ou arbitrer.
+    expect(opsItemHref('pickup_unconfirmed', item)).toBe('/commandes?q=cmorder1');
   });
 
   it('les autres files ouvrent l’écran qui porte l’action', () => {

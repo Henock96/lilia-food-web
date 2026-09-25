@@ -13,6 +13,8 @@ import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
 import { ClaimPanel } from '@/components/orders/claim-panel';
+import { PickupPanel } from '@/components/orders/pickup-panel';
+import { pickupStatusLabel, timelineSteps } from '@/lib/pickup-view';
 import { toast } from 'sonner';
 import {
   canClientCancel,
@@ -21,15 +23,15 @@ import {
   timelinePosition,
 } from '@/lib/order-status-view';
 
-const STATUS_STEPS: { status: OrderStatus; icon: React.ElementType; label: string }[] = [
-  { status: 'EN_ATTENTE', icon: Clock, label: 'En attente' },
-  { status: 'PAYER', icon: CheckCircle, label: 'Paiement confirmé' },
-  { status: 'ACCEPTEE', icon: ThumbsUp, label: 'Acceptée par le vendeur' },
-  { status: 'EN_PREPARATION', icon: ChefHat, label: 'En préparation' },
-  { status: 'PRET', icon: Package, label: 'Prêt' },
-  { status: 'EN_ROUTE', icon: Truck, label: 'En route' },
-  { status: 'LIVRER', icon: Home, label: 'Livré' },
-];
+const STEP_ICONS: Partial<Record<OrderStatus, React.ElementType>> = {
+  EN_ATTENTE: Clock,
+  PAYER: CheckCircle,
+  ACCEPTEE: ThumbsUp,
+  EN_PREPARATION: ChefHat,
+  PRET: Package,
+  EN_ROUTE: Truck,
+  LIVRER: Home,
+};
 
 function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -98,6 +100,11 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
     currentStepIndex >= timelinePosition('PAYER') || order.status === 'ECHEC_LIVRAISON';
   const cancelled = isCancelled ? cancellationNotice(order) : null;
   const readyAt = readyAtLabel(order.estimatedReadyAt);
+  // F3-07 — un retrait ne passe pas « en route », et ne se dit pas « livré ».
+  const statusSteps = timelineSteps(order.isDelivery).map((step) => ({
+    ...step,
+    icon: STEP_ICONS[step.status] ?? Package,
+  }));
 
   return (
     <motion.div
@@ -116,9 +123,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <p className="text-xs text-ink-500 mt-0.5">{formatDateTime(order.createdAt)}</p>
         </div>
         <span className={`ml-auto px-3 py-1.5 text-xs font-semibold rounded-full border ${getOrderStatusColor(order.status)}`}>
-          {formatOrderStatus(order.status)}
+          {pickupStatusLabel(order) ?? formatOrderStatus(order.status)}
         </span>
       </div>
+
+      {/* F3-07 : retrait au comptoir — code, puis « J'ai récupéré ma commande » */}
+      <PickupPanel order={order} token={token} />
 
       {/* F-06 : code de remise, pendant que le repas roule vers le client */}
       {order.status === 'EN_ROUTE' && (
@@ -130,10 +140,10 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
         <div className="bg-white rounded-2xl border border-cream-200 p-5 mb-4">
           <h3 className="font-semibold text-ink-900 text-sm mb-5">Suivi de commande</h3>
           <div className="flex flex-col gap-0">
-            {STATUS_STEPS.map((step, index) => {
+            {statusSteps.map((step, index) => {
               const isCompleted = timelinePosition(step.status) <= currentStepIndex;
               const isCurrent = step.status === order.status;
-              const isLast = index === STATUS_STEPS.length - 1;
+              const isLast = index === statusSteps.length - 1;
               return (
                 <div key={step.status} className="flex gap-3">
                   {/* Indicateur */}

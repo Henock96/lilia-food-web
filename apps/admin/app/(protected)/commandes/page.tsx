@@ -8,6 +8,7 @@ import {
   useUpdateOrderStatus,
   useAcceptOrder,
   useRejectOrder,
+  useHandOverPickup,
   useDownloadReceipt,
   type OrderStatusFilter,
 } from '@lilia/api-client';
@@ -40,6 +41,7 @@ import { OrderFinancialsCard } from '@/components/payments/order-financials-card
 import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration-panel';
 import { RefundComposer } from '@/components/refunds/refund-composer';
 import { AssignDriver } from '@/components/orders/assign-driver';
+import { deliveryProofSummary } from '@/lib/delivery-proof';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   EN_ATTENTE:     'En attente',
@@ -130,6 +132,7 @@ function OrderCard({
   onStatusUpdate,
   onAccept,
   onReject,
+  onHandOverWithCode,
   pending,
 }: {
   order: AdminOrder;
@@ -138,6 +141,7 @@ function OrderCard({
   onStatusUpdate: (id: string, status: OrderStatus) => void;
   onAccept: (id: string, prepMinutes: number) => void;
   onReject: (id: string, reason: VendorRejectionReason, note?: string) => void;
+  onHandOverWithCode: (id: string, code: string) => void;
   pending?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -147,6 +151,7 @@ function OrderCard({
   const waitingForPayment = order.status === 'EN_ATTENTE';
   const isPaid = PAID_STATUSES.has(order.status);
   const downloadReceipt = useDownloadReceipt(token);
+  const proof = deliveryProofSummary(order);
 
   async function handleDownloadReceipt() {
     try {
@@ -222,9 +227,24 @@ function OrderCard({
             onStatusUpdate={onStatusUpdate}
             onAccept={onAccept}
             onReject={onReject}
+            onHandOverWithCode={onHandOverWithCode}
           />
         </div>
       </div>
+
+      {/* F3-07 — comment la remise est prouvée, et si le paiement peut partir. */}
+      {proof && (
+        <div
+          className={`mx-4 mb-4 px-3 py-2 rounded-lg border text-xs ${
+            proof.waiting
+              ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300'
+          }`}
+        >
+          <p className="font-medium">{proof.label}</p>
+          <p className="mt-0.5 opacity-80">{proof.payout}</p>
+        </div>
+      )}
 
       {/* Bannière paiement en attente — affichée au RESTAURATEUR qui ne peut pas
           confirmer le paiement lui-même. Renvoie vers l'écran "Paiements". */}
@@ -413,6 +433,7 @@ function CommandesPageContent() {
   const { mutate: updateStatus } = useUpdateOrderStatus(token);
   const acceptOrder = useAcceptOrder(token);
   const rejectOrder = useRejectOrder(token);
+  const handOverPickup = useHandOverPickup(token);
 
   const orders = data?.data ?? [];
   const meta = data?.meta;
@@ -511,6 +532,17 @@ function CommandesPageContent() {
       {
         onSuccess: () => toast.success('Commande refusée — le client est remboursé'),
         onError: (e) => toast.error(apiMessage(e, 'Impossible de refuser la commande')),
+      },
+    );
+  }
+
+  function handleHandOverWithCode(orderId: string, code: string) {
+    handOverPickup.mutate(
+      { orderId, code },
+      {
+        onSuccess: () => toast.success('Commande remise — le code du client prouve la remise'),
+        // Code faux : le serveur dit combien d'essais il reste.
+        onError: (e) => toast.error(apiMessage(e, 'Code refusé')),
       },
     );
   }
@@ -660,7 +692,12 @@ function CommandesPageContent() {
               onStatusUpdate={handleStatusUpdate}
               onAccept={handleAccept}
               onReject={handleReject}
-              pending={acceptOrder.isPending || rejectOrder.isPending}
+              onHandOverWithCode={handleHandOverWithCode}
+              pending={
+                acceptOrder.isPending ||
+                rejectOrder.isPending ||
+                handOverPickup.isPending
+              }
             />
           ))}
         </div>

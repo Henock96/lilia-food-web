@@ -111,6 +111,44 @@ export function useCancelOrder(token: string | null) {
   });
 }
 
+/**
+ * Retrait au comptoir : « J'ai récupéré ma commande » (F3-07). Idempotent
+ * côté serveur ; rend la commande à jour, qui remplace le détail en cache.
+ */
+export function useConfirmPickup(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) =>
+      apiClient<Order>(`/orders/${orderId}/pickup/confirm`, {
+        method: 'POST',
+        token,
+      }),
+    onSuccess: (order) => {
+      if (order?.id) queryClient.setQueryData(orderKeys.detail(order.id), order);
+      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+  });
+}
+
+/**
+ * Retrait au comptoir : le vendeur remet avec le code du client (F3-07).
+ * Un code faux lève une `ApiError` portant le nombre d'essais restants.
+ */
+export function useHandOverPickup(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, code }: { orderId: string; code: string }) =>
+      apiClient<{ handedOver: boolean }>(`/orders/${orderId}/pickup/handover`, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+        token,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+  });
+}
+
 /** Décompte à zéro — sert de repli quand le serveur ne renvoie rien d'exploitable. */
 const NO_STUCK_ORDERS: StuckOrders = {
   thresholdMinutes: 0,
