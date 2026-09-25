@@ -99,7 +99,10 @@ export function buildMenuModel(restaurant: Restaurant): MenuModel {
  * servi par le catalogue est par construction vendable.
  */
 export function menuItemState(
-  product: Pick<Product, 'stockRestant' | 'isAvailable' | 'availableNow'>,
+  product: Pick<
+    Product,
+    'stockRestant' | 'isAvailable' | 'availableNow' | 'modifiersUnavailableReason'
+  >,
   restaurantOpen: boolean,
 ): { orderable: boolean; badge: 'rupture' | 'indisponible' | null } {
   const outOfStock =
@@ -110,7 +113,13 @@ export function menuItemState(
   // qui a été retenu comme canonique, contre celui de l'application, qui le
   // faisait disparaître.
   if (outOfStock) return { orderable: false, badge: 'rupture' };
-  if (product.isAvailable === false || product.availableNow === false) {
+  // F3-09 — `modifiersUnavailableReason` : verdict du serveur (plus aucun
+  // choix vendable dans un groupe obligatoire), même règle qu'au panier.
+  if (
+    product.isAvailable === false ||
+    product.availableNow === false ||
+    !!product.modifiersUnavailableReason
+  ) {
     return { orderable: false, badge: 'indisponible' };
   }
   return { orderable: restaurantOpen, badge: null };

@@ -861,6 +861,112 @@ export interface Product {
   isAvailable?: boolean;
   /** Retiré du catalogue — la ligne ne survit que pour l'historique. */
   deletedAt?: string | null;
+  /**
+   * F3-09 — groupes d'options (« Accompagnement », « Suppléments »), dans
+   * l'ordre du vendeur. Absent ou vide : produit sans option, réponse
+   * antérieure à F3-09, ou options pas encore ouvertes par la plateforme.
+   */
+  modifierGroups?: ModifierGroup[];
+  /**
+   * F3-09 — verdict du serveur : pourquoi les options rendent le produit
+   * incommandable (groupe obligatoire sans option vendable). `null` sinon.
+   */
+  modifiersUnavailableReason?: string | null;
+}
+
+// ─── F3-09 — Options & suppléments ──────────────────────────────────────────
+
+/** Une option de la carte (« Alloco », « Œuf +300 »). */
+export interface ModifierOption {
+  id: string;
+  name: string;
+  /** Supplément unitaire en FCFA, jamais négatif. */
+  priceDeltaXaf: number;
+  /** Combien de fois la même option peut être prise sur une unité (1–10). */
+  maxQuantity: number;
+  /** Rupture du jour : affichée grisée, non sélectionnable. */
+  isAvailable: boolean;
+}
+
+/** Un groupe d'options. `minSelect`/`maxSelect` comptent des options DISTINCTES. */
+export interface ModifierGroup {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  required: boolean;
+  options: ModifierOption[];
+}
+
+/** Option choisie, telle qu'envoyée au serveur — ni prix ni nom. */
+export interface SelectedOption {
+  optionId: string;
+  quantity: number;
+}
+
+/** Option d'une ligne de panier, telle que la décrit `GET /cart`. */
+export interface CartLineOption {
+  optionId: string;
+  groupId: string;
+  groupName: string;
+  name: string;
+  priceDeltaXaf: number;
+  quantity: number;
+}
+
+/** Option figée d'une ligne de commande — jamais relue au catalogue. */
+export interface OrderItemOption {
+  id: string;
+  /** `null` si l'option a été réellement supprimée depuis. */
+  optionId: string | null;
+  groupId: string | null;
+  groupName: string;
+  optionName: string;
+  priceDeltaXaf: number;
+  quantity: number;
+  position: number;
+}
+
+/** Groupe de la bibliothèque d'un vendeur (`GET /products/manage/modifier-groups`). */
+export interface ModifierLibraryGroup {
+  id: string;
+  restaurantId: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  required: boolean;
+  displayOrder: number;
+  updatedAt: string;
+  /** Options non supprimées, en rupture comprises. */
+  options: Array<ModifierOption & { displayOrder: number }>;
+  /** Produits auxquels le groupe est attaché. */
+  products: Array<{ id: string; nom: string }>;
+}
+
+/** Bibliothèque d'options et interrupteurs de déploiement. */
+export interface ModifierLibrary {
+  groups: ModifierLibraryGroup[];
+  meta: {
+    restaurantId: string;
+    modifiersEnabled: boolean;
+    modifiersManagementEnabled: boolean;
+    limits: Record<string, number>;
+  };
+}
+
+/** Option dans le formulaire d'un groupe — `id` absent = création. */
+export interface ModifierOptionInput {
+  id?: string;
+  name: string;
+  priceDeltaXaf: number;
+  maxQuantity?: number;
+  isAvailable?: boolean;
+}
+
+/** Problème d'une ligne de panier : le checkout la refusera telle quelle. */
+export interface CartLineIssue {
+  code: string;
+  message: string;
 }
 
 /**
@@ -923,6 +1029,13 @@ export interface Cart {
   items: CartItem[];
   createdAt: string;
   updatedAt: string;
+  /**
+   * F3-09 — sous-total calculé par le serveur, options comprises, menus
+   * comptés une fois. Absent d'un serveur antérieur.
+   */
+  subTotalXaf?: number;
+  /** F3-09 — au moins une ligne ne passera pas le checkout telle quelle. */
+  hasIssues?: boolean;
 }
 
 export interface CartItem {
@@ -937,6 +1050,15 @@ export interface CartItem {
   quantite: number;
   itemKey: string | null;
   createdAt: string;
+  /** F3-09 — identité de la sélection d'options (`''` = aucune). */
+  optionsSignature?: string;
+  options?: CartLineOption[];
+  /** F3-09 — prix unitaire serveur : variante + options. */
+  unitPriceXaf?: number;
+  optionsTotalXaf?: number;
+  /** F3-09 — poids de la ligne dans le sous-total (menu : 1ʳᵉ ligne seule). */
+  lineTotalXaf?: number;
+  issue?: CartLineIssue | null;
 }
 
 export interface Order {
@@ -1048,8 +1170,16 @@ export interface OrderItem {
   variantLabel: string | null;
   snapshotPrice: number | null;
   quantite: number;
+  /**
+   * Prix unitaire figé — **options comprises** depuis F3-09 (décision Q1) :
+   * `prix × quantite` est le montant de la ligne, rien à additionner.
+   */
   prix: number;
   createdAt: string;
+  /** F3-09 — part des options dans `prix` (ventilation, jamais à rajouter). */
+  optionsTotalXaf?: number;
+  /** F3-09 — options figées à la commande. */
+  options?: OrderItemOption[];
 }
 
 export interface Delivery {
@@ -1401,6 +1531,11 @@ export interface AddToCartDto {
   variantId: string;
   quantite: number;
   menuId?: string;
+  /**
+   * F3-09 — options choisies. Facultatif : absent sur un produit à groupe
+   * obligatoire, le serveur répond `400 MODIFIER_REQUIRED`.
+   */
+  options?: SelectedOption[];
 }
 
 export interface ValidatePromoDto {
@@ -1944,6 +2079,19 @@ export interface PlatformSettings {
   updateUrlIos: string | null;
   /** Message affiché dans le dialogue de mise à jour (≤ 300 caractères). */
   updateMessage: string | null;
+
+  // ── Options & suppléments (F3-09) ──────────────────────────────────────
+
+  /**
+   * La plateforme vend-elle des options ? Éteint : carte et panier d'avant
+   * F3-09 (sortie de secours). À allumer après publication des apps clientes.
+   */
+  modifiersEnabled: boolean;
+  /**
+   * Éditeur d'options ouvert aux vendeurs. Exige `modifiersEnabled` (409
+   * `MODIFIERS_ROLLOUT_ORDER` sinon) ; éteindre les options le ferme aussi.
+   */
+  modifiersManagementEnabled: boolean;
 
   /** Horodatage de la dernière écriture — renvoyé en `expectedUpdatedAt`. */
   updatedAt: string;

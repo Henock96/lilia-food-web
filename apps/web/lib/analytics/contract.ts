@@ -58,6 +58,10 @@ export const SECONDARY_EVENTS = [
   'phone_click',
   'signup_start',
   'signup_success',
+  // F3-09 — commun aux trois plateformes, mais HORS tunnel : il mesure
+  // l'usage des options, pas une étape d'achat. Jumeau de
+  // `AnalyticsEvents.productOptionsView` (lilia-app).
+  'product_options_view',
 ] as const;
 
 export type SecondaryEvent = (typeof SECONDARY_EVENTS)[number];
@@ -88,6 +92,10 @@ export const EVENT_PARAMS = {
     'restaurant_id',
     'price',
     'quantity',
+    // F3-09 — nombre d'options (quantités comprises) et leur valeur unitaire.
+    // `0` / `0` sans option : les séries existantes restent comparables.
+    'options_count',
+    'options_value',
   ],
   view_cart: ['item_count', 'cart_total'],
   begin_checkout: ['item_count', 'cart_total'],
@@ -106,6 +114,7 @@ export const EVENT_PARAMS = {
   phone_click: ['page_path'],
   signup_start: ['page_path'],
   signup_success: ['page_path'],
+  product_options_view: ['product_id', 'product_name', 'restaurant_id', 'group_count'],
 } as const satisfies Record<AnalyticsEvent, readonly string[]>;
 
 /** Devise unique de la plateforme. Aucun montant ne voyage sans elle. */

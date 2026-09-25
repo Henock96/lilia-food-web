@@ -129,12 +129,21 @@ describe('cohérence du contrat', () => {
       'restaurant_id',
       'price',
     ]);
+    // F3-09 — ajout additif en fin de liste ; jumeau du contrat Dart.
     expect(EVENT_PARAMS.add_to_cart).toEqual([
       'product_id',
       'product_name',
       'restaurant_id',
       'price',
       'quantity',
+      'options_count',
+      'options_value',
+    ]);
+    expect(EVENT_PARAMS.product_options_view).toEqual([
+      'product_id',
+      'product_name',
+      'restaurant_id',
+      'group_count',
     ]);
     expect(EVENT_PARAMS.view_cart).toEqual(['item_count', 'cart_total']);
     expect(EVENT_PARAMS.begin_checkout).toEqual(['item_count', 'cart_total']);

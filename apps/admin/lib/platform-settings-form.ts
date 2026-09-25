@@ -44,6 +44,9 @@ export const NUMBER_FIELD_SPECS: Record<NumberFieldKey, { label: string; integer
 export interface SettingsForm extends Record<NumberFieldKey, string> {
   /** F3-02 — qui fixe le prix de la livraison. */
   deliveryPricingMode: PlatformSettings['deliveryPricingMode'];
+  /** F3-09 — options côté clients, puis éditeur vendeur (dans cet ordre). */
+  modifiersEnabled: boolean;
+  modifiersManagementEnabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   minAppVersion: string;
@@ -64,6 +67,8 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     loyaltyMinRedemption: String(s.loyaltyMinRedemption),
     referrerBonusPoints: String(s.referrerBonusPoints),
     deliveryPricingMode: s.deliveryPricingMode ?? 'VENDOR_LEGACY',
+    modifiersEnabled: s.modifiersEnabled ?? false,
+    modifiersManagementEnabled: s.modifiersManagementEnabled ?? false,
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage ?? '',
     minAppVersion: s.minAppVersion ?? '',
@@ -133,6 +138,20 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
   // son message dit quoi faire, on le laisse parler.
   if (form.deliveryPricingMode !== (loaded.deliveryPricingMode ?? 'VENDOR_LEGACY')) {
     patch.deliveryPricingMode = form.deliveryPricingMode;
+  }
+
+  // F3-09 — l'éditeur vendeur exige les options côté clients : le serveur le
+  // refuse (409 `MODIFIERS_ROLLOUT_ORDER`), on le dit avant l'envoi.
+  if (form.modifiersManagementEnabled && !form.modifiersEnabled) {
+    errors.push(
+      "Éditeur d'options : activez d'abord les options côté clients (après publication des applications).",
+    );
+  }
+  if (form.modifiersEnabled !== (loaded.modifiersEnabled ?? false)) {
+    patch.modifiersEnabled = form.modifiersEnabled;
+  }
+  if (form.modifiersManagementEnabled !== (loaded.modifiersManagementEnabled ?? false)) {
+    patch.modifiersManagementEnabled = form.modifiersManagementEnabled;
   }
 
   if (form.maintenanceMode !== loaded.maintenanceMode) {

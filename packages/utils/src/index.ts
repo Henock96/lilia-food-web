@@ -266,3 +266,4 @@ export function hasPreorderConflict(
   const productIsPreorder = product.madeToOrder === true;
   return cartIsPreorder !== productIsPreorder;
 }
+export * from './modifiers';

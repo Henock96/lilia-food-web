@@ -248,6 +248,44 @@ export default function ParametresPage() {
         </div>
       </div>
 
+      {/* F3-09 — options & suppléments : déploiement en deux temps. */}
+      <div className={CARD}>
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Options &amp; suppléments</h3>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+          Ordre de mise en service : applications clientes publiées → options côté clients → éditeur
+          vendeur. Éteindre les options rend la carte et le panier d&apos;avant (et ferme l&apos;éditeur) ;
+          les commandes déjà passées gardent leurs options.
+        </p>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between gap-4 cursor-pointer">
+            <span className="text-sm text-zinc-600 dark:text-zinc-300">
+              Options proposées aux clients (carte, panier, checkout)
+            </span>
+            <input
+              type="checkbox"
+              checked={form.modifiersEnabled}
+              onChange={(e) => {
+                set('modifiersEnabled', e.target.checked);
+                if (!e.target.checked) set('modifiersManagementEnabled', false);
+              }}
+              className="w-4 h-4 accent-primary-500"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-4 cursor-pointer">
+            <span className="text-sm text-zinc-600 dark:text-zinc-300">
+              Éditeur d&apos;options ouvert aux vendeurs
+            </span>
+            <input
+              type="checkbox"
+              checked={form.modifiersManagementEnabled}
+              disabled={!form.modifiersEnabled}
+              onChange={(e) => set('modifiersManagementEnabled', e.target.checked)}
+              className="w-4 h-4 accent-primary-500 disabled:opacity-40"
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Jours fériés (F3-03) — enregistrés à part, pas par le bouton du bas. */}
       <PublicHolidaysCard token={token} />
 

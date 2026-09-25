@@ -10,6 +10,8 @@ import { useCartStore } from '@/store/cart';
 import { useCart, useUpdateCartItem, useRemoveCartItem } from '@lilia/api-client';
 import { formatCurrency } from '@lilia/utils';
 import { analytics } from '@/lib/analytics';
+import { CartLineDetails } from '@/components/cart/cart-line-details';
+import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
 export function CartDrawer() {
   const router = useRouter();
@@ -20,7 +22,8 @@ export function CartDrawer() {
   const removeItem = useRemoveCartItem(token);
 
   const items = cart?.items ?? [];
-  const subTotal = items.reduce((sum, item) => sum + (item.variant?.prix ?? 0) * item.quantite, 0);
+  // F3-09 — sous-total serveur : options comprises, menu compté une fois.
+  const subTotal = cartSubtotal(cart);
 
   // `view_cart` — le tiroir est la seconde surface de consultation du panier
   // sur le web (l'autre étant `/panier`). Les deux émettent : ouvrir le tiroir
@@ -131,8 +134,9 @@ export function CartDrawer() {
                           {item.variant?.label && (
                             <p className="text-xs text-ink-500">{item.variant.label}</p>
                           )}
+                          <CartLineDetails item={item} />
                           <p className="text-sm font-bold text-tomato-700 mt-0.5">
-                            {formatCurrency((item.variant?.prix ?? 0) * item.quantite)}
+                            {formatCurrency(cartLineUnitPrice(item) * item.quantite)}
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5">

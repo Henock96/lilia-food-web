@@ -8,7 +8,7 @@ import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, 
 import { useAuthStore } from '@/store/auth';
 import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia/api-client';
 import type { OrderStatus } from '@lilia/types';
-import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
+import { formatLineOptions, formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
@@ -232,6 +232,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 <p className="text-sm text-ink-900 font-medium truncate">{item.product?.nom}</p>
                 {item.variantLabel && (
                   <p className="text-xs text-ink-500">{item.variantLabel}</p>
+                )}
+                {/* F3-09 — options figées à la commande ; `prix` les inclut déjà. */}
+                {item.options && item.options.length > 0 && (
+                  <p className="text-xs text-ink-500">
+                    {formatLineOptions(item.options, formatCurrency)}
+                  </p>
                 )}
               </div>
               <div className="flex items-center gap-3 shrink-0 text-sm">

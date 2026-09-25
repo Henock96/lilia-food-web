@@ -34,7 +34,12 @@ export type PurchaseBlocker =
   /** Hors de la fenêtre horaire du produit, selon le serveur. */
   | 'outside_window'
   /** Aucune variante vendable — le prix serait indéterminé. */
-  | 'no_variant';
+  | 'no_variant'
+  /**
+   * F3-09 — un choix obligatoire n'a plus aucune option vendable
+   * (`modifiersUnavailableReason`, verdict du serveur).
+   */
+  | 'options_unavailable';
 
 export interface PurchaseState {
   canAdd: boolean;
@@ -60,6 +65,7 @@ export function computePurchaseState(
     | 'availableNow'
     | 'availableFrom'
     | 'availableUntil'
+    | 'modifiersUnavailableReason'
   >,
   /** `null` si le produit est servi sans son vendeur (réponse ancienne). */
   vendor: Pick<ProductVendorRef, 'isOpen'> | null,
@@ -103,6 +109,9 @@ export function computePurchaseState(
       'outside_window',
       windowLabel ?? 'Ce produit n’est pas vendu à cette heure',
     );
+  }
+  if (product.modifiersUnavailableReason) {
+    return blocked('options_unavailable', product.modifiersUnavailableReason);
   }
 
   return { canAdd: true, blocker: null, message: null, maxQuantity, windowLabel };
