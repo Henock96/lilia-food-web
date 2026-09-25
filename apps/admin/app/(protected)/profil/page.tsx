@@ -10,6 +10,7 @@ import type { User } from '@lilia/types';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MfaEnrollmentCard } from '@/components/mfa-enrollment-card';
 
 /**
  * Profil de l'utilisateur connecté du back-office.
@@ -169,6 +170,9 @@ function ProfilForm({ profile, token }: { profile: User; token: string | null })
           {profile.email}
         </p>
       </section>
+
+      {/* F3-08 — réservée aux administrateurs : ce sont leurs gestes qu'elle protège. */}
+      {profile.role === 'ADMIN' && <MfaEnrollmentCard />}
     </div>
   );
 }

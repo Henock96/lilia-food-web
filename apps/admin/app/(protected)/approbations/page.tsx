@@ -14,13 +14,17 @@ import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiMessage } from '@/lib/api-message';
 import { approvalActions, describeApproval, expiresLabel } from '@/lib/approvals-view';
+import { AdminCapabilities } from '@/components/approvals/admin-capabilities';
 
 const cardCls =
   'bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card';
 
-const TABS: { value: ApprovalStatus | 'ALL'; label: string }[] = [
+type Tab = ApprovalStatus | 'ALL' | 'ADMINS';
+
+const TABS: { value: Tab; label: string }[] = [
   { value: 'PENDING', label: 'En attente' },
   { value: 'ALL', label: 'Historique' },
+  { value: 'ADMINS', label: 'Administrateurs' },
 ];
 
 const STATUS_LABELS: Record<ApprovalStatus, string> = {
@@ -41,8 +45,8 @@ const STATUS_LABELS: Record<ApprovalStatus, string> = {
  */
 export default function ApprobationsPage() {
   const { token, user } = useAuthStore();
-  const [tab, setTab] = useState<ApprovalStatus | 'ALL'>('PENDING');
-  const query = useApprovals(token, tab);
+  const [tab, setTab] = useState<Tab>('PENDING');
+  const query = useApprovals(token, tab === 'ADMINS' ? 'PENDING' : tab);
   const admins = useAdminAccounts(token);
   const approve = useApproveApproval(token);
   const reject = useRejectApproval(token);
@@ -111,7 +115,9 @@ export default function ApprobationsPage() {
         ))}
       </div>
 
-      {query.isLoading ? (
+      {tab === 'ADMINS' ? (
+        <AdminCapabilities token={token} />
+      ) : query.isLoading ? (
         <Skeleton className="h-32 rounded-2xl" />
       ) : query.isError ? (
         <div className={`${cardCls} p-6 text-center text-sm text-red-500`}>
