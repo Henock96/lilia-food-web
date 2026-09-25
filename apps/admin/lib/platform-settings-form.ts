@@ -44,6 +44,9 @@ export const NUMBER_FIELD_SPECS: Record<NumberFieldKey, { label: string; integer
 export interface SettingsForm extends Record<NumberFieldKey, string> {
   /** F3-02 — qui fixe le prix de la livraison. */
   deliveryPricingMode: PlatformSettings['deliveryPricingMode'];
+  /** F3-07 — versement automatique au vendeur (et son délai, en minutes). */
+  vendorPayoutAutoEnabled: boolean;
+  vendorPayoutDelayMinutes: string;
   /** F3-09 — options côté clients, puis éditeur vendeur (dans cet ordre). */
   modifiersEnabled: boolean;
   modifiersManagementEnabled: boolean;
@@ -67,6 +70,8 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     loyaltyMinRedemption: String(s.loyaltyMinRedemption),
     referrerBonusPoints: String(s.referrerBonusPoints),
     deliveryPricingMode: s.deliveryPricingMode ?? 'VENDOR_LEGACY',
+    vendorPayoutAutoEnabled: s.vendorPayoutAutoEnabled ?? false,
+    vendorPayoutDelayMinutes: String(s.vendorPayoutDelayMinutes ?? 60),
     modifiersEnabled: s.modifiersEnabled ?? false,
     modifiersManagementEnabled: s.modifiersManagementEnabled ?? false,
     maintenanceMode: s.maintenanceMode,
@@ -138,6 +143,28 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
   // son message dit quoi faire, on le laisse parler.
   if (form.deliveryPricingMode !== (loaded.deliveryPricingMode ?? 'VENDOR_LEGACY')) {
     patch.deliveryPricingMode = form.deliveryPricingMode;
+  }
+
+  // F3-07 — seulement si le serveur connaît ces champs : contre un backend
+  // antérieur, `undefined` compterait comme une modification à chaque envoi.
+  if (
+    loaded.vendorPayoutAutoEnabled !== undefined &&
+    form.vendorPayoutAutoEnabled !== loaded.vendorPayoutAutoEnabled
+  ) {
+    patch.vendorPayoutAutoEnabled = form.vendorPayoutAutoEnabled;
+  }
+  if (loaded.vendorPayoutDelayMinutes !== undefined) {
+    const delay = parseNumberField(form.vendorPayoutDelayMinutes, {
+      label: 'Délai avant versement',
+      integer: true,
+    });
+    if ('error' in delay) {
+      errors.push(delay.error);
+    } else if (delay.value > 1440) {
+      errors.push('Délai avant versement : 1 440 minutes (24 h) au plus.');
+    } else if (delay.value !== loaded.vendorPayoutDelayMinutes) {
+      patch.vendorPayoutDelayMinutes = delay.value;
+    }
   }
 
   // F3-09 — l'éditeur vendeur exige les options côté clients : le serveur le
