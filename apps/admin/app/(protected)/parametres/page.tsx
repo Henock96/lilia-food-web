@@ -126,6 +126,22 @@ export default function ParametresPage() {
       toast.info('Aucune modification à enregistrer.');
       return;
     }
+    // F3-07 — allumer fait partir de l'argent sans clic : les prérequis sont
+    // rappelés, et l'administrateur les confirme.
+    if (
+      result.patch.vendorPayoutAutoEnabled === true &&
+      !window.confirm(
+        'Allumer le versement automatique ?\n\nÀ vérifier avant :\n' +
+          '• code client exigé à la livraison (DELIVERY_HANDOVER_CODE_REQUIRED) ;\n' +
+          '• double authentification activée pour les administrateurs ;\n' +
+          '• au moins deux administrateurs reçoivent les notifications ;\n' +
+          '• applications client et vendeurs publiées ;\n' +
+          '• frais pawaPay par versement connus.\n\n' +
+          'Les commandes dont l’échéance est passée partiront dans la minute.',
+      )
+    ) {
+      return;
+    }
     // F3-02 — la bascule change le prix de toutes les prochaines commandes et
     // l'assiette de la paie des livreurs : on la fait confirmer.
     if (
