@@ -6,7 +6,10 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
+  type MultiFactorError,
+  type User as FirebaseUser,
 } from 'firebase/auth';
+import { isMfaChallenge, isTotpCode, mfaErrorMessage, resolveWithTotp } from '@/lib/mfa';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { setSessionCookie } from '@/lib/session';
 import { useAuthStore } from '@/store/auth';
@@ -77,6 +80,9 @@ export default function ConnexionPage() {
   /** Confirmation neutre (mot de passe oublié) — `step` n'est rendu que pendant
    *  `pending`, il ne pouvait donc pas porter ce message. */
   const [notice, setNotice] = useState('');
+  /** F3-08 — Firebase attend le code de l'application d'authentification. */
+  const [mfaChallenge, setMfaChallenge] = useState<MultiFactorError | null>(null);
+  const [totpCode, setTotpCode] = useState('');
 
   useEffect(() => {
     if (!isLoading && user && ALLOWED_ROLES.includes(user.role)) {
@@ -120,8 +126,40 @@ export default function ConnexionPage() {
     try {
       // 1. Firebase
       const credential = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
-      const fbUser = credential.user;
+      await completeLogin(credential.user);
+    } catch (err: unknown) {
+      // F3-08 — compte protégé par la double authentification : Firebase
+      // interrompt la connexion et attend le code de l'application.
+      if (isMfaChallenge(err)) {
+        setMfaChallenge(err);
+        setPending(false);
+        setStep('');
+        return;
+      }
+      handleLoginError(err);
+    }
+  }
 
+  async function handleTotpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!mfaChallenge || !isTotpCode(totpCode) || pending) return;
+    setPending(true);
+    setError('');
+    setStep('Vérification du code…');
+    try {
+      const credential = await resolveWithTotp(mfaChallenge, totpCode);
+      setMfaChallenge(null);
+      setTotpCode('');
+      await completeLogin(credential.user);
+    } catch (err) {
+      setPending(false);
+      setStep('');
+      setError(mfaErrorMessage(err));
+    }
+  }
+
+  async function completeLogin(fbUser: FirebaseUser) {
+    try {
       // 2. Token (jamais loggé — fuite d'identifiants Firebase sinon)
       const token = await fbUser.getIdToken();
       setStep('Connexion au serveur…');
@@ -152,28 +190,32 @@ export default function ConnexionPage() {
       router.replace('/dashboard');
 
     } catch (err: unknown) {
-      setPending(false);
-      setStep('');
-      const code = (err as { code?: string }).code ?? '';
-      const msg  = (err as Error).message ?? '';
-      // Ne logge que le code/message — `err` peut contenir le payload d'auth
-      // (email, token, identifiants Firebase) qu'on ne doit jamais persister
-      // dans les logs navigateur ni les outils de monitoring frontaux.
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('[login] Erreur:', code || msg);
-      }
+      handleLoginError(err);
+    }
+  }
 
-      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-        setError('Email ou mot de passe incorrect.');
-      } else if (code === 'auth/too-many-requests') {
-        setError('Trop de tentatives. Réessayez dans quelques minutes.');
-      } else if (code === 'auth/network-request-failed') {
-        setError('Pas de connexion réseau.');
-      } else if (code.startsWith('auth/')) {
-        setError(`Erreur Firebase: ${code}`);
-      } else {
-        setError(msg || 'Connexion impossible. Vérifiez la console pour le détail.');
-      }
+  function handleLoginError(err: unknown) {
+    setPending(false);
+    setStep('');
+    const code = (err as { code?: string }).code ?? '';
+    const msg  = (err as Error).message ?? '';
+    // Ne logge que le code/message — `err` peut contenir le payload d'auth
+    // (email, token, identifiants Firebase) qu'on ne doit jamais persister
+    // dans les logs navigateur ni les outils de monitoring frontaux.
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[login] Erreur:', code || msg);
+    }
+
+    if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+      setError('Email ou mot de passe incorrect.');
+    } else if (code === 'auth/too-many-requests') {
+      setError('Trop de tentatives. Réessayez dans quelques minutes.');
+    } else if (code === 'auth/network-request-failed') {
+      setError('Pas de connexion réseau.');
+    } else if (code.startsWith('auth/')) {
+      setError(`Erreur Firebase: ${code}`);
+    } else {
+      setError(msg || 'Connexion impossible. Vérifiez la console pour le détail.');
     }
   }
 
@@ -188,6 +230,52 @@ export default function ConnexionPage() {
       </div>
 
       <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border p-6 shadow-card">
+        {mfaChallenge ? (
+          <form onSubmit={handleTotpSubmit} className="space-y-4">
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Saisissez le code à 6 chiffres affiché par votre application
+              d’authentification.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              maxLength={6}
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              aria-label="Code de l’application d’authentification"
+              disabled={pending}
+              className="w-full text-center text-2xl tracking-[0.5em] px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-dark-surface"
+            />
+            {error && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+                <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={pending || !isTotpCode(totpCode)}
+              className="btn-tap w-full py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              {pending && <Loader2 size={16} className="animate-spin" />}
+              {pending ? (step || 'Vérification…') : 'Valider'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMfaChallenge(null);
+                setTotpCode('');
+                setError('');
+              }}
+              className="w-full text-xs text-zinc-500 hover:underline"
+            >
+              Revenir à l’e-mail et au mot de passe
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Email</label>
@@ -266,6 +354,7 @@ export default function ConnexionPage() {
             {pending ? (step || 'Connexion…') : 'Se connecter'}
           </button>
         </form>
+        )}
       </div>
 
       <p className="text-center text-xs text-zinc-400 mt-6">Réservé aux administrateurs et restaurateurs</p>

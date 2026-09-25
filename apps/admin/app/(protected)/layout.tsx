@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+import { StepUpDialog } from '@/components/step-up-dialog';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -49,6 +50,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      {/* F3-08 — réauthentification avant un geste financier. */}
+      <StepUpDialog />
     </div>
   );
 }
