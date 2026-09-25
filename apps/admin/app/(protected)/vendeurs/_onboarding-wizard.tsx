@@ -1,5 +1,6 @@
 'use client';
 
+import { isApprovalRequested } from '@/lib/approvals-view';
 import { useMemo, useState } from 'react';
 import {
   useVendorOnboarding,
@@ -846,7 +847,17 @@ function PayoutAccountForm({
               ...(holder.trim() ? { payoutAccountName: holder.trim() } : {}),
             },
             {
-              onSuccess: () => {
+              onSuccess: (res) => {
+                // F3-08 — remplacer un numéro existant attend un second
+                // administrateur : rien n'a changé, il ne faut pas dire
+                // « enregistré ».
+                if (isApprovalRequested(res)) {
+                  toast.info(
+                    'Demande envoyée : un second administrateur doit approuver ce changement de numéro (écran Approbations). Rien ne change d’ici là.',
+                  );
+                  setPhone('');
+                  return;
+                }
                 toast.success('Compte de reversement enregistré');
                 setPhone('');
                 onDone();

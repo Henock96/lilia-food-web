@@ -37,8 +37,7 @@ import {
   Undo2,
   Route,
   Siren,
-  MessageSquareWarning,
-} from 'lucide-react';
+  MessageSquareWarning, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -87,6 +86,8 @@ const NAV_ITEMS: {
   { href: '/promos',      label: 'Promos',      icon: Tag,             badge: false, adminOnly: true  },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
   { href: '/remboursements', label: 'Remboursements', icon: Undo2,      badge: 'refunds', adminOnly: true  },
+  // F3-08 — gestes financiers à deux administrateurs.
+  { href: '/approbations', label: 'Approbations', icon: ShieldCheck,    badge: false, adminOnly: true  },
   // File d'arbitrage des récompenses de parrainage retenues par le scoring
   // anti-abus. Sans elle, un parrain légitime pris dans un faux positif ne
   // serait jamais payé.

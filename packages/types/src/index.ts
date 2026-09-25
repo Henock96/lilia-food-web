@@ -1476,6 +1476,61 @@ export type PayoutProvider = 'MTN_MOMO' | 'AIRTEL_MONEY';
  * une valeur réutilisable — la renvoyer au serveur enregistrerait les
  * astérisques.
  */
+// --- Gestes financiers à deux administrateurs (F3-08) ---
+
+export type AdminCapability =
+  | 'FINANCE_EXECUTE'
+  | 'FINANCE_APPROVE'
+  | 'USER_ROLES'
+  | 'SETTINGS'
+  | 'SUPPORT';
+
+export type ApprovalKind =
+  | 'PAYOUT_ACCOUNT_CHANGE'
+  | 'REFUND_EXECUTION'
+  | 'CAPABILITY_GRANT';
+
+export type ApprovalStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'CONSUMED';
+
+/**
+ * Demande d'un geste financier, en attente d'un SECOND administrateur. Celui
+ * qui l'a demandée ne peut pas l'approuver (refusé par l'API et par la base).
+ * Approuver exécute le geste.
+ */
+export interface FinancialApproval {
+  id: string;
+  kind: ApprovalKind;
+  refId: string;
+  /** Le geste exact : numéro de versement, montant, capacités. */
+  payload: Record<string, unknown>;
+  amountXaf: number | null;
+  requestedBy: string;
+  approvedBy: string | null;
+  status: ApprovalStatus;
+  reason: string | null;
+  expiresAt: string;
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+/** Réponse d'un geste soumis aux 4 yeux : rien n'a encore changé. */
+export interface ApprovalRequested {
+  approvalRequired: true;
+  approval: FinancialApproval;
+}
+
+export interface AdminAccount {
+  id: string;
+  nom: string | null;
+  email: string;
+  adminCapabilities: AdminCapability[];
+}
+
 export interface VendorPayoutAccount {
   id: string;
   nom: string;
