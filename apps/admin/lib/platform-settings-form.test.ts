@@ -93,6 +93,36 @@ describe('tarification de la livraison (F3-02)', () => {
   });
 });
 
+describe('versement automatique aux vendeurs (F3-07)', () => {
+  const withPayout: PlatformSettings = {
+    ...PROD,
+    vendorPayoutAutoEnabled: false,
+    vendorPayoutDelayMinutes: 60,
+  };
+
+  it('allumer n’envoie que l’interrupteur', () => {
+    const r = patchFrom({ vendorPayoutAutoEnabled: true }, withPayout);
+    expect(r).toMatchObject({ ok: true, changed: true });
+    if (r.ok) {
+      expect(r.patch.vendorPayoutAutoEnabled).toBe(true);
+      expect(r.patch).not.toHaveProperty('vendorPayoutDelayMinutes');
+    }
+  });
+
+  it('délai : entier de 0 à 1 440 minutes', () => {
+    const ok = patchFrom({ vendorPayoutDelayMinutes: '90' }, withPayout);
+    expect(ok.ok && ok.patch.vendorPayoutDelayMinutes).toBe(90);
+    for (const bad of ['1441', '1.5', '-1', '']) {
+      expect(patchFrom({ vendorPayoutDelayMinutes: bad }, withPayout).ok).toBe(false);
+    }
+  });
+
+  it('serveur antérieur (champs absents) : aucun faux changement', () => {
+    const r = patchFrom({}, PROD);
+    expect(r.ok && r.changed).toBe(false);
+  });
+});
+
 describe('canal de mise à jour (CONFIG-UPDATE-001)', () => {
   it('vider un champ envoie null, jamais ""', () => {
     const r = patchFrom({ updateMessage: '', updateUrlAndroid: '' });
