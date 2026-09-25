@@ -26,7 +26,24 @@ export type OrderAction =
   | 'START_PREPARATION'
   | 'MARK_READY'
   | 'HAND_OVER'
-  | 'CANCEL';
+  | 'CANCEL'
+  /** Client, retrait : « J'ai récupéré ma commande » (F3-07). */
+  | 'CONFIRM_PICKUP';
+
+/**
+ * Comment la remise d'une commande est prouvée (F3-07). C'est la preuve, et
+ * non le statut `LIVRER`, qui dit si le vendeur peut être payé sans geste
+ * humain : `PICKUP_VENDOR_DECLARED` et `DELIVERY_UNVERIFIED` ne le permettent
+ * pas.
+ */
+export type DeliveryProof =
+  | 'DELIVERY_CODE'
+  | 'DELIVERY_ADMIN_OVERRIDE'
+  | 'DELIVERY_UNVERIFIED'
+  | 'PICKUP_CODE'
+  | 'PICKUP_CUSTOMER_CONFIRMED'
+  | 'PICKUP_ADMIN_OVERRIDE'
+  | 'PICKUP_VENDOR_DECLARED';
 
 /** Motif d'un refus vendeur — liste fermée, identique à l'enum serveur. */
 export type VendorRejectionReason =
@@ -967,6 +984,15 @@ export interface Order {
   /** Heure de fin de préparation annoncée au client à l'acceptation. */
   estimatedReadyAt?: string | null;
   vendorRejectionReason?: VendorRejectionReason | null;
+  /** F3-07 — preuve de remise ; `null` avant la remise ou sur l'historique. */
+  deliveryProof?: DeliveryProof | null;
+  deliveredAt?: string | null;
+  /** Retrait : le client a confirmé « J'ai récupéré ma commande ». */
+  customerConfirmedAt?: string | null;
+  /** Versement au vendeur possible à partir de cette heure (vendeur, admin). */
+  payoutDueAt?: string | null;
+  /** Code de retrait — rendu au seul client propriétaire, commande `PRET`. */
+  pickupCode?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2473,6 +2499,8 @@ export type OpsBucketKey =
   | 'delivery_failed'
   | 'refunds_pending'
   | 'claims_unanswered'
+  /** F3-07 — retrait remis par le vendeur seul, non confirmé depuis 1 h. */
+  | 'pickup_unconfirmed'
   | 'payouts_failed'
   | 'incidents_open'
   | 'outbox_failed';

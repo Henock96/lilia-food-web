@@ -10,6 +10,7 @@ export function opsItemHref(bucket: OpsBucketKey, item: OpsItem): string | null 
     case 'no_driver':
     case 'en_route_long':
     case 'delivery_failed':
+    case 'pickup_unconfirmed':
       return item.orderId ? `/commandes?q=${encodeURIComponent(item.orderId)}` : null;
     case 'refunds_pending':
       return '/remboursements';

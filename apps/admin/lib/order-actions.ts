@@ -72,7 +72,27 @@ export const ACTION_LABELS: Record<OrderAction, string> = {
   MARK_READY: 'Prête',
   HAND_OVER: 'Remise au client',
   CANCEL: 'Annuler',
+  // Geste du CLIENT (F3-07) : jamais publié à ce back-office, mais le
+  // vocabulaire est fermé.
+  CONFIRM_PICKUP: 'Retrait confirmé',
 };
+
+/** Code de retrait saisi au comptoir : 4 chiffres, comme le DTO serveur. */
+export function isPickupCode(value: string): boolean {
+  return /^\d{4}$/.test(value);
+}
+
+/**
+ * Remise d'un retrait par le VENDEUR : on lui demande le code du client
+ * (F3-07, D-P5). L'ADMIN arbitre, il ne saisit pas de code — la route de
+ * saisie lui est d'ailleurs fermée.
+ */
+export function asksPickupCode(
+  order: { isDelivery: boolean },
+  role: string | undefined,
+): boolean {
+  return !order.isDelivery && role === 'RESTAURATEUR';
+}
 
 /** Temps de préparation proposés (bornes serveur : 5 à 120 min). */
 export const PREP_MINUTES_CHOICES = [10, 20, 30, 45] as const;

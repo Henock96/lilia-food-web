@@ -5,6 +5,8 @@ import {
   ACTION_TARGET,
   PREP_MINUTES_CHOICES,
   REJECTION_REASONS,
+  asksPickupCode,
+  isPickupCode,
   resolveOrderActions,
 } from './order-actions';
 
@@ -80,6 +82,25 @@ describe('vocabulaire', () => {
     for (const m of PREP_MINUTES_CHOICES) {
       expect(m).toBeGreaterThanOrEqual(5);
       expect(m).toBeLessThanOrEqual(120);
+    }
+  });
+});
+
+describe('retrait au comptoir (F3-07)', () => {
+  it('le vendeur est invité à saisir le code du client', () => {
+    expect(asksPickupCode({ isDelivery: false }, 'RESTAURATEUR')).toBe(true);
+  });
+
+  it('l’admin arbitre sans code ; une livraison ne se remet pas au comptoir', () => {
+    expect(asksPickupCode({ isDelivery: false }, 'ADMIN')).toBe(false);
+    expect(asksPickupCode({ isDelivery: true }, 'RESTAURATEUR')).toBe(false);
+  });
+
+  it('le code compte exactement 4 chiffres, comme le DTO serveur', () => {
+    expect(isPickupCode('4821')).toBe(true);
+    expect(isPickupCode('0007')).toBe(true);
+    for (const bad of ['482', '48210', 'abcd', '', ' 4821']) {
+      expect(isPickupCode(bad)).toBe(false);
     }
   });
 });

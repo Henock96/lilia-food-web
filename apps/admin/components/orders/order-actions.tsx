@@ -14,10 +14,12 @@ import {
   ACTION_TARGET,
   PREP_MINUTES_CHOICES,
   REJECTION_REASONS,
+  asksPickupCode,
+  isPickupCode,
   resolveOrderActions,
 } from '@/lib/order-actions';
 
-type Mode = 'idle' | 'accept' | 'reject';
+type Mode = 'idle' | 'accept' | 'reject' | 'handover';
 
 /**
  * Gestes sur une commande (Phase 3, F3-01 — règle R1).
@@ -33,6 +35,7 @@ export function OrderActions({
   onStatusUpdate,
   onAccept,
   onReject,
+  onHandOverWithCode,
 }: {
   order: AdminOrder;
   role: string | undefined;
@@ -40,11 +43,14 @@ export function OrderActions({
   onStatusUpdate: (id: string, status: OrderStatus) => void;
   onAccept: (id: string, prepMinutes: number) => void;
   onReject: (id: string, reason: VendorRejectionReason, note?: string) => void;
+  /** Retrait : remise avec le code du client (F3-07). */
+  onHandOverWithCode?: (id: string, code: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>('idle');
   const [prepMinutes, setPrepMinutes] = useState<number>(20);
   const [reason, setReason] = useState<VendorRejectionReason | null>(null);
   const [note, setNote] = useState('');
+  const [code, setCode] = useState('');
   const actions = resolveOrderActions(order, role);
 
   if (actions.length === 0) return null;
@@ -52,6 +58,11 @@ export function OrderActions({
   function trigger(action: OrderAction) {
     if (action === 'ACCEPT') return setMode('accept');
     if (action === 'REJECT') return setMode('reject');
+    if (action === 'HAND_OVER' && onHandOverWithCode && asksPickupCode(order, role)) {
+      setCode('');
+      return setMode('handover');
+    }
+    if (action === 'CONFIRM_PICKUP') return;
     if (
       action === 'CANCEL' &&
       !window.confirm('Annuler cette commande ? Le client sera notifié.')
@@ -98,6 +109,60 @@ export function OrderActions({
             className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium disabled:opacity-50"
           >
             Accepter la commande
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'handover') {
+    return (
+      <div className="w-full space-y-2 rounded-lg border border-teal-200 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10 p-3">
+        <p className="text-xs font-medium text-teal-800 dark:text-teal-300">
+          Demandez au client le code à 4 chiffres affiché dans son application.
+          Avec ce code, la remise est prouvée : votre paiement peut partir sans
+          attendre le client.
+        </p>
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={4}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          placeholder="0000"
+          aria-label="Code de retrait du client"
+          className="w-32 text-center text-lg tracking-[0.4em] rounded-lg border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-card px-2 py-1.5"
+        />
+        <p className="text-[11px] text-zinc-500">
+          Sans code, votre paiement attendra que le client confirme le retrait.
+        </p>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <button type="button" onClick={() => setMode('idle')} className="text-xs px-3 py-1.5 text-zinc-600 dark:text-zinc-300">
+            Retour
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              onStatusUpdate(order.id, 'LIVRER');
+              setMode('idle');
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg border border-teal-300 text-teal-800 dark:text-teal-300 disabled:opacity-50"
+          >
+            Remettre sans code
+          </button>
+          <button
+            type="button"
+            disabled={!isPickupCode(code) || pending}
+            onClick={() => {
+              if (!isPickupCode(code)) return;
+              onHandOverWithCode?.(order.id, code);
+              setMode('idle');
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium disabled:opacity-50"
+          >
+            Valider le code
           </button>
         </div>
       </div>
