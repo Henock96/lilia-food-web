@@ -1581,9 +1581,15 @@ export interface RestaurantPayout {
   provider: string;
   failureCode: string | null;
   failureMessage: string | null;
-  requestedBy: string;
+  /** `null` = versement automatique (F3-07) ; `metadata.trigger` le dit. */
+  requestedBy: string | null;
   requestedAt: string;
   completedAt: string | null;
+  /** F3-07 — remboursements à la charge du vendeur retenus sur ce versement. */
+  refundDeductionAmount?: number;
+  /** F3-07 — dette du vendeur (remboursements après un versement précédent) retenue ici. */
+  debtDeductionAmount?: number;
+  metadata?: { trigger?: 'AUTO' | 'MANUAL' } & Record<string, unknown>;
 }
 
 /** Une ligne de `GET /admin/payouts`. */
@@ -1906,6 +1912,14 @@ export interface PlatformSettings {
    * retour à `VENDOR_LEGACY` est la sortie de secours, toujours permise.
    */
   deliveryPricingMode: DeliveryPricingMode;
+  /**
+   * F3-07 / D6 — versement automatique au vendeur, par commande. Éteint par
+   * défaut ; à n'allumer qu'avec le code client exigé à la livraison, la
+   * double authentification des admins et les apps publiées.
+   */
+  vendorPayoutAutoEnabled?: boolean;
+  /** F3-07 / D5 — délai entre la preuve de remise et le versement (0–1440 min). */
+  vendorPayoutDelayMinutes?: number;
   /**
    * Commission vendeur par défaut, retenue **sur le vendeur** au reversement —
    * jamais payée par le client, à ne pas confondre avec `serviceFeePercent`.

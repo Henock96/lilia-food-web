@@ -1,5 +1,6 @@
 'use client';
 
+import { payoutTriggerLabel } from '@/lib/payout-trigger';
 import { useState } from 'react';
 import { useAdminPayouts } from '@lilia/api-client';
 import type { PayoutStatus } from '@lilia/types';
@@ -158,7 +159,18 @@ export default function ReversementsPage() {
                       {formatDate(p.requestedAt)}
                     </span>
                     {p.completedAt && <span>→ {formatDate(p.completedAt)}</span>}
-                    <span>{p.provider}</span>
+                    {/* F3-07 — qui a déclenché, et ce qui a été retenu. */}
+                    <span>
+                      {p.provider === 'NETTING'
+                        ? 'retenu sur dette, aucun virement'
+                        : p.provider}
+                    </span>
+                    <span>{payoutTriggerLabel(p)}</span>
+                    {(p.debtDeductionAmount ?? 0) > 0 && (
+                      <span className="text-amber-600">
+                        dette retenue {formatXaf(p.debtDeductionAmount ?? 0)}
+                      </span>
+                    )}
                   </div>
                   {(p.failureMessage || p.failureCode) && (
                     <p className="text-xs text-red-500 mt-1 truncate" title={p.failureCode ?? undefined}>

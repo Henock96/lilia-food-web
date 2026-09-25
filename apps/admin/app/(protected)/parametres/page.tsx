@@ -126,6 +126,22 @@ export default function ParametresPage() {
       toast.info('Aucune modification à enregistrer.');
       return;
     }
+    // F3-07 — allumer fait partir de l'argent sans clic : les prérequis sont
+    // rappelés, et l'administrateur les confirme.
+    if (
+      result.patch.vendorPayoutAutoEnabled === true &&
+      !window.confirm(
+        'Allumer le versement automatique ?\n\nÀ vérifier avant :\n' +
+          '• code client exigé à la livraison (DELIVERY_HANDOVER_CODE_REQUIRED) ;\n' +
+          '• double authentification activée pour les administrateurs ;\n' +
+          '• au moins deux administrateurs reçoivent les notifications ;\n' +
+          '• applications client et vendeurs publiées ;\n' +
+          '• frais pawaPay par versement connus.\n\n' +
+          'Les commandes dont l’échéance est passée partiront dans la minute.',
+      )
+    ) {
+      return;
+    }
     // F3-02 — la bascule change le prix de toutes les prochaines commandes et
     // l'assiette de la paie des livreurs : on la fait confirmer.
     if (
@@ -247,6 +263,43 @@ export default function ParametresPage() {
           ))}
         </div>
       </div>
+
+      {/* F3-07 — versement automatique aux vendeurs. Absent d'un serveur antérieur. */}
+      {loaded.vendorPayoutAutoEnabled !== undefined && (
+        <div className={CARD}>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+            Versement automatique aux vendeurs
+          </h3>
+          <p className="text-xs text-zinc-500 mb-3">
+            Un versement par commande, envoyé sans clic une fois la remise prouvée (code du
+            client, confirmation de retrait ou arbitrage) et le délai écoulé. Une remise déclarée
+            par le vendeur seul, ou une course livrée sans code, reste à verser à la main.
+          </p>
+          <label className="flex items-center justify-between gap-4 cursor-pointer">
+            <span className="text-sm text-zinc-600 dark:text-zinc-300">Versement automatique</span>
+            <input
+              type="checkbox"
+              checked={form.vendorPayoutAutoEnabled}
+              onChange={(e) => set('vendorPayoutAutoEnabled', e.target.checked)}
+              className="w-4 h-4 accent-primary-500"
+            />
+          </label>
+          <div className="mt-3">
+            <label className="text-sm text-zinc-600 dark:text-zinc-300 block mb-1">
+              Délai après la remise (minutes)
+            </label>
+            <input
+              inputMode="numeric"
+              value={form.vendorPayoutDelayMinutes}
+              onChange={(e) => set('vendorPayoutDelayMinutes', e.target.value)}
+              className={`${INPUT} max-w-32`}
+            />
+            <p className="text-[11px] text-zinc-400 mt-1">
+              S’applique aux remises suivantes ; les échéances déjà posées ne bougent pas.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Jours fériés (F3-03) — enregistrés à part, pas par le bouton du bas. */}
       <PublicHolidaysCard token={token} />
