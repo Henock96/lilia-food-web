@@ -11,6 +11,7 @@ describe('cockpit ops (F3-04)', () => {
 
   it('les autres files ouvrent l’écran qui porte l’action', () => {
     expect(opsItemHref('refunds_pending', item)).toBe('/remboursements');
+    expect(opsItemHref('claims_unanswered', item)).toBe('/reclamations/x1');
     expect(opsItemHref('payouts_failed', item)).toBe('/paiements/reversements');
     expect(opsItemHref('incidents_open', item)).toBe('/incidents/x1');
     expect(opsItemHref('outbox_failed', item)).toBeNull();

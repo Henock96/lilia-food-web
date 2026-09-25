@@ -11,6 +11,7 @@ import {
   useAdminPendingVendors,
   usePendingRefundsCount,
   useOpsQueue,
+  useOpenClaimsCount,
 } from '@lilia/api-client';
 import { useIsAdmin, useIsRestaurateur } from '@/lib/use-role';
 import {
@@ -36,6 +37,7 @@ import {
   Undo2,
   Route,
   Siren,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -50,7 +52,7 @@ import { toast } from 'sonner';
  * Clients (de son resto), Promos. Les sections globales (Paiements,
  * Incidents, Livreurs, Zones, Paramètres plateforme) sont admin-only.
  */
-type BadgeKind = false | 'orders' | 'vendors' | 'refunds' | 'ops';
+type BadgeKind = false | 'orders' | 'vendors' | 'refunds' | 'ops' | 'claims';
 
 const NAV_ITEMS: {
   href: string;
@@ -64,6 +66,8 @@ const NAV_ITEMS: {
   // Cockpit ops (F3-04) : ce qui doit être fait maintenant, calculé par le serveur.
   { href: '/a-traiter',   label: 'À traiter',   icon: Siren,           badge: 'ops',    adminOnly: true  },
   { href: '/commandes',   label: 'Commandes',   icon: ShoppingBag,     badge: 'orders', adminOnly: false },
+  // F3-06 — le vendeur y voit les réclamations de sa boutique et répond au support.
+  { href: '/reclamations', label: 'Réclamations', icon: MessageSquareWarning, badge: 'claims', adminOnly: false },
   { href: '/produits',    label: 'Produits',    icon: Package,         badge: false,    adminOnly: false },
   { href: '/categories',  label: 'Catégories',  icon: FolderTree,      badge: false,    adminOnly: false },
   { href: '/menus',       label: 'Menus',       icon: UtensilsCrossed, badge: false,    adminOnly: false },
@@ -122,6 +126,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { data: pendingRefundsCount = 0 } = usePendingRefundsCount(
     isAdmin ? token : null,
   );
+  const { data: openClaimsCount = 0 } = useOpenClaimsCount(token);
   const { data: opsQueue } = useOpsQueue(isAdmin ? token : null);
   const opsCount = opsQueue?.total ?? 0;
 
@@ -226,6 +231,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               : badge === 'vendors' ? pendingVendorsCount
               : badge === 'refunds' ? pendingRefundsCount
               : badge === 'ops' ? opsCount
+              : badge === 'claims' ? openClaimsCount
               : 0;
             const showBadge = badgeCount > 0;
             return (

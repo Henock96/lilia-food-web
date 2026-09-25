@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import {
   User, Mail, Phone, LogOut, Edit2, ChevronRight,
   Package, MapPin, Plus, Trash2, Check, X, Star,
-  ShoppingBag, Clock, Shield, Gift, Copy, Zap, TrendingUp,
+  ShoppingBag, Clock, Shield, Gift, Copy, Zap, TrendingUp, MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -627,6 +627,14 @@ export default function ProfilPage() {
             <Package className="w-3.5 h-3.5 text-tomato-700" />
           </div>
           <span className="text-sm font-medium text-ink-900 flex-1">Mes commandes</span>
+          <ChevronRight className="w-4 h-4 text-ink-300 group-hover:text-ink-500 transition-colors" />
+        </Link>
+        {/* F3-06 — réclamations et réponses du service client. */}
+        <Link href="/demandes" className="flex items-center gap-3 px-4 py-3.5 hover:bg-cream-100 transition-colors group">
+          <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0">
+            <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+          </div>
+          <span className="text-sm font-medium text-ink-900 flex-1">Mes demandes</span>
           <ChevronRight className="w-4 h-4 text-ink-300 group-hover:text-ink-500 transition-colors" />
         </Link>
         <Link href="/restaurants" className="flex items-center gap-3 px-4 py-3.5 hover:bg-cream-100 transition-colors group">
