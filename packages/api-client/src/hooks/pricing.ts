@@ -47,6 +47,11 @@ export interface PublicPlatformSettings {
    * d'un serveur antérieur : non.
    */
   multiUnitVariantsEnabled?: boolean;
+  /**
+   * F3-11 — offres boutique ouvertes. Absent d'un serveur antérieur : non.
+   * Le serveur, lui, relit l'interrupteur à chaque devis et checkout.
+   */
+  vendorOffersEnabled?: boolean;
   // Les champs du canal de mise à jour mobile (`minAppVersion`…) sont aussi
   // servis par cette route ; le site n'a pas de version installée et ne les
   // déclare pas. Source des types admin : `PlatformSettings` (@lilia/types).

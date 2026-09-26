@@ -12,6 +12,7 @@ import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/a
 import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 import { VendorTypeBadge } from './vendor-type-badge';
+import { OfferBadge } from './offer-badge';
 import { DeliveryFeeText } from './delivery-fee-text';
 import { openingLabel } from '@/lib/opening-label';
 
@@ -123,6 +124,8 @@ export function VendorCard({ restaurant }: VendorCardProps) {
               {openingLabel(restaurant)}
             </span>
             <VendorTypeBadge vendorType={vendorType} />
+            {/* F3-11 — offre boutique en cours */}
+            {restaurant.activeOffer && <OfferBadge offer={restaurant.activeOffer} />}
           </div>
 
           {/* favori */}

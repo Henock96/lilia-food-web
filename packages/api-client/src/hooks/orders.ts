@@ -9,8 +9,10 @@ import {
 import type {
   AdminOrder,
   AdminOrdersPage,
+  CheckoutQuote,
   CreateOrderDto,
   Order,
+  QuoteOrderDto,
   OrderStatus,
   StuckOrders,
   VendorRejectionReason,
@@ -94,6 +96,36 @@ export function useCreateOrder(token: string | null, idempotencyKey: string) {
       void queryClient.invalidateQueries({ queryKey: orderKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
+  });
+}
+
+/**
+ * F3-11 — devis du panier (`POST /orders/quote`) : le calcul du checkout,
+ * exécuté par le serveur sans rien écrire (offre boutique, code, points,
+ * frais). Le récapitulatif l'affiche au lieu de recalculer un total.
+ *
+ * `cartSignature` fait partie de la clé : un panier modifié se re-chiffre.
+ * `null` en `dto` = pas encore chiffrable (adresse ou créneau manquant).
+ */
+export function useCheckoutQuote(
+  token: string | null,
+  dto: QuoteOrderDto | null,
+  cartSignature: string,
+) {
+  return useQuery({
+    queryKey: ['cart', 'quote', cartSignature, dto] as const,
+    queryFn: () =>
+      apiClient<CheckoutQuote>('/orders/quote', {
+        method: 'POST',
+        body: JSON.stringify(dto),
+        token,
+      }),
+    enabled: !!token && dto !== null && cartSignature !== '',
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+    // Un refus (vendeur fermé, rupture) se dit au checkout, avec son message :
+    // relancer ici ne ferait que retarder l'affichage du repli.
+    retry: false,
   });
 }
 

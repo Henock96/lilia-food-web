@@ -26,6 +26,7 @@ import {
   useRestaurant,
   usePublicPlatformSettings,
   useDeliveryFeeQuote,
+  useCheckoutQuote,
   apiClient,
   ApiError,
   pricingKeys,
@@ -143,6 +144,27 @@ export default function PanierPage() {
       !!deliveryQuartierId &&
       quotePending);
 
+  // ── F3-11 — devis serveur ────────────────────────────────────────────────
+  //
+  // Le calcul du checkout lui-même, exécuté sans écriture : offre boutique
+  // (qui n'existe que côté serveur), code, points, frais. Il fait foi dès
+  // qu'il est là ; l'estimation locale ne couvre que son chargement. Pas de
+  // devis tant que l'adresse ou le créneau manque : le serveur le refuserait.
+  const cartSignature = (cart?.items ?? [])
+    .map((i) => `${i.id}:${i.quantite}`)
+    .join(',');
+  const quoteDto =
+    (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)
+      ? null
+      : {
+          isDelivery,
+          ...(isDelivery && selectedAdresseId ? { adresseId: selectedAdresseId } : {}),
+          ...(promoResult?.valid && promoCode ? { promoCode } : {}),
+          ...(useLoyaltyPoints ? { useLoyaltyPoints: true } : {}),
+          ...(scheduledFor ? { scheduledFor: scheduledFor.toISOString() } : {}),
+        };
+  const { data: checkoutQuote } = useCheckoutQuote(token, quoteDto, cartSignature);
+
   // Réinitialise le créneau si le panier n'est plus en pré-commande (reset pendant le render).
   if (!cartIsPreorder && scheduledFor) {
     setScheduledFor(null);
@@ -247,9 +269,16 @@ export default function PanierPage() {
     loyaltyPoints,
     useLoyaltyPoints,
   });
-  const { serviceFee, loyaltyDiscount, deliveryDiscount, total } = estimate;
+  const { deliveryDiscount } = estimate;
   const deliveryFee = estimate.baseDeliveryFee;
-  const discount = estimate.promoDiscount;
+  // F3-11 — le devis serveur remplace l'estimation dès qu'il est là.
+  const quote = checkoutQuote ?? null;
+  const serviceFee = quote ? quote.serviceFee : estimate.serviceFee;
+  const discount = quote ? (quote.promo?.discountXaf ?? 0) : estimate.promoDiscount;
+  const loyaltyDiscount = quote ? quote.loyalty.discountXaf : estimate.loyaltyDiscount;
+  const loyaltyPointsUsed = quote ? quote.loyalty.pointsUsed : estimate.loyaltyPointsUsed;
+  const total = quote ? quote.total : estimate.total;
+  const vendorOffer = quote?.vendorOffer ?? null;
 
   // Le serveur refuse un panier sous le minimum du vendeur. Le lui laisser
   // découvrir après la saisie de l'adresse et du téléphone, c'est lui faire
@@ -374,6 +403,9 @@ export default function PanierPage() {
         useLoyaltyPoints:
           useLoyaltyPoints && loyaltyPoints >= pricingSettings.loyaltyMinRedemption,
         scheduledFor: scheduledFor ? scheduledFor.toISOString() : undefined,
+        // F3-11 — l'offre affichée par le devis ; sans devis, on n'affirme
+        // rien. Si le serveur n'applique plus la même : 409, rien d'encaissé.
+        ...(quote ? { vendorOfferId: quote.vendorOffer?.id ?? null } : {}),
       });
 
       // Ouverture de l'encaissement dans la foulée : la demande arrive sur le
@@ -439,6 +471,11 @@ export default function PanierPage() {
       // le bouton, au lieu d'un refus inexpliqué au prochain clic.
       if (err instanceof ApiError && err.status === 503) {
         void queryClient.invalidateQueries({ queryKey: pricingKeys.platformSettings });
+      }
+      // F3-11 — l'offre a changé depuis le récapitulatif (terminée, budget
+      // épuisé, mise en pause) : on re-chiffre, le client valide le nouveau total.
+      if (err instanceof ApiError && err.code === 'VENDOR_OFFER_CHANGED') {
+        void queryClient.invalidateQueries({ queryKey: ['cart', 'quote'] });
       }
       const msg = (err as { message?: string }).message;
       toast.error(msg ?? 'Impossible de passer la commande');
@@ -1000,7 +1037,7 @@ export default function PanierPage() {
                   )}
                 <div className="flex justify-between text-ink-700">
                   <span>Frais de service</span>
-                  {estimate.settingsKnown ? (
+                  {quote || estimate.settingsKnown ? (
                     <span>{formatCurrency(serviceFee)}</span>
                   ) : (
                     // Le taux est inconnu : on le dit, plutôt que d'afficher un
@@ -1008,6 +1045,15 @@ export default function PanierPage() {
                     <span className="text-ink-500">calculés au paiement</span>
                   )}
                 </div>
+                {vendorOffer && vendorOffer.discountXaf > 0 && (
+                  <div
+                    data-testid="checkout-vendor-offer"
+                    className="flex justify-between text-emerald-600 font-medium"
+                  >
+                    <span>{vendorOffer.label}</span>
+                    <span>-{formatCurrency(vendorOffer.discountXaf)}</span>
+                  </div>
+                )}
                 {discount > 0 && (
                   <div className="flex justify-between text-emerald-600 font-medium">
                     <span>Code promo</span>
@@ -1018,7 +1064,7 @@ export default function PanierPage() {
                   <div className="flex justify-between text-amber-600 font-medium">
                     {/* Points réellement consommés, pas le solde : le serveur
                         n'en prend jamais plus que le montant dû. */}
-                    <span>Points fidélité ({estimate.loyaltyPointsUsed} pts)</span>
+                    <span>Points fidélité ({loyaltyPointsUsed} pts)</span>
                     <span>-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
                 )}

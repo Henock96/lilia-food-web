@@ -22,6 +22,8 @@ interface PromoForm {
   maxUsageTotal: string;
   maxUsagePerUser: string;
   firstOrderOnly: boolean;
+  /** F3-11 (Q4) — s'ajoute à l'offre boutique d'un vendeur. */
+  stackableWithVendorOffer: boolean;
   expiresAt: string;
 }
 
@@ -29,7 +31,7 @@ const EMPTY_FORM: PromoForm = {
   code: '', description: '', discountType: 'FIXED',
   discountValue: '', maxDiscount: '', minOrderAmount: '0',
   maxUsageTotal: '', maxUsagePerUser: '1',
-  firstOrderOnly: false, expiresAt: '',
+  firstOrderOnly: false, stackableWithVendorOffer: false, expiresAt: '',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -200,6 +202,19 @@ function CreateModal({ onClose, onSave, isSaving }: {
             />
             <span className="text-sm text-zinc-700 dark:text-zinc-300">Première commande uniquement</span>
           </label>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox" checked={form.stackableWithVendorOffer}
+              onChange={e => set('stackableWithVendorOffer', e.target.checked)}
+              className="rounded mt-0.5"
+            />
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
+              Cumulable avec l’offre boutique d’un vendeur
+              <span className="block text-xs text-zinc-500">
+                Sinon, le code est refusé chez un vendeur qui a déjà une offre en cours : Lilia ne paie pas une remise en plus de la sienne.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="px-5 py-4 border-t border-zinc-100 dark:border-dark-border shrink-0 flex gap-3">
@@ -282,6 +297,7 @@ export default function PromosPage() {
       minOrderAmount: parseFloat(form.minOrderAmount) || 0,
       maxUsagePerUser: parseInt(form.maxUsagePerUser) || 1,
       firstOrderOnly: form.firstOrderOnly,
+      stackableWithVendorOffer: form.stackableWithVendorOffer,
     };
     if (form.maxDiscount)    payload.maxDiscount    = parseFloat(form.maxDiscount);
     if (form.maxUsageTotal)  payload.maxUsageTotal  = parseInt(form.maxUsageTotal);
@@ -351,6 +367,11 @@ export default function PromosPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-mono">{p.code}</span>
+                      {p.stackableWithVendorOffer && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                          cumulable offre boutique
+                        </span>
+                      )}
                       {p.firstOrderOnly && (
                         <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400">
                           1ère commande
