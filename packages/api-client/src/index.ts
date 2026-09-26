@@ -12,6 +12,7 @@ export * from './hooks/categories';
 export * from './hooks/modifiers';
 export * from './hooks/menus';
 export * from './hooks/promo';
+export * from './hooks/vendor-offers';
 export * from './hooks/pricing';
 
 export * from './hooks/favorites';

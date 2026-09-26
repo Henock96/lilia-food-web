@@ -674,7 +674,25 @@ export interface GalleryImage {
   isCover: boolean;
 }
 
+/**
+ * F3-11 — offre boutique en cours chez un vendeur, financée par lui
+ * (`activeOffer` des lectures publiques). Affichage seulement : le montant
+ * d'une commande vient du devis serveur (`POST /orders/quote`).
+ */
+export interface ActiveOffer {
+  id: string;
+  kind: 'PERCENT' | 'FIXED_THRESHOLD';
+  value: number;
+  minSubTotalXaf: number;
+  maxDiscountXaf: number | null;
+  endsAt: string;
+  /** Écrit par le serveur : « −10 % sur toute la boutique ». */
+  label: string;
+}
+
 export interface Restaurant {
+  /** F3-11 — offre boutique en cours ; absent d'un serveur antérieur. */
+  activeOffer?: ActiveOffer | null;
   id: string;
   nom: string;
   adresse: string;
@@ -1445,6 +1463,8 @@ export interface PromoCode {
   firstOrderOnly: boolean;
   isActive: boolean;
   restaurantId: string | null;
+  /** F3-11 (Q4) — cumulable avec l'offre boutique d'un vendeur. */
+  stackableWithVendorOffer?: boolean;
   startsAt: string;
   expiresAt: string | null;
   createdAt: string;
@@ -1546,6 +1566,60 @@ export interface CreateOrderDto {
   useLoyaltyPoints?: boolean;
   /** ISO 8601 — date+heure de récupération/livraison pour les commandes preorder. */
   scheduledFor?: string | null;
+  /**
+   * F3-11 — l'offre boutique affichée par le devis (`null` = aucune). Si le
+   * serveur n'applique plus la même au paiement : 409 `VENDOR_OFFER_CHANGED`.
+   * Absent = on n'affirme rien.
+   */
+  vendorOfferId?: string | null;
+}
+
+/** F3-11 — entrées du devis : celles du checkout, sans ce qui ne chiffre rien. */
+export type QuoteOrderDto = Omit<
+  CreateOrderDto,
+  'paymentMethod' | 'notes' | 'contactPhone' | 'vendorOfferId'
+> & { quartierId?: string };
+
+/** F3-11 — `POST /orders/quote` : le calcul du checkout, sans écriture. */
+export interface CheckoutQuote {
+  restaurantId: string;
+  subTotal: number;
+  /** Après un éventuel code « livraison offerte ». */
+  deliveryFee: number;
+  deliveryFeeBeforePromo: number;
+  serviceFee: number;
+  vendorOffer: (ActiveOffer & { discountXaf: number }) | null;
+  promo: { code: string; discountXaf: number; deliveryDiscountXaf: number } | null;
+  loyalty: { pointsUsed: number; discountXaf: number };
+  total: number;
+}
+
+export type VendorOfferStatus =
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'EXHAUSTED'
+  | 'ENDED'
+  | 'STOPPED_BY_ADMIN';
+
+/** F3-11 — offre boutique vue par l'administration (`GET /admin/offers`). */
+export interface AdminVendorOffer {
+  id: string;
+  kind: 'PERCENT' | 'FIXED_THRESHOLD';
+  value: number;
+  minSubTotalXaf: number;
+  maxDiscountXaf: number | null;
+  startsAt: string;
+  endsAt: string;
+  budgetXaf: number;
+  spentXaf: number;
+  remainingXaf: number;
+  status: VendorOfferStatus;
+  stoppedReason: string | null;
+  stoppedBy: string | null;
+  ordersCount: number;
+  label: string;
+  createdAt: string;
+  restaurant: { id: string; nom: string };
 }
 
 export interface CreateAdresseDto {
