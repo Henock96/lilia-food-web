@@ -31,6 +31,16 @@ describe('acceptation vendeur — requêtes', () => {
     });
   });
 
+  it('refus « rupture » : les produits manquants sont désignés (F3-10)', () => {
+    expect(
+      rejectOrderRequest('o1', { reason: 'OUT_OF_STOCK', outOfStockProductIds: ['vin'] }).body,
+    ).toEqual({ reason: 'OUT_OF_STOCK', outOfStockProductIds: ['vin'] });
+    // Un autre motif ne met rien en rupture, même si une liste traîne.
+    expect(
+      rejectOrderRequest('o1', { reason: 'TOO_BUSY', outOfStockProductIds: ['vin'] }).body,
+    ).toEqual({ reason: 'TOO_BUSY' });
+  });
+
   it('l’identifiant est encodé dans le chemin', () => {
     expect(acceptOrderRequest('a/b', 10).path).toBe('/orders/a%2Fb/accept');
   });

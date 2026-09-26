@@ -397,13 +397,27 @@ export function acceptOrderRequest(orderId: string, prepMinutes: number) {
 
 export function rejectOrderRequest(
   orderId: string,
-  rejection: { reason: VendorRejectionReason; note?: string },
+  rejection: {
+    reason: VendorRejectionReason;
+    note?: string;
+    /**
+     * F3-10 — refus « rupture » : les produits vraiment manquants passent à 0
+     * au lieu d'être remis en stock. Absent = tout est remis en stock.
+     */
+    outOfStockProductIds?: string[];
+  },
 ) {
   const note = rejection.note?.trim();
+  const missing =
+    rejection.reason === 'OUT_OF_STOCK' ? (rejection.outOfStockProductIds ?? []) : [];
   return {
     path: `/orders/${encodeURIComponent(orderId)}/reject`,
     method: 'POST' as const,
-    body: { reason: rejection.reason, ...(note ? { note } : {}) },
+    body: {
+      reason: rejection.reason,
+      ...(note ? { note } : {}),
+      ...(missing.length > 0 ? { outOfStockProductIds: missing } : {}),
+    },
   };
 }
 
@@ -433,12 +447,14 @@ export function useRejectOrder(token: string | null) {
       orderId,
       reason,
       note,
+      outOfStockProductIds,
     }: {
       orderId: string;
       reason: VendorRejectionReason;
       note?: string;
+      outOfStockProductIds?: string[];
     }) => {
-      const req = rejectOrderRequest(orderId, { reason, note });
+      const req = rejectOrderRequest(orderId, { reason, note, outOfStockProductIds });
       return apiClient<Order>(req.path, {
         method: req.method,
         token,

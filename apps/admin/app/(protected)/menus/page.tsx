@@ -28,6 +28,12 @@ interface MenuForm {
   dateFin: string;   // YYYY-MM-DD
   isActive: boolean;
   productIds: string[];
+  /**
+   * F3-10 — format servi pour chaque produit (bouteille, carton de 6…). Sans
+   * choix, le serveur garde celui en place, ou prend le premier format à une
+   * unité — jamais un carton par hasard.
+   */
+  variantByProduct: Record<string, string>;
 }
 
 function todayISODate(offsetDays = 0): string {
@@ -41,6 +47,7 @@ function initForm(menu?: MenuDuJour): MenuForm {
     return {
       nom: '', description: '', prix: '', type: 'COMBO', ingredients: '',
       dateDebut: todayISODate(), dateFin: todayISODate(), isActive: true, productIds: [],
+      variantByProduct: {},
     };
   }
   return {
@@ -53,6 +60,9 @@ function initForm(menu?: MenuDuJour): MenuForm {
     dateFin: menu.dateFin.slice(0, 10),
     isActive: menu.isActive,
     productIds: (menu.products ?? []).map((p) => p.productId),
+    variantByProduct: Object.fromEntries(
+      (menu.products ?? []).filter((p) => p.variantId).map((p) => [p.productId, p.variantId!]),
+    ),
   };
 }
 
@@ -116,7 +126,11 @@ function MenuPanel({
     if (form.type === 'PLAT_SPECIAL') {
       payload.ingredients = form.ingredients.trim() || undefined;
     } else {
-      payload.products = form.productIds.map((productId, i) => ({ productId, ordre: i }));
+      payload.products = form.productIds.map((productId, i) => ({
+        productId,
+        ...(form.variantByProduct[productId] ? { variantId: form.variantByProduct[productId] } : {}),
+        ordre: i,
+      }));
     }
 
     const onSuccess = () => {
@@ -244,8 +258,8 @@ function MenuPanel({
                   {products.map((p) => {
                     const checked = form.productIds.includes(p.id);
                     return (
+                      <div key={p.id}>
                       <button
-                        key={p.id}
                         type="button"
                         onClick={() => toggleProduct(p.id)}
                         className="flex items-center gap-3 w-full px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors"
@@ -260,6 +274,27 @@ function MenuPanel({
                           {p.prixOriginal.toLocaleString('fr-FR')} FCFA
                         </span>
                       </button>
+                      {checked && p.variants.length > 1 && (
+                        <div className="px-3 pb-2 pl-10">
+                          <select
+                            aria-label={`Format de ${p.nom} servi dans le menu`}
+                            value={form.variantByProduct[p.id] ?? ''}
+                            onChange={(e) =>
+                              set('variantByProduct', { ...form.variantByProduct, [p.id]: e.target.value })
+                            }
+                            className="w-full text-xs px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                          >
+                            <option value="">Format servi : automatique (1 unité)</option>
+                            {p.variants.map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {v.label || 'Standard'}
+                                {(v.stockConsumption ?? 1) > 1 ? ` (${v.stockConsumption} unités)` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      </div>
                     );
                   })}
                 </div>

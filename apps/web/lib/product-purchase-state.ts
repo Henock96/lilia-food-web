@@ -1,4 +1,4 @@
-import type { Product, ProductVendorRef } from '@lilia/types';
+import type { Product, ProductVariant, ProductVendorRef } from '@lilia/types';
 import { availabilityWindowLabel } from './availability';
 
 /**
@@ -49,6 +49,12 @@ export interface PurchaseState {
   message: string | null;
   /** Plafond du sélecteur de quantité. */
   maxQuantity: number;
+  /**
+   * F3-10 — ventes encore possibles du format choisi, quand il en reste peu
+   * (« Plus que 3 cartons ») ; `null` sinon. Dit dans l'unité du FORMAT : 18
+   * bouteilles, c'est 3 cartons de 6.
+   */
+  lowQuantity: number | null;
   /** Fenêtre horaire, affichée même quand le produit est disponible. */
   windowLabel: string | null;
 }
@@ -69,20 +75,30 @@ export function computePurchaseState(
   >,
   /** `null` si le produit est servi sans son vendeur (réponse ancienne). */
   vendor: Pick<ProductVendorRef, 'isOpen'> | null,
+  /**
+   * F3-10 — format choisi. Son `availableQuantity` est le verdict du serveur
+   * (un carton de 6 est épuisé à 5 bouteilles, la bouteille non) ; absent
+   * (serveur antérieur), on retombe sur le stock du produit.
+   */
+  variant?: Pick<ProductVariant, 'availableQuantity' | 'stockStatus' | 'stockConsumption'>,
 ): PurchaseState {
   const windowLabel = availabilityWindowLabel(product);
-  // `stockRestant === null` = stock illimité, `0` = épuisé. La distinction est
-  // portée par `null`, pas par une valeur sentinelle : `?? DEFAULT` la garde.
+  const available = availableForVariant(product.stockRestant, variant);
+  // `null` = stock illimité, `0` = épuisé. La distinction est portée par
+  // `null`, pas par une valeur sentinelle : `?? DEFAULT` la garde.
   const maxQuantity =
-    product.stockRestant === null || product.stockRestant === undefined
-      ? DEFAULT_MAX_QUANTITY
-      : Math.min(product.stockRestant, DEFAULT_MAX_QUANTITY);
+    available === null ? DEFAULT_MAX_QUANTITY : Math.min(available, DEFAULT_MAX_QUANTITY);
+  const lowQuantity =
+    variant?.stockStatus === 'LOW' || (available !== null && available > 0 && available <= 5)
+      ? available
+      : null;
 
   const blocked = (blocker: PurchaseBlocker, message: string): PurchaseState => ({
     canAdd: false,
     blocker,
     message,
     maxQuantity: Math.max(1, maxQuantity),
+    lowQuantity: null,
     windowLabel,
   });
 
@@ -97,6 +113,9 @@ export function computePurchaseState(
   }
   if (product.stockRestant === 0) {
     return blocked('out_of_stock', 'Épuisé pour aujourd’hui');
+  }
+  if (available === 0) {
+    return blocked('out_of_stock', 'Ce format est épuisé — choisissez-en un autre');
   }
   if (product.variants.length === 0) {
     return blocked('no_variant', 'Aucune option en vente pour ce produit');
@@ -114,5 +133,19 @@ export function computePurchaseState(
     return blocked('options_unavailable', product.modifiersUnavailableReason);
   }
 
-  return { canAdd: true, blocker: null, message: null, maxQuantity, windowLabel };
+  return { canAdd: true, blocker: null, message: null, maxQuantity, lowQuantity, windowLabel };
+}
+
+/**
+ * Ventes encore possibles d'un format. Le verdict du serveur d'abord ; à
+ * défaut (réponse antérieure à F3-10), le stock du produit divisé par la
+ * consommation du format. `null` = illimité.
+ */
+export function availableForVariant(
+  stockRestant: number | null | undefined,
+  variant?: Pick<ProductVariant, 'availableQuantity' | 'stockConsumption'>,
+): number | null {
+  if (variant && variant.availableQuantity !== undefined) return variant.availableQuantity;
+  if (stockRestant === null || stockRestant === undefined) return null;
+  return Math.floor(stockRestant / Math.max(1, variant?.stockConsumption ?? 1));
 }

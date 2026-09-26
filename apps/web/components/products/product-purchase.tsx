@@ -56,8 +56,10 @@ export function ProductPurchase({
   const clearCart = useClearCart(token);
   const { data: cart } = useCart(token);
 
+  // F3-10 — premier format encore vendable (le moins cher sinon) : ouvrir la
+  // fiche sur un carton épuisé ferait croire le produit indisponible.
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(
-    product.variants[0],
+    product.variants.find((v) => v.stockStatus !== 'OUT_OF_STOCK') ?? product.variants[0],
   );
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -84,7 +86,7 @@ export function ProductPurchase({
     });
   }, [withOptions, product.id, product.nom, product.restaurantId, groupCount]);
 
-  const state = computePurchaseState(product, vendor);
+  const state = computePurchaseState(product, vendor, selectedVariant);
   // Affichage seulement : le panier montrera le prix unitaire du serveur.
   const variantPrice = selectedVariant?.prix ?? product.prixOriginal;
   const unitPrice = variantPrice + optionsValue;
@@ -236,9 +238,11 @@ export function ProductPurchase({
                   selectedVariant?.id === v.id
                     ? 'border-tomato-600 bg-tomato-100 font-semibold text-tomato-700'
                     : 'border-cream-300 bg-white text-ink-700 hover:border-tomato-600',
+                  v.stockStatus === 'OUT_OF_STOCK' && 'opacity-50 line-through',
                 )}
               >
                 {v.label ?? 'Standard'} — {formatCurrency(v.prix)}
+                {v.stockStatus === 'OUT_OF_STOCK' && ' · Épuisé'}
               </button>
             ))}
           </div>
@@ -263,9 +267,9 @@ export function ProductPurchase({
         </div>
       )}
 
-      {state.canAdd && product.stockRestant !== null && product.stockRestant <= 5 && (
+      {state.canAdd && state.lowQuantity !== null && (
         <p className="text-xs text-amber-600">
-          Plus que {product.stockRestant} en stock
+          Plus que {state.lowQuantity} en stock
         </p>
       )}
 

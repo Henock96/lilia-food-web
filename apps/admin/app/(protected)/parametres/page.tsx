@@ -339,6 +339,28 @@ export default function ParametresPage() {
         </div>
       </div>
 
+      {/* F3-10 — formats de plusieurs unités (bouteille / carton de 6). */}
+      <div className={CARD}>
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Formats de plusieurs unités</h3>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+          Un format consomme plusieurs unités du stock de son produit (un carton de 6 retire 6
+          bouteilles). À ouvrir seulement une fois l&apos;app vendeurs compatible publiée. Éteindre
+          n&apos;efface rien : les formats existants restent vendables, seule la création de nouveaux
+          formats multi-unités est refusée.
+        </p>
+        <label className="flex items-center justify-between gap-4 cursor-pointer">
+          <span className="text-sm text-zinc-600 dark:text-zinc-300">
+            Formats de plusieurs unités ouverts aux vendeurs
+          </span>
+          <input
+            type="checkbox"
+            checked={form.multiUnitVariantsEnabled}
+            onChange={(e) => set('multiUnitVariantsEnabled', e.target.checked)}
+            className="w-4 h-4 accent-primary-500"
+          />
+        </label>
+      </div>
+
       {/* Jours fériés (F3-03) — enregistrés à part, pas par le bouton du bas. */}
       <PublicHolidaysCard token={token} />
 

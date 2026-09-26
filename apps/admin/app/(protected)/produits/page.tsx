@@ -5,7 +5,7 @@ import { useState } from 'react';
 import {
   useProducts, useCategories, useReorderProducts,
   useCreateProduct, useUpdateProduct, useDeleteProduct, useSetProductAvailability,
-  useUpdateProductStock, createPhoto,
+  useUpdateProductStock, usePublicPlatformSettings, createPhoto,
 } from '@lilia/api-client';
 import { ProductImageBuffer, type DraftImage } from '@/components/product-image-buffer';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
@@ -19,22 +19,35 @@ import type {
   ProductVariant,
   Category,
   ProductType,
-  StockMode,
+  StockPolicy,
+  StockUnit,
   VendorType,
 } from '@lilia/types';
+import {
+  STOCK_POLICIES,
+  STOCK_UNITS,
+  formatUnits,
+  initStockFields,
+  policyOf,
+  quantityEditable,
+  stockLabel,
+  stockPayload,
+  unsellableFormats,
+  variantPayload,
+  type StockFormFields,
+  type VariantDraft,
+} from '@/lib/product-stock';
 import { Plus, Pencil, Trash2, X, Package, ChevronDown, ChevronUp, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import type { StockStatus } from '@lilia/api-client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface VariantDraft { _key: number; id?: string; label: string; prix: string }
-interface ProductForm {
+interface ProductForm extends StockFormFields {
   nom: string; description: string; imageUrl: string;
-  prixOriginal: string; categoryId: string; stockQuotidien: string;
+  prixOriginal: string; categoryId: string;
   variants: VariantDraft[];
   // Multi-vendeurs (LIL-116)
   productType: ProductType | '';
-  stockMode: StockMode | '';
   ingredients: string;
   shelfLifeDays: string;
   madeToOrder: boolean;
@@ -44,8 +57,9 @@ interface ProductForm {
 
 const EMPTY_FORM: ProductForm = {
   nom: '', description: '', imageUrl: '', prixOriginal: '',
-  categoryId: '', stockQuotidien: '', variants: [],
-  productType: '', stockMode: '', ingredients: '', shelfLifeDays: '',
+  categoryId: '', variants: [],
+  ...initStockFields(),
+  productType: '', ingredients: '', shelfLifeDays: '',
   madeToOrder: false, availableFrom: '', availableUntil: '',
 };
 
@@ -75,19 +89,26 @@ type PanelState = null | { mode: 'create' } | { mode: 'edit'; product: Product }
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function initForm(p?: Product): ProductForm {
-  if (!p) return { ...EMPTY_FORM, variants: [{ _key: Date.now(), label: '', prix: '' }] };
+  if (!p) {
+    return { ...EMPTY_FORM, variants: [{ _key: Date.now(), label: '', prix: '', stockConsumption: '1' }] };
+  }
   return {
     nom:          p.nom,
     description:  p.description ?? '',
     imageUrl:     p.imageUrl    ?? '',
     prixOriginal: String(p.prixOriginal),
     categoryId:   p.categoryId  ?? '',
-    stockQuotidien: p.stockQuotidien != null ? String(p.stockQuotidien) : '',
+    ...initStockFields(p),
     variants: p.variants.length
-      ? p.variants.map((v, i) => ({ _key: i, id: v.id, label: v.label ?? '', prix: String(v.prix) }))
-      : [{ _key: Date.now(), label: '', prix: '' }],
+      ? p.variants.map((v, i) => ({
+          _key: i,
+          id: v.id,
+          label: v.label ?? '',
+          prix: String(v.prix),
+          stockConsumption: String(v.stockConsumption ?? 1),
+        }))
+      : [{ _key: Date.now(), label: '', prix: '', stockConsumption: '1' }],
     productType:   p.productType   ?? '',
-    stockMode:     p.stockMode     ?? '',
     ingredients:   p.ingredients   ?? '',
     shelfLifeDays: p.shelfLifeDays != null ? String(p.shelfLifeDays) : '',
     madeToOrder:   p.madeToOrder   ?? false,
@@ -96,14 +117,8 @@ function initForm(p?: Product): ProductForm {
   };
 }
 
-function stockLabel(p: Product) {
-  if (p.stockQuotidien == null) return 'Illimité';
-  if ((p.stockRestant ?? 0) === 0) return 'Rupture';
-  return `${p.stockRestant}/${p.stockQuotidien}`;
-}
-
 function stockColor(p: Product) {
-  if (p.stockQuotidien == null) return 'text-zinc-400';
+  if (policyOf(p) === 'UNLIMITED') return 'text-zinc-400';
   if ((p.stockRestant ?? 0) === 0) return 'text-red-500 font-medium';
   if ((p.stockRestant ?? 0) <= 3) return 'text-amber-500 font-medium';
   return 'text-emerald-600 dark:text-emerald-400';
@@ -127,18 +142,25 @@ function ProductPanel({
     initForm(panel.mode === 'edit' ? panel.product : undefined),
   );
   const [buffer, setBuffer] = useState<DraftImage[]>([]);
+  const editedProduct = panel.mode === 'edit' ? panel.product : undefined;
+  const { data: publicSettings } = usePublicPlatformSettings();
+  const multiUnitEnabled = publicSettings?.multiUnitVariantsEnabled === true;
+  const policyInfo = STOCK_POLICIES.find((p) => p.value === form.stockPolicy)!;
 
   function set<K extends keyof ProductForm>(k: K, v: ProductForm[K]) {
     setForm(f => ({ ...f, [k]: v }));
   }
 
   function addVariant() {
-    setForm(f => ({ ...f, variants: [...f.variants, { _key: Date.now(), label: '', prix: '' }] }));
+    setForm(f => ({
+      ...f,
+      variants: [...f.variants, { _key: Date.now(), label: '', prix: '', stockConsumption: '1' }],
+    }));
   }
   function removeVariant(key: number) {
     setForm(f => ({ ...f, variants: f.variants.filter(v => v._key !== key) }));
   }
-  function setVariant(key: number, field: 'label' | 'prix', val: string) {
+  function setVariant(key: number, field: 'label' | 'prix' | 'stockConsumption', val: string) {
     setForm(f => ({ ...f, variants: f.variants.map(v => v._key === key ? { ...v, [field]: val } : v) }));
   }
 
@@ -201,21 +223,12 @@ function ProductPanel({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Prix de base (FCFA) *</label>
               <input
                 required type="number" min="0" value={form.prixOriginal}
                 onChange={e => set('prixOriginal', e.target.value)}
-                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Stock quotidien</label>
-              <input
-                type="number" min="0" value={form.stockQuotidien}
-                onChange={e => set('stockQuotidien', e.target.value)}
-                placeholder="Illimité"
                 className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
               />
             </div>
@@ -241,8 +254,8 @@ function ProductPanel({
             </select>
           </div>
 
-          {/* Multi-vendeurs : type produit + mode stock (LIL-116) */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Multi-vendeurs : type produit (LIL-116) */}
+          <div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Type de produit
@@ -261,20 +274,61 @@ function ProductPanel({
                 Filtré selon le type de vendeur ({vendorType}).
               </p>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                Mode de stock
-              </label>
-              <select
-                value={form.stockMode}
-                onChange={e => set('stockMode', e.target.value as StockMode | '')}
-                className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-              >
-                <option value="">Auto (DAILY)</option>
-                <option value="DAILY">DAILY — reset chaque nuit</option>
-                <option value="PERMANENT">PERMANENT — stock réel</option>
-              </select>
+          </div>
+
+          {/* F3-10 — disponibilité : trois choix dits dans les mots du vendeur
+              (remplace « DAILY — reset chaque nuit / PERMANENT »). */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Disponibilité</label>
+            <div className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
+              {STOCK_POLICIES.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => set('stockPolicy', p.value as StockPolicy)}
+                  className={`text-xs px-2 py-1.5 rounded-md font-medium transition-colors ${
+                    form.stockPolicy === p.value
+                      ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
+            <p className="text-[11px] text-zinc-500">{policyInfo.help}</p>
+            {form.stockPolicy !== 'UNLIMITED' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">On compte en</label>
+                  <select
+                    value={form.stockUnit}
+                    onChange={e => set('stockUnit', e.target.value as StockUnit)}
+                    className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  >
+                    {(Object.keys(STOCK_UNITS) as StockUnit[]).map((u) => (
+                      <option key={u} value={u}>{STOCK_UNITS[u][1]}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">La plus petite unité vendue : la bouteille, pas le carton.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">{policyInfo.quantityLabel}</label>
+                  {quantityEditable(form, editedProduct) ? (
+                    <input
+                      type="number" min="0" value={form.stockQuantity}
+                      onChange={e => set('stockQuantity', e.target.value)}
+                      className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                    />
+                  ) : (
+                    <p className="text-xs text-zinc-500 py-2">
+                      {formatUnits(editedProduct?.stockRestant ?? 0, form.stockUnit)} — utilisez
+                      « Réapprovisionner » ou « Inventaire » sur la carte.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Champs spécifiques HOME_COOK / BAKERY */}
@@ -347,7 +401,7 @@ function ProductPanel({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Variantes <span className="text-zinc-400">(taille, format…)</span>
+                Formats <span className="text-zinc-400">(taille, bouteille, carton de 6…)</span>
               </label>
               <button
                 type="button" onClick={addVariant}
@@ -356,6 +410,10 @@ function ProductPanel({
                 <Plus size={12} /> Ajouter
               </button>
             </div>
+            <p className="text-[10px] text-zinc-500 mb-1">
+              Nom · prix · nombre de {STOCK_UNITS[form.stockUnit][1]} par format. Le prix est libre :
+              un carton peut coûter moins que 6 bouteilles.
+            </p>
             <div className="space-y-2">
               {form.variants.map(v => (
                 <div key={v._key} className="flex items-center gap-2">
@@ -370,6 +428,20 @@ function ProductPanel({
                     onChange={e => setVariant(v._key, 'prix', e.target.value)}
                     placeholder="Prix"
                     className="w-24 text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  />
+                  {/* F3-10 — unités de stock par format. Figé une fois le
+                      format enregistré (serveur : STOCK_CONSUMPTION_IMMUTABLE) ;
+                      ouvert au-delà de 1 seulement si la plateforme l'accepte. */}
+                  <input
+                    type="number" min="1" value={v.stockConsumption}
+                    onChange={e => setVariant(v._key, 'stockConsumption', e.target.value)}
+                    disabled={Boolean(v.id) || !multiUnitEnabled}
+                    title={
+                      v.id
+                        ? 'Non modifiable : créez un autre format et retirez celui-ci'
+                        : `Nombre de ${STOCK_UNITS[form.stockUnit][1]} par format (ex. 6 pour un carton de 6)`
+                    }
+                    className="w-16 text-sm px-2 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                   />
                   <button
                     type="button" onClick={() => removeVariant(v._key)}
@@ -509,6 +581,13 @@ function ProductCard({
           <div className="flex items-center gap-1 text-zinc-400">
             <Package size={11} />
             <span className={stockColor(product)}>{stockLabel(product)}</span>
+            {/* F3-10 — le produit a du stock, mais pas assez pour ses gros
+                formats (5 bouteilles : plus de carton de 6). */}
+            {unsellableFormats(product).length > 0 && (product.stockRestant ?? 0) > 0 && (
+              <span className="text-amber-500" title="Certains formats ne sont plus vendables">
+                · {unsellableFormats(product).length} format(s) épuisé(s)
+              </span>
+            )}
             {/* Réapprovisionner est un geste distinct de « modifier la fiche ».
                 Il vit donc à côté du stock qu'il corrige, et passe par
                 `PATCH /products/:id/stock` — la seule route qui remette
@@ -520,7 +599,7 @@ function ProductCard({
               type="button"
               onClick={onRestock}
               disabled={restocking}
-              title="Réapprovisionner — remet le stock restant à niveau"
+              title="Réapprovisionner ou faire l’inventaire"
               className="ml-1 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             >
               <RefreshCw size={11} className={restocking ? 'animate-spin' : ''} />
@@ -541,7 +620,12 @@ function ProductCard({
           <div className="mb-3 space-y-1 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-2">
             {product.variants.map((v: ProductVariant) => (
               <div key={v.id} className="flex justify-between text-xs">
-                <span className="text-zinc-500">{v.label || 'Standard'}</span>
+                <span className={v.stockStatus === 'OUT_OF_STOCK' ? 'text-red-500' : 'text-zinc-500'}>
+                  {v.label || 'Standard'}
+                  {(v.stockConsumption ?? 1) > 1 &&
+                    ` · ${formatUnits(v.stockConsumption!, product.stockUnit)}`}
+                  {v.stockStatus === 'OUT_OF_STOCK' && ' · épuisé'}
+                </span>
                 <span className="font-medium text-zinc-700 dark:text-zinc-300 tabular-nums">
                   {v.prix.toLocaleString('fr-FR')} FCFA
                 </span>
@@ -664,18 +748,22 @@ export default function ProduitsPage() {
   }
 
   async function handleSave(form: ProductForm, buffer: DraftImage[]) {
+    let stock: Record<string, unknown>;
+    try {
+      stock = stockPayload(form, panel?.mode === 'edit' ? panel.product : undefined);
+    } catch (err) {
+      toast.error((err as Error).message);
+      return;
+    }
     const payload: Record<string, unknown> = {
       nom:           form.nom.trim(),
       description:   form.description.trim() || undefined,
       prixOriginal:  parseFloat(form.prixOriginal),
       categoryId:    form.categoryId         || undefined,
-      stockQuotidien: form.stockQuotidien ? parseInt(form.stockQuotidien) : undefined,
-      variants: form.variants
-        .filter(v => v.prix)
-        .map(v => ({ id: v.id, label: v.label.trim() || undefined, prix: parseFloat(v.prix) })),
+      ...stock,
+      variants: variantPayload(form.variants),
     };
     if (form.productType) payload.productType = form.productType;
-    if (form.stockMode) payload.stockMode = form.stockMode;
     if (form.ingredients.trim()) payload.ingredients = form.ingredients.trim();
     if (form.shelfLifeDays) payload.shelfLifeDays = parseInt(form.shelfLifeDays, 10);
     if (form.madeToOrder) payload.madeToOrder = true;
@@ -741,29 +829,52 @@ export default function ProduitsPage() {
    * d'y revenir, le formulaire traitant un champ vide comme « ne pas toucher ».
    */
   function handleRestock(product: Product) {
-    const current = product.stockQuotidien;
-    const answer = window.prompt(
-      `Réapprovisionner « ${product.nom} »\n\n` +
-        `Stock restant : ${product.stockRestant ?? 'illimité'}\n` +
-        `Capacité déclarée : ${current ?? 'illimitée'}\n\n` +
-        `Nouvelle quantité disponible (vide = illimité) :`,
-      current != null ? String(current) : '',
-    );
-    if (answer === null) return;
-
-    const trimmed = answer.trim();
-    const value = trimmed === '' ? null : Number(trimmed);
-    if (value !== null && (!Number.isInteger(value) || value < 0)) {
-      toast.error('Indiquez un nombre entier d’unités, ou laissez vide pour illimité');
+    const policy = policyOf(product);
+    const unit = product.stockUnit ?? 'PIECE';
+    // F3-10 — stock réel : l'inventaire (compte sur place) ou un ajout ;
+    // quantité du jour : un ajout ; toujours disponible : fixer une quantité.
+    if (policy === 'UNLIMITED') {
+      const answer = window.prompt(
+        `« ${product.nom} » est toujours disponible.\n\nFixer une quantité du jour ? (vide = annuler)`,
+        '',
+      );
+      if (!answer?.trim()) return;
+      const value = Number(answer.trim());
+      if (!Number.isInteger(value) || value < 0) {
+        toast.error('Indiquez un nombre entier d’unités');
+        return;
+      }
+      updateStock({ id: product.id, stockQuotidien: value }, {
+        onSuccess: () => toast.success(`Quantité du jour : ${formatUnits(value, unit)}`),
+        onError: (err) => toast.error(apiMessage(err, 'Mise à jour impossible')),
+      });
       return;
     }
-
-    updateStock({ id: product.id, stockQuotidien: value }, {
+    const counting =
+      policy === 'INVENTORY' &&
+      window.confirm(
+        `« ${product.nom} » — En stock : ${formatUnits(product.stockRestant ?? 0, unit)}.\n\n` +
+          'OK = faire l’inventaire (je compte ce que j’ai sur place)\n' +
+          'Annuler = réapprovisionner (j’ajoute ce que je viens de recevoir)',
+      );
+    const answer = window.prompt(
+      counting
+        ? `Inventaire — ${STOCK_UNITS[unit][1]} comptées sur place (tout compris, même ce qui attend d’être récupéré) :`
+        : `Réapprovisionner — ${STOCK_UNITS[unit][1]} reçues (pas en cartons) :`,
+      '',
+    );
+    if (answer === null || !answer.trim()) return;
+    const units = Number(answer.trim());
+    if (!Number.isInteger(units) || units < 0) {
+      toast.error('Indiquez un nombre entier d’unités');
+      return;
+    }
+    updateStock({ id: product.id, action: counting ? 'COUNT' : 'RESTOCK', units }, {
       onSuccess: () =>
         toast.success(
-          value === null
-            ? 'Produit repassé en stock illimité'
-            : `Stock remis à ${value} unité${value > 1 ? 's' : ''}`,
+          counting
+            ? `Inventaire enregistré : ${formatUnits(units, unit)} (les commandes en cours sont déduites)`
+            : `${formatUnits(units, unit)} ajoutées au stock`,
         ),
       onError: (err) => toast.error(apiMessage(err, 'Réapprovisionnement impossible')),
     });

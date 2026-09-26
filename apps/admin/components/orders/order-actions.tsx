@@ -42,7 +42,12 @@ export function OrderActions({
   pending?: boolean;
   onStatusUpdate: (id: string, status: OrderStatus) => void;
   onAccept: (id: string, prepMinutes: number) => void;
-  onReject: (id: string, reason: VendorRejectionReason, note?: string) => void;
+  onReject: (
+    id: string,
+    reason: VendorRejectionReason,
+    note?: string,
+    outOfStockProductIds?: string[],
+  ) => void;
   /** Retrait : remise avec le code du client (F3-07). */
   onHandOverWithCode?: (id: string, code: string) => void;
 }) {
@@ -50,6 +55,7 @@ export function OrderActions({
   const [prepMinutes, setPrepMinutes] = useState<number>(20);
   const [reason, setReason] = useState<VendorRejectionReason | null>(null);
   const [note, setNote] = useState('');
+  const [missing, setMissing] = useState<string[]>([]);
   const [code, setCode] = useState('');
   const actions = resolveOrderActions(order, role);
 
@@ -188,6 +194,27 @@ export function OrderActions({
             </label>
           ))}
         </div>
+        {/* F3-10 — sur « Rupture de stock », ce qui manque vraiment passe à 0 ;
+            le reste de la commande retourne en stock. */}
+        {reason === 'OUT_OF_STOCK' && orderProducts(order).length > 0 && (
+          <div className="space-y-1 rounded-md bg-white/60 dark:bg-dark-card/60 p-2">
+            <p className="text-[11px] text-zinc-600 dark:text-zinc-300">
+              Qu’est-ce qui manque ? Ces produits passeront en rupture ; les autres retourneront en stock.
+            </p>
+            {orderProducts(order).map((p) => (
+              <label key={p.id} className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={missing.includes(p.id)}
+                  onChange={(e) =>
+                    setMissing((m) => (e.target.checked ? [...m, p.id] : m.filter((id) => id !== p.id)))
+                  }
+                />
+                {p.nom}
+              </label>
+            ))}
+          </div>
+        )}
         <input
           type="text"
           maxLength={200}
@@ -205,7 +232,7 @@ export function OrderActions({
             disabled={!reason || pending}
             onClick={() => {
               if (!reason) return;
-              onReject(order.id, reason, note);
+              onReject(order.id, reason, note, reason === 'OUT_OF_STOCK' ? missing : []);
               setMode('idle');
             }}
             className="text-xs px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50"
@@ -278,4 +305,16 @@ function AcceptDeadline({ deadline }: { deadline: string }) {
       {text}
     </span>
   );
+}
+
+/** Un produit par ligne de commande, sans doublon (bouteille et carton = un produit). */
+function orderProducts(order: AdminOrder): Array<{ id: string; nom: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ id: string; nom: string }> = [];
+  for (const item of order.items ?? []) {
+    if (!item.productId || seen.has(item.productId)) continue;
+    seen.add(item.productId);
+    out.push({ id: item.productId, nom: item.product?.nom ?? 'Produit' });
+  }
+  return out;
 }
