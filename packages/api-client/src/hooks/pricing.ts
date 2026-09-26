@@ -41,6 +41,12 @@ export interface PublicPlatformSettings {
   referrerBonusPoints: number;
   maintenanceMode: boolean;
   maintenanceMessage: string | null;
+  /**
+   * F3-10 — formats de plusieurs unités ouverts aux vendeurs. Le back-office
+   * n'affiche le champ « unités par format » que s'il est accepté. Absent
+   * d'un serveur antérieur : non.
+   */
+  multiUnitVariantsEnabled?: boolean;
   // Les champs du canal de mise à jour mobile (`minAppVersion`…) sont aussi
   // servis par cette route ; le site n'a pas de version installée et ne les
   // déclare pas. Source des types admin : `PlatformSettings` (@lilia/types).

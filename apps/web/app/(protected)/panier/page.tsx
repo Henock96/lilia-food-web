@@ -550,18 +550,23 @@ export default function PanierPage() {
                           l'interface cesse de proposer le geste, ce qui est
                           moins brutal qu'un refus.
 
-                          Le stock est porté par le PRODUIT : deux variantes du
-                          même plat puisent dans le même compteur, on somme donc
-                          toutes les lignes qui le référencent. */}
+                          Le stock est porté par le PRODUIT : deux formats du
+                          même produit puisent dans le même compteur, on somme donc
+                          toutes les lignes qui le référencent — chacune pesant
+                          `quantite × stockConsumption` (F3-10 : un carton de 6
+                          retire 6 bouteilles). */}
                       {(() => {
                         const stock = item.product?.stockRestant;
+                        const weight = (i: typeof item) => i.variant?.stockConsumption ?? 1;
                         const engaged = items
                           .filter((i) => i.productId === item.productId)
-                          .reduce((sum, i) => sum + i.quantite, 0);
+                          .reduce((sum, i) => sum + i.quantite * weight(i), 0);
                         // `null` / `undefined` = illimité, à ne jamais confondre
                         // avec 0 = épuisé.
                         const atMax =
-                          stock !== null && stock !== undefined && engaged >= stock;
+                          stock !== null &&
+                          stock !== undefined &&
+                          engaged + weight(item) > stock;
                         return (
                           <button
                             onClick={() =>
@@ -570,7 +575,7 @@ export default function PanierPage() {
                             disabled={atMax}
                             title={
                               atMax
-                                ? `Il ne reste que ${stock} unité${(stock ?? 0) > 1 ? 's' : ''} de ce produit`
+                                ? 'Plus assez de stock pour en ajouter un de ce format'
                                 : undefined
                             }
                             className="w-7 h-7 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-tomato-100"

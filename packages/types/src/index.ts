@@ -513,7 +513,26 @@ export type ProductType =
   | 'PASTRY'
   | 'GROCERY';
 
+/** ⚠️ Déprécié par F3-10 — remplacé par `StockPolicy`, encore servi. */
 export type StockMode = 'DAILY' | 'PERMANENT';
+
+/**
+ * F3-10 — comment le stock d'un produit se renouvelle.
+ * - `UNLIMITED` : « Toujours disponible », aucun compteur ;
+ * - `DAILY_QUOTA` : « Quantité du jour », revient au quota chaque matin ;
+ * - `INVENTORY` : « Stock réel », baisse à chaque vente, remonte au réassort.
+ */
+export type StockPolicy = 'UNLIMITED' | 'DAILY_QUOTA' | 'INVENTORY';
+
+/** F3-10 — ce que compte le stock (libellé seulement). */
+export type StockUnit = 'PIECE' | 'PORTION' | 'BOTTLE' | 'CAN' | 'CUP' | 'BAG';
+
+/**
+ * F3-10 — verdict du serveur sur un format, en ventes possibles **de ce
+ * format** : 5 bouteilles en stock → Bouteille `AVAILABLE`, Carton de 6
+ * `OUT_OF_STOCK`. Jamais recalculé côté client.
+ */
+export type VariantStockStatus = 'UNLIMITED' | 'AVAILABLE' | 'LOW' | 'OUT_OF_STOCK';
 
 // --- Models ---
 export interface User {
@@ -845,6 +864,10 @@ export interface Product {
   // Multi-vendeurs (LIL-111, LIL-114)
   productType?: ProductType;
   stockMode?: StockMode;
+  /** F3-10 — absent d'un serveur antérieur (déduire de `stockMode`). */
+  stockPolicy?: StockPolicy;
+  /** F3-10 — ce que compte `stockRestant` (bouteilles, portions…). */
+  stockUnit?: StockUnit;
   ingredients?: string | null;
   shelfLifeDays?: number | null;
   madeToOrder?: boolean;
@@ -967,6 +990,8 @@ export interface ModifierOptionInput {
 export interface CartLineIssue {
   code: string;
   message: string;
+  /** F3-10 — `OUT_OF_STOCK` : ce qu'il reste de CE format (0 = rupture). */
+  availableQuantity?: number;
 }
 
 /**
@@ -991,6 +1016,14 @@ export interface ProductVariant {
   productId: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * F3-10 — unités de stock consommées par UNE unité vendue (bouteille = 1,
+   * carton de 6 = 6). Indépendant du prix. Absent : serveur antérieur (= 1).
+   */
+  stockConsumption?: number;
+  /** F3-10 — ventes encore possibles de CE format ; `null` = illimité. */
+  availableQuantity?: number | null;
+  stockStatus?: VariantStockStatus;
 }
 
 export interface MenuDuJour {
@@ -1018,6 +1051,8 @@ export interface MenuProduct {
   id: string;
   menuId: string;
   productId: string;
+  /** F3-10 — format servi dans le menu, choisi par le vendeur. */
+  variantId?: string;
   product?: Product;
   ordre: number;
   createdAt: string;
@@ -1180,6 +1215,11 @@ export interface OrderItem {
   optionsTotalXaf?: number;
   /** F3-09 — options figées à la commande. */
   options?: OrderItemOption[];
+  /** F3-10 — consommation figée du format (null = commande antérieure). */
+  stockUnitsPerItem?: number | null;
+  /** F3-10 — unités réellement réservées (ce que l'annulation rendra). */
+  stockUnitsReserved?: number | null;
+  stockUnit?: StockUnit | null;
 }
 
 export interface Delivery {
@@ -2106,6 +2146,12 @@ export interface PlatformSettings {
    * `MODIFIERS_ROLLOUT_ORDER` sinon) ; éteindre les options le ferme aussi.
    */
   modifiersManagementEnabled: boolean;
+
+  /**
+   * F3-10 — les vendeurs peuvent-ils créer des formats de plusieurs unités
+   * (carton de 6) ? À allumer après publication de l'app vendeurs compatible.
+   */
+  multiUnitVariantsEnabled?: boolean;
 
   /** Horodatage de la dernière écriture — renvoyé en `expectedUpdatedAt`. */
   updatedAt: string;

@@ -195,14 +195,29 @@ export function useReorderProducts(token: string | null) {
   });
 }
 
+/**
+ * `PATCH /products/:id/stock`.
+ *
+ * - `{ stockQuotidien }` : ancien contrat — le niveau déclaré devient aussi le
+ *   restant (`null` = « Toujours disponible ») ;
+ * - `{ action: 'RESTOCK', units }` (F3-10) : « Réapprovisionner +N », ajoute
+ *   sans écraser (une vente faite pendant la saisie n'est pas perdue) ;
+ * - `{ action: 'COUNT', units }` (F3-10, stock réel) : « Faire l'inventaire
+ *   = N » ; le serveur retire les unités réservées par des commandes pas
+ *   encore parties.
+ */
+export type ProductStockGesture =
+  | { stockQuotidien: number | null }
+  | { action: 'RESTOCK' | 'COUNT'; units: number };
+
 export function useUpdateProductStock(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, stockQuotidien }: { id: string; stockQuotidien: number | null }) =>
+    mutationFn: ({ id, ...gesture }: { id: string } & ProductStockGesture) =>
       apiClient<Product>(`/products/${id}/stock`, {
         method: 'PATCH',
         token,
-        body: JSON.stringify({ stockQuotidien }),
+        body: JSON.stringify(gesture),
       }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: productKeys.all }),
   });

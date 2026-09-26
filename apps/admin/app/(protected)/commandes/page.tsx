@@ -141,7 +141,12 @@ function OrderCard({
   token: string | null;
   onStatusUpdate: (id: string, status: OrderStatus) => void;
   onAccept: (id: string, prepMinutes: number) => void;
-  onReject: (id: string, reason: VendorRejectionReason, note?: string) => void;
+  onReject: (
+    id: string,
+    reason: VendorRejectionReason,
+    note?: string,
+    outOfStockProductIds?: string[],
+  ) => void;
   onHandOverWithCode: (id: string, code: string) => void;
   pending?: boolean;
 }) {
@@ -534,9 +539,14 @@ function CommandesPageContent() {
     );
   }
 
-  function handleReject(orderId: string, reason: VendorRejectionReason, note?: string) {
+  function handleReject(
+    orderId: string,
+    reason: VendorRejectionReason,
+    note?: string,
+    outOfStockProductIds?: string[],
+  ) {
     rejectOrder.mutate(
-      { orderId, reason, note },
+      { orderId, reason, note, outOfStockProductIds },
       {
         onSuccess: () => toast.success('Commande refusée — le client est remboursé'),
         onError: (e) => toast.error(apiMessage(e, 'Impossible de refuser la commande')),

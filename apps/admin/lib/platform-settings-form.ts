@@ -50,6 +50,8 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
   /** F3-09 — options côté clients, puis éditeur vendeur (dans cet ordre). */
   modifiersEnabled: boolean;
   modifiersManagementEnabled: boolean;
+  /** F3-10 — formats de plusieurs unités (carton de 6) ouverts aux vendeurs. */
+  multiUnitVariantsEnabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   minAppVersion: string;
@@ -74,6 +76,7 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     vendorPayoutDelayMinutes: String(s.vendorPayoutDelayMinutes ?? 60),
     modifiersEnabled: s.modifiersEnabled ?? false,
     modifiersManagementEnabled: s.modifiersManagementEnabled ?? false,
+    multiUnitVariantsEnabled: s.multiUnitVariantsEnabled ?? false,
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage ?? '',
     minAppVersion: s.minAppVersion ?? '',
@@ -179,6 +182,9 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
   }
   if (form.modifiersManagementEnabled !== (loaded.modifiersManagementEnabled ?? false)) {
     patch.modifiersManagementEnabled = form.modifiersManagementEnabled;
+  }
+  if (form.multiUnitVariantsEnabled !== (loaded.multiUnitVariantsEnabled ?? false)) {
+    patch.multiUnitVariantsEnabled = form.multiUnitVariantsEnabled;
   }
 
   if (form.maintenanceMode !== loaded.maintenanceMode) {
