@@ -29,7 +29,7 @@ import {
   type StepId,
 } from '@/lib/onboarding-steps';
 import { useAuthStore } from '@/store/auth';
-import { uploadToCloudinary } from '@/lib/cloudinary-upload';
+import { IMAGE_ACCEPT, uploadToCloudinary } from '@/lib/cloudinary-upload';
 import { toast } from 'sonner';
 import { ApiError } from '@lilia/api-client';
 import {
@@ -413,7 +413,7 @@ function VisualsStep({
           <label className="shrink-0 w-32 h-32 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center cursor-pointer hover:border-primary-500 transition-colors overflow-hidden">
             <input
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept={IMAGE_ACCEPT}
               className="hidden"
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             />

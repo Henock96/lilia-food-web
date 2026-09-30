@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Star, Trash2, Plus } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
-import { uploadToCloudinary } from '@/lib/cloudinary-upload';
+import { IMAGE_ACCEPT, uploadToCloudinary } from '@/lib/cloudinary-upload';
 
 export type DraftImage = { url: string; publicId: string; isCover: boolean };
 
@@ -32,6 +32,9 @@ export function ProductImageBuffer({ value, onChange }: Props) {
     setIsUploading(true);
     const next = [...value];
     let failures = 0;
+    // Le premier motif d'échec est montré : « N image(s) non uploadée(s) »
+    // seul ne disait ni le format refusé, ni la taille, ni le 429.
+    let firstError: string | null = null;
     for (const file of Array.from(files)) {
       if (next.length >= MAX_PHOTOS) break;
       try {
@@ -41,14 +44,19 @@ export function ProductImageBuffer({ value, onChange }: Props) {
           'products',
         );
         next.push({ url: secureUrl, publicId, isCover: next.length === 0 });
-      } catch {
+      } catch (err) {
         failures++;
+        firstError ??= err instanceof Error ? err.message : String(err);
       }
     }
     onChange(next);
     setIsUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (failures > 0) toast.error(`${failures} image(s) non uploadée(s)`);
+    if (failures > 0) {
+      toast.error(`${failures} image(s) non uploadée(s)`, {
+        description: firstError ?? undefined,
+      });
+    }
   }
 
   function setCover(index: number) {
@@ -80,7 +88,7 @@ export function ProductImageBuffer({ value, onChange }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={IMAGE_ACCEPT}
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
