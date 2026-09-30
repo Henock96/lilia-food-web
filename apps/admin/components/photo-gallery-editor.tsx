@@ -29,7 +29,7 @@ import {
 import type { EntityType, Photo } from '@lilia/types';
 import { toast } from 'sonner';
 import { Loader2, Star, Trash2, Pencil, Plus, ImageOff } from 'lucide-react';
-import { uploadToCloudinary, type UploadFolder } from '@/lib/cloudinary-upload';
+import { IMAGE_ACCEPT, uploadToCloudinary, type UploadFolder } from '@/lib/cloudinary-upload';
 import { apiMessage } from '@/lib/api-message';
 
 /** `EntityType` (vendor/product/menu) → dossier Cloudinary accepté par le backend. */
@@ -207,7 +207,7 @@ export function PhotoGalleryEditor({ entity, parentId, token }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={IMAGE_ACCEPT}
           className="hidden"
           onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
         />
