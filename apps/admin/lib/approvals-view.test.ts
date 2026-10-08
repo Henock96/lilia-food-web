@@ -65,6 +65,29 @@ describe('describeApproval', () => {
     ).toMatch(/60\s000 FCFA/);
   });
 
+  it('R-01 — une clôture déclarative ne se présente jamais comme un virement', () => {
+    const completed = describeApproval(
+      base({
+        kind: 'REFUND_EXECUTION',
+        amountXaf: 80000,
+        payload: { refundId: 'r', amountXaf: 80000, closeAs: 'COMPLETED', notes: 'MoMo réf. 9' },
+      }),
+    );
+    expect(completed.title).toMatch(/Clôture « remboursé »/);
+    expect(completed.detail).toMatch(/Aucun virement/);
+    expect(completed.detail).toContain('MoMo réf. 9');
+
+    const rejected = describeApproval(
+      base({
+        kind: 'REFUND_EXECUTION',
+        amountXaf: 80000,
+        payload: { refundId: 'r', amountXaf: 80000, closeAs: 'REJECTED' },
+      }),
+    );
+    expect(rejected.title).toMatch(/Refus/);
+    expect(rejected.detail).toMatch(/ne sera pas remboursé/);
+  });
+
   it('capacités : en clair ; aucune = retrait de tous les droits', () => {
     expect(
       describeApproval(base({ kind: 'CAPABILITY_GRANT', payload: { capabilities: ['FINANCE_APPROVE'] } })).detail,

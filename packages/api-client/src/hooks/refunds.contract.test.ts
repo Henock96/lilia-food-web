@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REFUNDS_PAGE_SIZE,
   nextRefundStatuses,
+  refundExecuteRequest,
   refundRequiresNote,
   refundUpdateRequest,
   refundsQueryOptions,
@@ -153,6 +154,28 @@ describe('nextRefundStatuses', () => {
     // qui mène à un conflit n'apprend rien.
     expect(nextRefundStatuses('COMPLETED')).toEqual([]);
     expect(nextRefundStatuses('REJECTED')).toEqual([]);
+  });
+
+  it('R-01 / D-2 — virement prestataire en vol : aucune clôture à la main', () => {
+    // Miroir du 409 `REFUND_PROVIDER_IN_FLIGHT` : le prestataire tranchera.
+    expect(
+      nextRefundStatuses('PROCESSING', { providerRefundId: 'prov-1' }),
+    ).toEqual([]);
+    // Un « en cours » déclaré à la main (virement manuel) reste clôturable.
+    expect(
+      nextRefundStatuses('PROCESSING', { providerRefundId: null }),
+    ).toEqual(['COMPLETED', 'REJECTED']);
+  });
+});
+
+describe('refundExecuteRequest (R-01)', () => {
+  it('vise la route canonique du virement, sans corps', () => {
+    // La destination n'est jamais un paramètre : le serveur vire au numéro
+    // qui a payé. Un corps ici serait une invitation à en ajouter un.
+    expect(refundExecuteRequest('r-1')).toEqual({
+      path: '/refunds/r-1/execute',
+      method: 'POST',
+    });
   });
 });
 

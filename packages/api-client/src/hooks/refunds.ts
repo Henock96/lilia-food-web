@@ -6,9 +6,15 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import type { Refund, RefundStatus, RefundsPage } from '@lilia/types';
+import type {
+  ApprovalRequested,
+  Refund,
+  RefundStatus,
+  RefundsPage,
+} from '@lilia/types';
 
 import { apiClient, apiClientRaw } from '../client';
+import { approvalKeys } from './approvals';
 
 const PAGE_SIZE = 20;
 
@@ -38,10 +44,29 @@ const CLOSED: readonly RefundStatus[] = ['COMPLETED', 'REJECTED'];
  * proposé une fois atteint — le virement a déjà été lancé, il ne reste qu'à
  * dire s'il a abouti.
  */
-export function nextRefundStatuses(current: RefundStatus): RefundStatus[] {
+export function nextRefundStatuses(
+  current: RefundStatus,
+  refund: { providerRefundId?: string | null } = {},
+): RefundStatus[] {
   if (CLOSED.includes(current)) return [];
-  if (current === 'PROCESSING') return ['COMPLETED', 'REJECTED'];
+  if (current === 'PROCESSING') {
+    // R-01 / D-2 — un virement prestataire en vol se conclut par le
+    // prestataire (callback ou réconciliation) ; le serveur refuse toute
+    // clôture à la main (409 `REFUND_PROVIDER_IN_FLIGHT`).
+    if (refund.providerRefundId) return [];
+    return ['COMPLETED', 'REJECTED'];
+  }
   return ['PROCESSING', 'COMPLETED', 'REJECTED'];
+}
+
+/**
+ * R-01 — virement du remboursement par le prestataire, au numéro qui a payé.
+ * Au-delà du seuil, le serveur ouvre une demande d'approbation au lieu de
+ * virer (`{ approvalRequired: true, approval }`). Pas de corps : la
+ * destination n'est jamais un paramètre.
+ */
+export function refundExecuteRequest(refundId: string) {
+  return { path: `/refunds/${refundId}/execute`, method: 'POST' as const };
 }
 
 /**
@@ -165,7 +190,13 @@ export function usePendingRefundsCount(token: string | null) {
   });
 }
 
-/** Fait avancer un remboursement dans la file. */
+/**
+ * Fait avancer un remboursement dans la file.
+ *
+ * R-01 — au-delà du seuil, `COMPLETED` / `REJECTED` ne changent rien : le
+ * serveur rend `{ approvalRequired: true, approval }` (2xx). L'appelant doit
+ * distinguer cette réponse d'un succès.
+ */
 export function useUpdateRefundStatus(token: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -179,14 +210,40 @@ export function useUpdateRefundStatus(token: string | null) {
       notes?: string;
     }) => {
       const { path, body } = refundUpdateRequest(refundId, status, notes);
-      return apiClient<Refund>(path, {
+      return apiClient<Refund | ApprovalRequested>(path, {
         method: 'PATCH',
         token,
         body: JSON.stringify(body),
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: refundKeys.all });
+    // R-01 — la promesse est RENDUE : la mutation reste « en cours » jusqu'à
+    // la relecture de la file, sinon les boutons se réactivent sur une fiche
+    // périmée. Une demande d'approbation alimente aussi l'écran Approbations.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: refundKeys.all }),
+        queryClient.invalidateQueries({ queryKey: approvalKeys.all }),
+      ]),
+  });
+}
+
+/** R-01 — « Virer au client » : la voie canonique d'exécution financière. */
+export function useExecuteRefund(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (refundId: string) => {
+      const { path, method } = refundExecuteRequest(refundId);
+      return apiClient<
+        { status: RefundStatus; message: string } | ApprovalRequested
+      >(path, { method, token });
     },
+    // R-01 — la promesse est RENDUE : la mutation reste « en cours » jusqu'à
+    // la relecture de la file, sinon les boutons se réactivent sur une fiche
+    // périmée. Une demande d'approbation alimente aussi l'écran Approbations.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: refundKeys.all }),
+        queryClient.invalidateQueries({ queryKey: approvalKeys.all }),
+      ]),
   });
 }
