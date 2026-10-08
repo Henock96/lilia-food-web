@@ -3,193 +3,226 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { Star, Clock, Bike, Heart } from 'lucide-react';
-import type { Restaurant } from '@lilia/types';
-import { cardVariants, buttonTap } from '@lilia/motion';
-import { formatDeliveryTime, cn, coverImage } from '@lilia/utils';
-import { useFavorites, useToggleFavorite, usePopularRestaurants } from '@lilia/api-client';
-import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
-import { VendorTypeBadge } from './vendor-type-badge';
+import type { Restaurant } from '@lilia/types';
+import { formatDeliveryTime, cn, coverImage } from '@lilia/utils';
+import { useFavorites, useToggleFavorite } from '@lilia/api-client';
+import { useAuthStore } from '@/store/auth';
+import { coverFit, type CoverFit } from '@/lib/cover-fit';
+import { openingLabel } from '@/lib/opening-label';
+import { VENDOR_TYPE_LABELS } from './vendor-type-badge';
 import { OfferBadge } from './offer-badge';
 import { DeliveryFeeText } from './delivery-fee-text';
-import { openingLabel } from '@/lib/opening-label';
 
 /**
- * Carte vendeur utilisée sur la home (« Les plus courus ») et sur /restaurants.
- * Volontairement séparée de RestaurantCard (conservée pour /favoris) pour ne
- * pas devoir toucher deux fois la même page, mais les deux composants
- * partagent désormais exactement le même habillage (charte de la refonte) :
- * ne pas laisser les deux diverger visuellement.
+ * Carte vendeur — accueil, catalogue et favoris (une seule carte, un seul
+ * habillage).
+ *
+ * ## Structure
+ *
+ * ```
+ * article (relatif)
+ *  ├── vignette           décorative (alt vide : le nom est juste à côté)
+ *  ├── h3 > a             LE lien de la carte ; son ::after couvre l'article
+ *  ├── type · adresse, statut, délai, livraison
+ *  └── bouton favori      frère du lien, au-dessus (z-10) — jamais dedans
+ * ```
+ *
+ * L'ancienne carte plaçait le bouton favori **dans** le `<a>` : contenu
+ * interactif imbriqué (HTML invalide), annonce ambiguë au lecteur d'écran, et
+ * un `preventDefault` pour empêcher le clic de naviguer.
+ *
+ * ## Moins de badges, plus d'information
+ *
+ * Retirés : « Rapide » (déduit de l'estimation que le vendeur déclare
+ * lui-même), « Populaire » (un appel `/restaurants/popular` par visiteur pour
+ * un badge arrivé après coup) et « Mis en avant » (une décision éditoriale qui
+ * ne dit rien au client ; elle agit déjà sur l'**ordre** serveur). Restent le
+ * statut, avec l'heure de réouverture servie par le serveur, le type, l'offre
+ * en cours et « Nouveau » (date de création : une donnée, pas un jugement).
+ *
+ * Mobile : une ligne (vignette carrée à gauche) — neuf vendeurs tiennent en un
+ * écran et demi au lieu de quatre. À partir de `sm` : carte verticale.
  */
 interface VendorCardProps {
   restaurant: Restaurant;
 }
 
+const NEW_VENDOR_DAYS = 7;
+
 export function VendorCard({ restaurant }: VendorCardProps) {
-  const reduced = useReducedMotion();
-  // Timestamp figé au montage : évite un appel impur à Date.now() pendant le render.
+  // Instant figé au montage : pas d'appel impur à Date.now() pendant le rendu.
   const [now] = useState(() => Date.now());
-  // `coverImage()` peut renvoyer une URL périmée (ex. lien tiers documenté
-  // comme périssable dans next.config.ts) : si <Image> échoue au chargement,
-  // on bascule sur le même aplat à initiale que « pas d'image du tout »,
-  // jamais l'icône de lien cassé.
+  // Une URL de couverture peut être morte (lien tiers périssable) : on retombe
+  // sur l'initiale, jamais sur l'icône d'image cassée.
   const [imgError, setImgError] = useState(false);
-  const { token } = useAuthStore();
-  const { data: favorites } = useFavorites(token);
-  const { data: popularList } = usePopularRestaurants();
-  const toggleFavorite = useToggleFavorite(token);
+  const [fit, setFit] = useState<CoverFit>('cover');
 
   const cover = coverImage(restaurant);
-  const isFavorite = favorites?.some((f) => f.id === restaurant.id) ?? false;
-  const isPopular = popularList?.some((r) => r.id === restaurant.id) ?? false;
-  const isFastDelivery = restaurant.estimatedDeliveryTimeMax <= 30;
-  const isNew = restaurant.createdAt
-    ? (now - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= 7
-    : false;
   const vendorType = restaurant.vendorType ?? 'RESTAURANT';
+  const isNew = restaurant.createdAt
+    ? (now - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= NEW_VENDOR_DAYS
+    : false;
+  const status = openingLabel(restaurant, new Date(now));
+  const href = `/restaurants/${restaurant.id}`;
 
-  // Un seul badge superposé sur la photo — priorité Mis en avant > Nouveau >
-  // Populaire > Rapide.
-  //
-  // `isFeatured` passe devant parce que c'est la seule des quatre distinctions
-  // qu'un humain a délibérément posée. Elle vit **ici**, sur la carte : c'est
-  // ce qui permet de mettre un vendeur en avant sans retirer les autres de la
-  // liste — ce que faisait la home en filtrant sur `?isFeatured=true`.
-  const overlayBadge = restaurant.isFeatured
-    ? 'Mis en avant'
-    : isNew
-      ? 'Nouveau'
-      : isPopular
-        ? 'Populaire'
-        : isFastDelivery
-          ? 'Rapide'
-          : null;
+  return (
+    <article
+      className={cn(
+        'relative flex h-full gap-3.5 rounded-xl border border-cream-300 bg-white p-3 transition-shadow duration-200',
+        'hover:shadow-md has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-tomato-600 has-[a:focus-visible]:ring-offset-2',
+        'sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0',
+      )}
+    >
+      <div
+        className={cn(
+          'relative aspect-square w-24 shrink-0 overflow-hidden rounded-lg',
+          'sm:aspect-[16/10] sm:w-full sm:rounded-none sm:border-b sm:border-cream-300',
+          fit === 'contain' && !imgError ? 'bg-white' : 'bg-cream-200',
+        )}
+      >
+        {cover && !imgError ? (
+          <Image
+            src={cover}
+            alt=""
+            fill
+            // Image vendeur = URL externe arbitraire (Cloudinary ou lien tiers).
+            unoptimized
+            sizes="(max-width: 640px) 96px, (max-width: 1024px) 50vw, 25vw"
+            className={cn(fit === 'contain' ? 'object-contain p-3' : 'object-cover')}
+            onLoad={(e) =>
+              setFit(coverFit(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight))
+            }
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center" aria-hidden>
+            <span className="font-display text-2xl font-bold text-ink-300">
+              {restaurant.nom.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
 
-  function handleFavorite(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
+      <div className="flex min-w-0 flex-1 flex-col sm:p-4">
+        <h3 className="pr-10 font-display text-base font-bold leading-snug text-ink-900">
+          <Link
+            href={href}
+            className="line-clamp-2 after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none!"
+          >
+            {restaurant.nom}
+          </Link>
+        </h3>
+
+        <p className="mt-0.5 truncate text-[13px] text-ink-500">
+          {VENDOR_TYPE_LABELS[vendorType]}
+          {restaurant.adresse ? ` · ${restaurant.adresse}` : ''}
+        </p>
+
+        <p
+          className={cn(
+            'mt-2 flex items-center gap-1.5 text-[13px] font-semibold',
+            restaurant.isOpen ? 'text-success' : 'text-ink-700',
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              'h-2 w-2 shrink-0 rounded-full',
+              restaurant.isOpen ? 'bg-success' : 'bg-ink-300',
+            )}
+          />
+          {status}
+        </p>
+
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-[13px] text-ink-500">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" aria-hidden />
+            {formatDeliveryTime(
+              restaurant.estimatedDeliveryTimeMin,
+              restaurant.estimatedDeliveryTimeMax,
+            )}
+          </span>
+          <span className="flex items-center gap-1">
+            <Bike className="h-3.5 w-3.5" aria-hidden />
+            <DeliveryFeeText
+              fixedDeliveryFee={restaurant.fixedDeliveryFee}
+              freeLabel="Livraison offerte"
+            />
+          </span>
+          {restaurant.averageRating ? (
+            <span className="flex items-center gap-1">
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
+              <span className="font-semibold text-ink-700">
+                {restaurant.averageRating.toFixed(1)}
+              </span>
+              <span className="sr-only">sur 5</span>
+            </span>
+          ) : null}
+        </div>
+
+        {(isNew || restaurant.activeOffer) && (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {isNew && (
+              <span className="inline-flex items-center rounded-full bg-tomato-50 px-2.5 py-1 text-xs font-semibold text-tomato-700">
+                Nouveau
+              </span>
+            )}
+            {/* F3-11 — offre boutique en cours */}
+            {restaurant.activeOffer && <OfferBadge offer={restaurant.activeOffer} />}
+          </div>
+        )}
+      </div>
+
+      <FavoriteButton restaurant={restaurant} />
+    </article>
+  );
+}
+
+/**
+ * Bouton favori : zone tactile de 44 × 44 px, pastille visuelle de 36 px.
+ * Frère du lien de la carte et au-dessus de lui (`z-10`) — le clic ne navigue
+ * pas, sans `preventDefault`.
+ */
+function FavoriteButton({ restaurant }: { restaurant: Restaurant }) {
+  const { token } = useAuthStore();
+  const { data: favorites } = useFavorites(token);
+  const toggleFavorite = useToggleFavorite(token);
+  const isFavorite = favorites?.some((f) => f.id === restaurant.id) ?? false;
+
+  function handleClick() {
     if (!token) {
-      toast.error('Connectez-vous pour ajouter aux favoris');
+      toast.error('Connecte-toi pour garder tes vendeurs favoris.');
       return;
     }
     toggleFavorite.mutate(
       { restaurantId: restaurant.id, isFavorite, restaurant },
       {
-        onSuccess: () => toast.success(isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris'),
-        onError: () => toast.error('Erreur, veuillez réessayer'),
+        onSuccess: () =>
+          toast.success(isFavorite ? 'Retiré de tes favoris' : 'Ajouté à tes favoris'),
+        onError: () => toast.error('Impossible de modifier tes favoris. Réessaie.'),
       },
     );
   }
 
   return (
-    <motion.div variants={reduced ? {} : cardVariants} whileTap={reduced ? {} : buttonTap} className="h-full">
-      <Link
-        href={`/restaurants/${restaurant.id}`}
-        className="group flex h-full flex-col overflow-hidden rounded-xl border border-cream-300 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tomato-500"
-        aria-label={`${restaurant.nom} — ${restaurant.isOpen ? 'Ouvert' : 'Fermé'}`}
-      >
-        {/* Image */}
-        <div className="relative h-44 overflow-hidden bg-cream-200">
-          {cover && !imgError ? (
-            <Image
-              src={cover}
-              alt={restaurant.nom}
-              fill
-              // Image vendeur = URL externe arbitraire → unoptimized (cf. restaurant-card).
-              unoptimized
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              placeholder="blur"
-              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-cream-200">
-              <span className="font-display text-2xl text-ink-300" aria-hidden>
-                {restaurant.nom.charAt(0).toUpperCase()}
-              </span>
-            </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-pressed={isFavorite}
+      aria-label={`${restaurant.nom} dans mes favoris`}
+      className="group/fav absolute right-0.5 top-0.5 z-10 flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none! sm:right-1.5 sm:top-1.5"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-cream-300 transition-colors group-hover/fav:ring-tomato-600 group-focus-visible/fav:ring-2 group-focus-visible/fav:ring-tomato-600">
+        <Heart
+          aria-hidden
+          className={cn(
+            'h-4 w-4 transition-colors',
+            isFavorite ? 'fill-tomato-600 text-tomato-600' : 'text-ink-500',
           )}
-
-          {/* statut + type */}
-          <div className="absolute left-3 top-3 flex items-center gap-1.5">
-            <span
-              className={cn(
-                'rounded-full px-2.5 py-1 text-[11px] font-semibold',
-                restaurant.isOpen ? 'bg-success text-white' : 'bg-ink-500 text-white',
-              )}
-            >
-              {openingLabel(restaurant)}
-            </span>
-            <VendorTypeBadge vendorType={vendorType} />
-            {/* F3-11 — offre boutique en cours */}
-            {restaurant.activeOffer && <OfferBadge offer={restaurant.activeOffer} />}
-          </div>
-
-          {/* favori */}
-          <button
-            onClick={handleFavorite}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm transition-transform hover:scale-110"
-            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          >
-            <Heart
-              className={cn(
-                'h-4 w-4 transition-colors',
-                isFavorite ? 'fill-tomato-600 text-tomato-600' : 'text-ink-300',
-              )}
-            />
-          </button>
-
-          {/* badge unique bas-gauche (Mis en avant > Nouveau > Populaire > Rapide) */}
-          {overlayBadge && (
-            <div className="absolute bottom-3 left-3">
-              <span
-                className={cn(
-                  'rounded-pill px-2 py-0.5 text-[10px] font-bold text-white',
-                  restaurant.isFeatured ? 'bg-amber-500' : 'bg-ink-900/80',
-                )}
-              >
-                {overlayBadge}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Contenu */}
-        <div className="flex flex-1 flex-col p-4">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 font-display text-base font-bold text-ink-900">
-              {restaurant.nom}
-            </h3>
-            {restaurant.averageRating ? (
-              <span
-                className="flex shrink-0 items-center gap-1"
-                aria-label={`Note ${restaurant.averageRating.toFixed(1)} sur 5`}
-              >
-                <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" aria-hidden />
-                <span className="text-sm font-semibold text-ink-700">
-                  {restaurant.averageRating.toFixed(1)}
-                </span>
-              </span>
-            ) : null}
-          </div>
-
-          <p className="mt-1 line-clamp-1 text-[11px] text-ink-500">{restaurant.adresse}</p>
-
-          <div className="mt-auto flex items-center gap-4 pt-4 text-[11px] text-ink-500">
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" aria-hidden />
-              {formatDeliveryTime(restaurant.estimatedDeliveryTimeMin, restaurant.estimatedDeliveryTimeMax)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Bike className="h-3.5 w-3.5" aria-hidden />
-              <DeliveryFeeText fixedDeliveryFee={restaurant.fixedDeliveryFee} freeLabel="Gratuit" />
-            </span>
-          </div>
-        </div>
-      </Link>
-    </motion.div>
+        />
+      </span>
+    </button>
   );
 }

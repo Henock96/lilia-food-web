@@ -742,6 +742,12 @@ export interface Restaurant {
    * pas un motif). Absente d'un serveur antérieur, `null` sans pause.
    */
   pausedUntil?: string | null;
+  /**
+   * Prochaine ouverture (ISO UTC), calculée par le serveur pause comprise ;
+   * `null` quand le vendeur est ouvert ou que rien n'est prévu sous huit
+   * jours. Absent d'un serveur antérieur — `openingLabel` distingue les deux.
+   */
+  nextOpeningAt?: string | null;
   estimatedDeliveryTimeMin: number;
   estimatedDeliveryTimeMax: number;
   minimumOrderAmount: number;
