@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { apiClient } from '@lilia/api-client';
 import type { Product, Restaurant } from '@lilia/types';
 import { SITE_URL as BASE_URL } from '@/lib/site';
+import { SERVER_MAX_LIMIT } from '@/lib/vendor-catalog';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // `/connexion` et `/inscription` ont été retirés : ce sont des formulaires
@@ -66,13 +67,12 @@ async function fetchProductRoutes(): Promise<MetadataRoute.Sitemap> {
 /** Nombre maximum de pages parcourues — garde-fou contre une boucle infinie. */
 const MAX_SITEMAP_PAGES = 50;
 /**
- * 50 et pas davantage : `/vendors` rejette toute valeur supérieure avec un
- * 400 (« limit must not be greater than 50 »), contrairement à
- * `/restaurants` qui tolérait 100. Une valeur trop haute faisait échouer le
- * premier appel, et le `catch` renvoyait alors un sitemap sans aucune fiche
- * vendeur — sans le moindre signal d'erreur.
+ * Borne serveur commune (`PaginationQueryDto`, `MAX_PAGE_SIZE = 100`) : la
+ * limite propre à `/vendors` (50) a été alignée côté backend. Une valeur
+ * au-delà ferait échouer le premier appel en 400, et le `catch` rendrait un
+ * sitemap sans aucune fiche — sans le moindre signal d'erreur.
  */
-const PAGE_SIZE = 50;
+const PAGE_SIZE = SERVER_MAX_LIMIT;
 
 /**
  * Catalogue produit public, page par page.

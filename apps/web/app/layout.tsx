@@ -36,17 +36,21 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Lilia Food — Livraison de repas à Brazzaville',
+    default: 'Lilia Food — Les vendeurs de Brazzaville, livrés ou à emporter',
     template: '%s | Lilia Food',
   },
+  // Marketplace multi-vendeurs, pas une simple livraison de restaurants :
+  // restaurants, cuisines maison et boutiques de boissons ; livraison ou
+  // retrait selon le vendeur ; MTN MoMo et Airtel Money (pawaPay). Les
+  // boulangeries ne sont citées nulle part tant qu'aucune n'est publiée.
   description:
-    'Commandez vos repas préférés en ligne. Livraison rapide à Brazzaville depuis les meilleurs restaurants. Paiement MTN MoMo.',
-  keywords: ['livraison repas', 'Brazzaville', 'food delivery', 'restaurant', 'commander en ligne', 'MTN MoMo', 'Congo'],
+    'Commande auprès des restaurants, cuisines maison et boutiques de Brazzaville. Livraison ou retrait selon le vendeur, paiement MTN MoMo ou Airtel Money.',
+  keywords: ['Brazzaville', 'livraison de repas', 'cuisine maison', 'restaurant', 'commander en ligne', 'MTN MoMo', 'Airtel Money', 'Congo'],
   authors: [{ name: 'Lilia Food' }],
   manifest: '/manifest.json',
   openGraph: {
-    title: 'Lilia Food — Livraison de repas à Brazzaville',
-    description: 'Commandez depuis les meilleurs restaurants de Brazzaville au Congo. Livraison rapide, paiement MTN MoMo.',
+    title: 'Lilia Food — Les vendeurs de Brazzaville',
+    description: 'Restaurants, cuisines maison et boutiques de Brazzaville au même endroit. Livraison ou retrait, paiement MTN MoMo ou Airtel Money.',
     url: SITE_URL,
     siteName: 'Lilia Food',
     locale: 'fr_CG',
@@ -55,7 +59,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Lilia Food',
-    description: 'Livraison de repas à Brazzaville au Congo',
+    description: 'Les vendeurs de Brazzaville, livrés ou à emporter',
   },
   appleWebApp: {
     capable: true,
@@ -70,8 +74,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f97316' },
-    { media: '(prefers-color-scheme: dark)',  color: '#0f0d0a' },
+    { media: '(prefers-color-scheme: light)', color: '#E8541F' }, // orange500 de l'app
+    { media: '(prefers-color-scheme: dark)',  color: '#0F0D0B' }, // darkBg de l'app
   ],
 };
 

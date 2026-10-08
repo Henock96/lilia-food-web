@@ -5,7 +5,7 @@ import { Heart } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 import { useFavorites } from '@lilia/api-client';
-import { RestaurantCard } from '@/components/restaurants/restaurant-card';
+import { VendorCard } from '@/components/restaurants/vendor-card';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 
 export default function FavorisPage() {
@@ -36,7 +36,7 @@ export default function FavorisPage() {
 
       {isError && (
         <div className="text-center py-16 text-ink-500">
-          <p className="font-medium">Impossible de charger vos favoris</p>
+          <p className="font-medium">Impossible de charger tes favoris</p>
         </div>
       )}
 
@@ -45,20 +45,20 @@ export default function FavorisPage() {
           variants={containerVariants}
           className="flex flex-col items-center justify-center py-24 gap-4 text-center"
         >
-          <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
-            <Heart className="w-10 h-10 text-red-300" />
+          <div className="w-20 h-20 rounded-full bg-tomato-50 flex items-center justify-center">
+            <Heart className="w-10 h-10 text-tomato-500" />
           </div>
           <h2 className="text-lg font-semibold text-ink-700">
             Aucun favori pour l&apos;instant
           </h2>
           <p className="text-sm text-ink-500 max-w-xs">
-            Appuyez sur le cœur d&apos;un restaurant pour le sauvegarder ici.
+            Touche le cœur d&apos;un vendeur pour le retrouver ici.
           </p>
           <Link
             href="/restaurants"
             className="mt-2 px-5 py-2.5 bg-tomato-600 text-white text-sm font-semibold rounded-xl hover:bg-tomato-700 transition-colors"
           >
-            Explorer les restaurants
+            Explorer les vendeurs
           </Link>
         </motion.div>
       )}
@@ -70,7 +70,7 @@ export default function FavorisPage() {
         >
           {favorites.map((restaurant) => (
             <motion.div key={restaurant.id} variants={cardVariants}>
-              <RestaurantCard restaurant={restaurant} />
+              <VendorCard restaurant={restaurant} />
             </motion.div>
           ))}
         </motion.div>

@@ -51,7 +51,7 @@ export async function Footer() {
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand + contact */}
           <div className="col-span-2">
-            <Link href="/" className="mb-5 flex items-center gap-2.5" aria-label="Lilia Food">
+            <Link href="/" className="mb-5 flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
                 <Image src="/logo.jpg" alt="" width={72} height={72} className="h-full w-full object-cover" />
               </span>

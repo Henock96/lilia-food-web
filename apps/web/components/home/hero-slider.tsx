@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useReducedMotion } from 'framer-motion';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, Search } from 'lucide-react';
 import type { HeroBannerSlide } from '@/lib/hero-slides';
 
 /** Intervalle de rotation. Assez lent pour qu'on ait le temps de lire. */
@@ -18,8 +18,14 @@ const ROTATE_MS = 6000;
  */
 const SITE_HEADLINE = "T'as faim ? On te livre à Brazzaville.";
 
+/**
+ * Accroche factuelle : la marketplace réunit plusieurs types de vendeurs, et
+ * chacun propose la livraison, le retrait ou les deux. L'ancienne version
+ * affirmait « tout est livré » et citait des boulangeries absentes du
+ * catalogue.
+ */
 const SITE_SUBHEADLINE =
-  'La marketplace locale qui connecte les meilleurs vendeurs de Brazzaville à ta porte. Restaurant, cuisine maison, boulangerie — tout est livré.';
+  'Restaurants, cuisines maison et boutiques de Brazzaville, au même endroit. Livraison ou retrait, selon le vendeur.';
 
 /**
  * Hero de la home. `slides` est calculé côté serveur (voir
@@ -67,9 +73,20 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
   const bannerHeadline =
     currentSlide?.title && currentSlide.title !== SITE_HEADLINE ? currentSlide.title : null;
 
+  // Lien de la bannière active, s'il mène ailleurs que le catalogue. Saisi en
+  // administration : on n'accepte qu'un chemin interne ou une URL https.
+  const bannerLink = currentSlide?.linkUrl;
+  const offerLink =
+    bannerLink &&
+    bannerLink !== '/restaurants' &&
+    ((bannerLink.startsWith('/') && !bannerLink.startsWith('//')) ||
+      bannerLink.startsWith('https://'))
+      ? bannerLink
+      : null;
+
   return (
     <section
-      className={`relative h-[24rem] overflow-hidden sm:h-[28rem] ${hasImage ? '' : 'bg-tomato-600'}`}
+      className={`relative flex min-h-[28rem] overflow-hidden sm:min-h-[30rem] ${hasImage ? '' : 'bg-tomato-600'}`}
       aria-label="Accueil Lilia Food"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -110,7 +127,7 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
 
       {/* Titre et bouton sont rendus immédiatement, sans animation d'entrée :
           c'est ce qui évite la page vide de plusieurs secondes. */}
-      <div className="relative mx-auto flex h-full max-w-7xl flex-col items-start justify-end pb-10 px-6 sm:px-10 lg:px-16">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col items-start justify-end px-4 pb-8 pt-16 sm:px-10 lg:px-16">
         {/* Le titre de la bannière s'affiche ici, au-dessus du h1, et non
             DANS le h1. Auparavant le h1 prenait la valeur du slide actif : il
             changeait donc toutes les six secondes. Un titre de niveau 1 est
@@ -120,7 +137,7 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
         {bannerHeadline && (
           <span
             aria-live="polite"
-            className="mb-3 inline-flex rounded-pill bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm"
+            className="mb-3 inline-flex rounded-pill bg-ink-900/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
           >
             {bannerHeadline}
           </span>
@@ -131,19 +148,43 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
         <p className="mt-3 max-w-md text-sm leading-relaxed text-white sm:text-base">
           {currentSlide?.description || SITE_SUBHEADLINE}
         </p>
-        <div className="mt-7 flex flex-wrap items-center gap-4">
-          <Link
-            href={currentSlide?.linkUrl ?? '/restaurants'}
+        {/* Recherche : le geste que l'accueil n'offrait pas. Un simple
+            formulaire GET vers le catalogue — il fonctionne sans JavaScript,
+            et l'URL obtenue se partage. Il cherche des vendeurs (nom,
+            spécialité, adresse) ; il ne promet pas de chercher des plats tant
+            que la recherche produit n'existe pas sur le site. */}
+        <form
+          action="/restaurants"
+          role="search"
+          className="mt-6 flex w-full max-w-xl items-center gap-1 rounded-pill bg-white p-1.5 shadow-lg"
+        >
+          <label htmlFor="hero-recherche" className="sr-only">
+            Rechercher un vendeur ou une spécialité
+          </label>
+          <Search className="ml-3 h-4 w-4 shrink-0 text-ink-500" aria-hidden />
+          <input
+            id="hero-recherche"
+            name="q"
+            type="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            placeholder="Vendeur ou spécialité…"
+            className="min-h-11 min-w-0 flex-1 bg-transparent px-2 text-base text-ink-900 placeholder:text-ink-500 focus:outline-none"
+          />
+          <button
+            type="submit"
             data-analytics-id="order_cta_click"
-            className={
-              hasImage
-                ? 'rounded-pill bg-tomato-600 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-tomato-700'
-                : 'rounded-pill bg-white px-8 py-3.5 text-base font-bold text-tomato-700 transition-colors hover:bg-cream-100'
-            }
+            className="min-h-11 shrink-0 rounded-pill bg-tomato-600 px-5 text-sm font-bold text-white transition-colors hover:bg-tomato-700 focus-visible:outline-none! focus-visible:ring-2 focus-visible:ring-tomato-600 focus-visible:ring-offset-2"
           >
-            Commander maintenant
-          </Link>
-        </div>
+            Chercher
+          </button>
+        </form>
+        <Link
+          href={offerLink ?? '/restaurants'}
+          className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-white underline decoration-white/60 underline-offset-4 hover:decoration-white"
+        >
+          {offerLink ? 'Voir l’offre en cours' : 'ou parcourir tous les vendeurs'}
+        </Link>
 
         {/* Contrôles du carrousel.
             WCAG 2.2.2 (Pause, Stop, Hide) : tout contenu qui défile
@@ -153,19 +194,21 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
             l'essentiel de l'audience. Rien n'indiquait non plus qu'il y avait
             plusieurs bannières. */}
         {slides.length >= 2 && (
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-2 flex items-center gap-1">
             <button
               type="button"
               onClick={() => setPausedByUser((p) => !p)}
               aria-label={
                 pausedByUser ? 'Reprendre le défilement' : 'Mettre le défilement en pause'
               }
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-900/50 text-white transition-colors hover:bg-ink-900/70 focus:outline-none focus:ring-2 focus:ring-white"
+              className="group/ctl flex h-11 w-11 items-center justify-center rounded-full focus:outline-none!"
             >
-              {pausedByUser ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-900/60 text-white transition-colors group-hover/ctl:bg-ink-900/80 group-focus-visible/ctl:ring-2 group-focus-visible/ctl:ring-white">
+                {pausedByUser ? <Play className="h-3.5 w-3.5" aria-hidden /> : <Pause className="h-3.5 w-3.5" aria-hidden />}
+              </span>
             </button>
 
-            <div className="flex items-center gap-2" role="tablist" aria-label="Bannières">
+            <div className="flex items-center" role="tablist" aria-label="Bannières">
               {slides.map((s, i) => (
                 <button
                   key={s.id}
@@ -174,10 +217,17 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
                   aria-selected={i === active}
                   aria-label={`Bannière ${i + 1} sur ${slides.length}`}
                   onClick={() => setActive(i)}
-                  className={`h-2.5 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-white ${
-                    i === active ? 'w-6 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/75'
-                  }`}
-                />
+                  className="group/dot flex h-11 min-w-8 items-center justify-center focus:outline-none!"
+                >
+                  {/* Point visuel inchangé ; la zone tactile, elle, fait 44 px
+                      de haut (elle faisait 10 × 10 px). */}
+                  <span
+                    aria-hidden
+                    className={`block h-2.5 rounded-full transition-[width,background-color] group-focus-visible/dot:ring-2 group-focus-visible/dot:ring-white ${
+                      i === active ? 'w-6 bg-white' : 'w-2.5 bg-white/60 group-hover/dot:bg-white/80'
+                    }`}
+                  />
+                </button>
               ))}
             </div>
           </div>

@@ -10,29 +10,29 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-cream-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
-        {/* Illustration SVG afro */}
+        {/* Illustration — teintes `LiliaColors.orange50…500` de l'application. */}
         <div className="flex justify-center mb-8">
           <svg viewBox="0 0 200 200" className="w-48 h-48" fill="none" aria-hidden>
-            <circle cx="100" cy="100" r="90" fill="#fff7ed" />
+            <circle cx="100" cy="100" r="90" fill="#FFF4EF" />
             {/* Assiette vide */}
-            <ellipse cx="100" cy="120" rx="55" ry="12" fill="#fed7aa" opacity="0.6" />
-            <circle cx="100" cy="100" r="42" fill="#ffedd5" stroke="#fdba74" strokeWidth="2.5" />
-            <circle cx="100" cy="100" r="30" fill="#fff7ed" stroke="#fdba74" strokeWidth="1.5" />
+            <ellipse cx="100" cy="120" rx="55" ry="12" fill="#FFC5A1" opacity="0.6" />
+            <circle cx="100" cy="100" r="42" fill="#FFE4D3" stroke="#FF9E6A" strokeWidth="2.5" />
+            <circle cx="100" cy="100" r="30" fill="#FFF4EF" stroke="#FF9E6A" strokeWidth="1.5" />
             {/* Fourchette */}
-            <rect x="86" y="62" width="3" height="28" rx="1.5" fill="#fb923c" />
-            <rect x="83" y="62" width="2" height="12" rx="1" fill="#fb923c" />
-            <rect x="89" y="62" width="2" height="12" rx="1" fill="#fb923c" />
+            <rect x="86" y="62" width="3" height="28" rx="1.5" fill="#F47430" />
+            <rect x="83" y="62" width="2" height="12" rx="1" fill="#F47430" />
+            <rect x="89" y="62" width="2" height="12" rx="1" fill="#F47430" />
             {/* Couteau */}
-            <rect x="111" y="62" width="3" height="28" rx="1.5" fill="#fb923c" />
-            <path d="M111 62 Q117 66 114 74 L111 74 Z" fill="#f97316" />
+            <rect x="111" y="62" width="3" height="28" rx="1.5" fill="#F47430" />
+            <path d="M111 62 Q117 66 114 74 L111 74 Z" fill="#E8541F" />
             {/* Point d'interrogation stylisé */}
-            <text x="100" y="110" textAnchor="middle" fontSize="28" fontWeight="bold" fill="#f97316" fontFamily="Georgia, serif">?</text>
+            <text x="100" y="110" textAnchor="middle" fontSize="28" fontWeight="bold" fill="#E8541F" fontFamily="Georgia, serif">?</text>
             {/* Motif géométrique africain */}
-            <circle cx="30" cy="30" r="6" fill="#fb923c" opacity="0.3" />
-            <circle cx="170" cy="30" r="6" fill="#fb923c" opacity="0.3" />
-            <circle cx="30" cy="170" r="6" fill="#fb923c" opacity="0.3" />
-            <circle cx="170" cy="170" r="6" fill="#fb923c" opacity="0.3" />
-            <rect x="26" y="26" width="8" height="8" rx="1" fill="none" stroke="#fb923c" strokeWidth="1" opacity="0.5" transform="rotate(45 30 30)" />
+            <circle cx="30" cy="30" r="6" fill="#F47430" opacity="0.3" />
+            <circle cx="170" cy="30" r="6" fill="#F47430" opacity="0.3" />
+            <circle cx="30" cy="170" r="6" fill="#F47430" opacity="0.3" />
+            <circle cx="170" cy="170" r="6" fill="#F47430" opacity="0.3" />
+            <rect x="26" y="26" width="8" height="8" rx="1" fill="none" stroke="#F47430" strokeWidth="1" opacity="0.5" transform="rotate(45 30 30)" />
           </svg>
         </div>
 
@@ -57,7 +57,7 @@ export default function NotFound() {
             href="/restaurants"
             className="px-6 py-3 bg-white border border-cream-300 text-ink-700 font-semibold rounded-2xl hover:bg-cream-100 transition-all hover:-translate-y-0.5"
           >
-            Voir les restaurants
+            Voir les vendeurs
           </Link>
         </div>
       </div>

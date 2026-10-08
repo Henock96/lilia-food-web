@@ -1,11 +1,11 @@
 {
   "name": "Lilia Food — Livraison à Brazzaville",
   "short_name": "Lilia Food",
-  "description": "Commandez vos repas préférés à Brazzaville. Livraison rapide, paiement MTN MoMo.",
+  "description": "Les vendeurs de Brazzaville au même endroit : restaurants, cuisines maison, boissons. Livraison ou retrait, paiement MTN MoMo ou Airtel Money.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0d0a",
-  "theme_color": "#f97316",
+  "background_color": "#FAF5EE",
+  "theme_color": "#E8541F",
   "orientation": "portrait-primary",
   "lang": "fr",
   "categories": ["food", "shopping", "lifestyle"],
@@ -26,9 +26,9 @@
   "screenshots": [],
   "shortcuts": [
     {
-      "name": "Restaurants",
-      "short_name": "Restaurants",
-      "description": "Voir les restaurants disponibles",
+      "name": "Vendeurs",
+      "short_name": "Vendeurs",
+      "description": "Voir les vendeurs disponibles",
       "url": "/restaurants",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },

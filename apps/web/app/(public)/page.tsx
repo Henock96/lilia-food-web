@@ -14,19 +14,22 @@ export const metadata: Metadata = {
 };
 
 /**
- * Le hero seul dépend du réseau — le reste de la page est prérendu.
+ * Seuls le hero, les univers et les vendeurs dépendent du réseau ; le reste
+ * de la page est prérendu.
  *
- * `fetchBanners()` appelle `connection()` : sans cette frontière `<Suspense>`,
- * l'`await` remonterait jusqu'au composant de page et empêcherait la coquille
- * d'être prérendue statiquement (PPR). C'est la règle déjà posée pour
- * `getVendors` dans `FeaturedRestaurants`.
+ * `fetchBanners()` et les lectures de `lib/vendors.ts` appellent
+ * `connection()` : chacune vit sous sa propre frontière `<Suspense>`, sans
+ * quoi l'`await` remonterait jusqu'au composant de page et empêcherait la
+ * coquille d'être prérendue statiquement (PPR).
  */
 async function HeroFromBanners() {
   const bannerSlides = await fetchBanners();
   return <HeroSlider slides={bannerSlides} />;
 }
 
-export default function HomePage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default function HomePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
     <div>
       <OrganizationJsonLd />
@@ -35,8 +38,9 @@ export default function HomePage() {
       <Suspense fallback={<HeroSlider slides={[]} />}>
         <HeroFromBanners />
       </Suspense>
+      {/* Les vendeurs d'abord : c'est ce que le visiteur vient chercher. */}
+      <FeaturedRestaurants searchParams={searchParams} />
       <CategoryRail />
-      <FeaturedRestaurants />
       <HowItWorks />
       <DownloadApp />
       <BecomePartner />

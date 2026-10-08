@@ -23,7 +23,7 @@ export function OfferBadge({
       data-testid="offer-badge"
       title={offer.label || undefined}
       className={cn(
-        'inline-flex items-center gap-1 rounded-full bg-tomato-600 px-2.5 py-1 text-[11px] font-bold text-white',
+        'inline-flex items-center gap-1 rounded-full bg-tomato-600 px-2.5 py-1 text-xs font-bold text-white',
         className,
       )}
     >

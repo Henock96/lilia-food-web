@@ -1,63 +1,91 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowUpRight } from 'lucide-react';
 import { HOME_CATEGORIES } from '@/lib/home-content';
+import { getVendorFacets } from '@/lib/vendors';
 
 /**
- * Tuiles catégorie avec image de fond + overlay sombre pour la lisibilité.
- * L'icône reste visible en haut à gauche, le label et la tagline en bas.
+ * Univers de la marketplace — l'entrée « par envie » vers le catalogue filtré.
+ *
+ * Une tuile n'apparaît que si le serveur compte au moins un vendeur de ce
+ * type, et elle dit combien. L'accueil proposait « Boulangeries » alors
+ * qu'aucune boulangerie n'est publiée : la tuile menait à un filtre vide.
+ *
+ * Si les compteurs sont indisponibles, on garde les quatre univers sans
+ * chiffre plutôt que de faire disparaître la section — c'est une navigation,
+ * pas une affirmation.
  */
 export function CategoryRail() {
   return (
-    <section className="py-12 lg:py-16">
+    <section aria-labelledby="univers-titre" className="py-12 lg:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl">
-              Quatre univers, une seule faim
-            </h2>
-            <p className="mt-1 text-sm text-ink-500">
-              Du resto du quartier au pain chaud du matin.
-            </p>
-          </div>
-          <Link
-            href="/restaurants"
-            className="group hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-tomato-700 transition-colors hover:text-tomato-600 sm:inline-flex"
-          >
-            Tout explorer
-            <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </Link>
-        </div>
+        <h2
+          id="univers-titre"
+          className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl"
+        >
+          Qu&apos;est-ce qui te ferait plaisir&nbsp;?
+        </h2>
+        <p className="mt-1 text-sm text-ink-500">
+          Choisis un univers, on te montre qui le sert à Brazzaville.
+        </p>
+        <Suspense fallback={<TilesFallback />}>
+          <Tiles />
+        </Suspense>
+      </div>
+    </section>
+  );
+}
 
-        <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {HOME_CATEGORIES.map((c) => (
+const TILES_CLASSNAME = 'mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]';
+
+async function Tiles() {
+  const facets = await getVendorFacets();
+  const categories =
+    facets.status === 'ok'
+      ? HOME_CATEGORIES.filter((c) => facets.value.byType[c.type] > 0)
+      : HOME_CATEGORIES;
+  if (categories.length === 0) return null;
+
+  return (
+    <ul role="list" className={TILES_CLASSNAME}>
+      {categories.map((c) => {
+        const count = facets.status === 'ok' ? facets.value.byType[c.type] : null;
+        return (
+          <li key={c.type}>
             <Link
-              key={c.type}
               href={`/restaurants?vendorType=${c.type}`}
-              aria-label={`${c.label} — ${c.tagline}`}
-              className="group relative flex h-32 flex-col justify-end overflow-hidden rounded-xl p-3 transition-opacity hover:opacity-90"
+              className="group relative flex h-28 flex-col justify-end overflow-hidden rounded-xl p-3.5 focus-visible:outline-none! focus-visible:ring-2 focus-visible:ring-tomato-600 focus-visible:ring-offset-2 sm:h-32"
             >
               <Image
                 src={c.image}
                 alt=""
                 fill
-                sizes="(max-width: 1024px) 50vw, 25vw"
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                sizes="(max-width: 768px) 50vw, 25vw"
+                className="object-cover transition-[filter] duration-200 group-hover:brightness-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink-900/80 via-ink-900/30 to-transparent" />
-              <div className="relative">
-                <c.icon className="mb-auto h-5 w-5 text-white/80" aria-hidden />
-                <span className="font-display font-bold text-sm text-white">
-                  {c.label}
-                </span>
-                <span className="mt-0.5 block text-[11px] text-white/80">
-                  {c.tagline}
-                </span>
-              </div>
+              {/* Voile de lisibilité du texte blanc, pas une décoration. */}
+              <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/35 to-transparent" />
+              <span className="relative font-display text-base font-bold text-white">
+                {c.label}
+              </span>
+              <span className="relative text-[13px] text-white/90">
+                {count !== null ? `${count} vendeur${count > 1 ? 's' : ''} · ` : ''}
+                {c.tagline}
+              </span>
             </Link>
-          ))}
-        </div>
-      </div>
-    </section>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function TilesFallback() {
+  return (
+    <div className={TILES_CLASSNAME} aria-hidden>
+      {HOME_CATEGORIES.slice(0, 3).map((c) => (
+        <div key={c.type} className="skeleton h-28 rounded-xl sm:h-32" />
+      ))}
+    </div>
   );
 }

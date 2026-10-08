@@ -20,15 +20,15 @@ export default function GlobalError({
         <div className="max-w-md w-full text-center">
           <div className="flex justify-center mb-8">
             <svg viewBox="0 0 200 200" className="w-44 h-44" fill="none" aria-hidden>
-              <circle cx="100" cy="100" r="90" fill="#fff1f2" />
+              <circle cx="100" cy="100" r="90" fill="#FFF4EF" />
               {/* Flamme / erreur */}
-              <path d="M100 55 C85 70 75 85 80 100 C82 107 88 112 95 110 C90 103 92 95 100 90 C108 95 110 103 105 110 C112 112 118 107 120 100 C125 85 115 70 100 55Z" fill="#f43f5e" opacity="0.8" />
-              <path d="M100 72 C92 82 88 90 92 99 C94 104 97 106 100 104 C103 106 106 104 108 99 C112 90 108 82 100 72Z" fill="#fbbf24" />
+              <path d="M100 55 C85 70 75 85 80 100 C82 107 88 112 95 110 C90 103 92 95 100 90 C108 95 110 103 105 110 C112 112 118 107 120 100 C125 85 115 70 100 55Z" fill="#E8541F" opacity="0.8" />
+              <path d="M100 72 C92 82 88 90 92 99 C94 104 97 106 100 104 C103 106 106 104 108 99 C112 90 108 82 100 72Z" fill="#F5C44A" />
               {/* Motif */}
-              <circle cx="40" cy="40" r="5" fill="#f43f5e" opacity="0.2" />
-              <circle cx="160" cy="40" r="5" fill="#f43f5e" opacity="0.2" />
-              <circle cx="40" cy="160" r="5" fill="#f43f5e" opacity="0.2" />
-              <circle cx="160" cy="160" r="5" fill="#f43f5e" opacity="0.2" />
+              <circle cx="40" cy="40" r="5" fill="#E8541F" opacity="0.2" />
+              <circle cx="160" cy="40" r="5" fill="#E8541F" opacity="0.2" />
+              <circle cx="40" cy="160" r="5" fill="#E8541F" opacity="0.2" />
+              <circle cx="160" cy="160" r="5" fill="#E8541F" opacity="0.2" />
             </svg>
           </div>
 

@@ -1,72 +1,69 @@
-import Image from 'next/image';
+import { Store, Smartphone, PackageCheck, type LucideIcon } from 'lucide-react';
 
-const STEPS = [
+/**
+ * « Comment ça marche » — trois étapes, en texte.
+ *
+ * Avant : trois grandes photos en cartes avec zoom au survol (sur des
+ * éléments non cliquables), dont un logo MTN plein cadre alors qu'Airtel
+ * Money est aussi accepté, et deux promesses que la plateforme ne tient pas
+ * partout : « livraison en 15 à 30 minutes » (les vendeurs annoncent de 10 à
+ * 45 min) et un suivi « en temps réel » (le site affiche l'étape de la
+ * commande, pas la position du livreur).
+ *
+ * Ici, un format éditorial numéroté, distinct des grilles de cartes qui
+ * l'entourent, et des phrases qui décrivent le produit tel qu'il est.
+ */
+const STEPS: { title: string; body: string; icon: LucideIcon }[] = [
   {
     title: 'Choisis ton vendeur',
-    description: 'Parcoure les restaurants, cuisines maison et boulangeries de ton quartier. Filtre par type de cuisine, consulte les menus et les avis — trouve ton plat en quelques secondes.',
-    image: '/how-it-works/step1.jpeg',
-    color: 'bg-cream-100',
+    body: 'Parcours les vendeurs de Brazzaville par univers ou par nom. Leur carte, leurs horaires et les avis des clients sont affichés.',
+    icon: Store,
   },
   {
     title: 'Paie en Mobile Money',
-    description: 'Pas de carte bancaire ? Pas de problème. Paye directement avec MTN MoMo ou Airtel Money. Le paiement est sécurisé et confirmé en quelques secondes.',
-    image: '/how-it-works/step2.png',
-    color: 'bg-tomato-50',
+    body: 'MTN MoMo ou Airtel Money, depuis ton téléphone. Pas besoin de carte bancaire.',
+    icon: Smartphone,
   },
   {
-    title: 'On te livre',
-    description: "Un livreur récupère ta commande et l'apporte directement chez toi. Suis ta commande en temps réel, de la préparation jusqu'à ta porte — livraison en 15 à 30 minutes.",
-    image: '/how-it-works/step4.jpeg',
-    color: 'bg-cream-200',
+    title: 'Reçois ou récupère',
+    body: 'Livraison chez toi ou retrait sur place, selon le vendeur, dans le délai qu’il annonce. Tu suis chaque étape depuis ton compte.',
+    icon: PackageCheck,
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="bg-cream-200 py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h2 className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl">
-            Comment ça marche ?
+    <section aria-labelledby="comment-titre" className="border-y border-cream-300 bg-cream-200">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)] lg:gap-16 lg:px-8 lg:py-20">
+        <div>
+          <h2
+            id="comment-titre"
+            className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl"
+          >
+            Comment ça marche
           </h2>
-          <p className="mt-2 text-sm text-ink-500">
-            Trois étapes simples pour te faire livrer.
+          <p className="mt-2 max-w-xs text-sm text-ink-500">
+            Trois étapes, du choix du vendeur à ta commande.
           </p>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <ol className="grid gap-8 sm:grid-cols-3 sm:gap-6">
           {STEPS.map((step, i) => (
-            <div
-              key={step.title}
-              className={`group overflow-hidden rounded-2xl ${step.color} transition-shadow hover:shadow-lg`}
-            >
-              {/* Image */}
-              <div className="relative h-52 overflow-hidden sm:h-56">
-                <Image
-                  src={step.image}
-                  alt={step.title}
-                  fill
-                  sizes="(max-width: 640px) 100vw, 33vw"
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                {/* Numéro badge */}
-                <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-tomato-600 text-sm font-extrabold text-white shadow-md">
-                  {i + 1}
+            <li key={step.title} className="border-t-2 border-tomato-600 pt-4">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-3xl font-extrabold text-tomato-700" aria-hidden>
+                  {String(i + 1).padStart(2, '0')}
                 </span>
+                <step.icon className="h-6 w-6 text-ink-500" aria-hidden />
               </div>
-
-              {/* Texte */}
-              <div className="p-5">
-                <h3 className="font-display text-base font-bold text-ink-900">
-                  {step.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-500">
-                  {step.description}
-                </p>
-              </div>
-            </div>
+              <h3 className="mt-3 font-display text-lg font-bold text-ink-900">
+                <span className="sr-only">Étape {i + 1} : </span>
+                {step.title}
+              </h3>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-ink-700">{step.body}</p>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );

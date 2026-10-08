@@ -28,7 +28,7 @@ export function VendorTypeBadge({ vendorType, className }: VendorTypeBadgeProps)
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border border-cream-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-ink-700',
+        'inline-flex items-center rounded-full border border-cream-300 bg-white px-2.5 py-0.5 text-xs font-semibold text-ink-700',
         className,
       )}
     >

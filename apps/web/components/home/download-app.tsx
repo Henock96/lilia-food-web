@@ -16,7 +16,7 @@ const PLAY_STORE_URL =
  * Section « Télécharger l'app » — inspirée du bandeau Glovo.
  * Fond `tomato-600`, mockup phone à droite, titre + bouton store à gauche.
  *
- * `tomato-600` (#D2371A) atteint 4,88:1 avec du blanc plein — passe le
+ * `tomato-600` (#C8421A, `orange600` de l'app) atteint 4,94:1 avec du blanc plein — passe le
  * seuil AA pour le paragraphe en 13 px. Pas d'`opacity-*` sur le texte.
  *
  * Le bouton App Store a été retiré : l'application n'est pas publiée sur iOS,
@@ -34,7 +34,7 @@ export function DownloadApp() {
           <h2 className="font-display text-3xl font-extrabold leading-tight text-white sm:text-4xl">
             Mieux avec notre app
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-white/85 sm:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-white sm:text-base">
             Commande en un clic, suis ta livraison en temps réel et paye par
             Mobile Money — tout est plus simple sur l&apos;appli Lilia Food.
           </p>
@@ -46,14 +46,14 @@ export function DownloadApp() {
               target="_blank"
               rel="noopener noreferrer"
               data-analytics-id="app_download_click"
-              aria-label="Télécharger Lilia Food sur Google Play"
-              className="inline-flex items-center gap-2.5 rounded-xl bg-ink-900 px-5 py-3 text-white transition-colors hover:bg-ink-800"
+              aria-label="Disponible sur Google Play : télécharger Lilia Food"
+              className="inline-flex items-center gap-2.5 rounded-xl bg-ink-900 px-5 py-3 text-white transition-colors hover:bg-ink-700"
             >
               <svg className="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3.609 1.814 13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893 2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199 2.302 1.33a1 1 0 0 1 0 1.724l-2.302 1.33-2.532-2.532 2.532-2.532zM5.864 2.658 16.8 8.99l-2.302 2.302-8.635-8.635z" />
               </svg>
               <div className="flex flex-col leading-tight">
-                <span className="text-[10px] font-medium text-white/70">Disponible sur</span>
+                <span className="text-xs font-medium text-white">Disponible sur</span>
                 <span className="text-sm font-bold">Google Play</span>
               </div>
             </a>
@@ -69,7 +69,7 @@ export function DownloadApp() {
             </Link>
           </div>
 
-          <p className="mt-4 text-xs text-white/75">
+          <p className="mt-4 text-xs text-white">
             Application Android disponible. Version iOS en préparation.
           </p>
         </div>

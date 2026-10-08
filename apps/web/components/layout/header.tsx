@@ -49,17 +49,19 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="group flex items-center gap-2.5" aria-label="Lilia Food — Accueil">
-            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl transition-transform group-hover:scale-105">
+          <Link href="/" className="group flex min-h-11 items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
               <Image src="/logo.jpg" alt="" width={72} height={72} className="h-full w-full object-cover" />
             </span>
-            <span className="font-display text-xl font-extrabold tracking-tight text-ink-900">
+            <span className="whitespace-nowrap font-display text-xl font-extrabold tracking-tight text-ink-900">
               Lilia<span className="text-tomato-600"> Food</span>
+              {/* Le nom accessible commence par le texte visible (WCAG 2.5.3). */}
+              <span className="sr-only">, accueil</span>
             </span>
           </Link>
 
           {/* Nav desktop */}
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Navigation principale">
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Navigation principale">
             {navLinks.map((link) => {
               const active = pathname.startsWith(link.href);
               return (
@@ -67,7 +69,7 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'rounded-full px-4 py-2 text-sm transition-colors',
+                    'whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors',
                     active ? 'font-semibold text-ink-900' : 'text-ink-500 hover:text-ink-900',
                   )}
                 >
@@ -81,7 +83,7 @@ export function Header() {
           <div className="flex items-center gap-1.5">
             <button
               onClick={toggleCart}
-              className="relative rounded-full p-2.5 text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900"
               aria-label={`Panier${itemCount > 0 ? ` (${itemCount} article${itemCount > 1 ? 's' : ''})` : ''}`}
             >
               <ShoppingCart className="h-5 w-5" />
@@ -127,7 +129,7 @@ export function Header() {
             ) : (
               <Link
                 href="/connexion"
-                className="inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 tracking-[-0.01em] whitespace-nowrap select-none bg-tomato-600 text-white hover:bg-tomato-700 shadow-sm hover:shadow-md px-5 py-2.5 text-sm rounded-pill"
+                className="inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 tracking-[-0.01em] whitespace-nowrap select-none bg-tomato-600 text-white hover:bg-tomato-700 shadow-sm hover:shadow-md min-h-11 px-5 py-2.5 text-sm rounded-pill"
               >
                 Connexion
               </Link>
@@ -135,7 +137,7 @@ export function Header() {
 
             <button
               onClick={() => setMobileOpen((v) => !v)}
-              className="rounded-full p-2 text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900 md:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900 lg:hidden"
               aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               aria-expanded={mobileOpen}
             >
@@ -153,7 +155,7 @@ export function Header() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="overflow-hidden border-t border-cream-300 bg-cream-100 shadow-md md:hidden"
+            className="overflow-hidden border-t border-cream-300 bg-cream-100 shadow-md lg:hidden"
           >
             <nav className="flex flex-col gap-1 px-4 py-3" aria-label="Menu mobile">
               {navLinks.map((link) => (
