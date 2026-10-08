@@ -1,118 +1,137 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import { VendorCard } from '@/components/restaurants/vendor-card';
-import { EmptyVendorSlot } from '@/components/restaurants/empty-vendor-slot';
+import { ArrowRight, Plus } from 'lucide-react';
 import { RestaurantCardSkeleton } from '@/components/ui';
-import { getShowcaseVendors } from '@/lib/vendors';
+import { VendorGrid, VENDOR_GRID_CLASSNAME } from '@/components/restaurants/vendor-grid';
+import { VendorsLoadError } from '@/components/restaurants/vendors-load-error';
+import { getVendorPage } from '@/lib/vendors';
+import {
+  SHOWCASE_BATCH,
+  parseShowcaseCount,
+  showcaseView,
+  vendorCountLabel,
+} from '@/lib/vendor-catalog';
 
-/** Nombre d'emplacements affichés, remplis ou non. */
-const SLOTS = 4;
-
-const GRID_CLASSNAME = 'mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4';
-
-/**
- * Grille des vendeurs — seule partie de la section qui dépend du backend.
- *
- * `getVendors()` appelle `connection()` : ce sous-arbre est donc rendu à la
- * requête, jamais au build. C'est ce qui empêche un backend Render endormi de
- * faire échouer le déploiement (cf. le commentaire de `lib/vendors.ts`), d'où
- * le `<Suspense>` obligatoire autour.
- *
- * Le catalogue de production ne compte qu'un seul vendeur : une grille de 4
- * cases dont 3 resteraient blanches lirait comme un site cassé. On complète
- * donc toujours jusqu'à 4 emplacements avec `EmptyVendorSlot` (pointillés),
- * partagé avec `VendorGrid` (/restaurants) pour ne pas dupliquer ce motif —
- * un service qui démarre, pas un bug. On ne délègue pas à `VendorGrid` ici :
- * son propre état vide (« Aucun restaurant disponible ») ferait doublon avec
- * ces emplacements explicites.
- */
-async function FeaturedGrid() {
-  // Le **catalogue public**, dans l'ordre décidé par le serveur — vendeurs en
-  // vedette en tête. Cette grille demandait auparavant `?isFeatured=true` :
-  // comme c'est la seule liste de vendeurs de la page d'accueil, mettre un
-  // vendeur en avant depuis l'admin faisait disparaître tous les autres de la
-  // home. Une mise en avant classe, elle n'exclut pas — cf. `getShowcaseVendors`.
-  const vendors = await getShowcaseVendors(SLOTS);
-
-  return (
-    <div className={GRID_CLASSNAME}>
-      {vendors.map((r) => (
-        <VendorCard key={r.id} restaurant={r} />
-      ))}
-      {Array.from({ length: Math.max(0, SLOTS - vendors.length) }).map((_, i) => (
-        <EmptyVendorSlot key={`empty-${i}`} label={i === 0 ? 'Prochain vendeur ici' : undefined} />
-      ))}
-    </div>
-  );
-}
-
-/** Occupe exactement la place de la grille finale — pas de décalage à l'arrivée. */
-function FeaturedGridFallback() {
-  return (
-    <div className={GRID_CLASSNAME}>
-      {Array.from({ length: SLOTS }).map((_, i) => (
-        <RestaurantCardSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
+type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
- * Section « Les plus courus » — vendeurs en vedette.
+ * Section vendeurs de l'accueil.
  *
- * La coquille (titre, accroche, liens « Voir tout ») ne dépend d'aucune donnée
- * et reste prérendue statiquement ; seule la grille est différée.
+ * ## Avant
  *
- * L'accroche annonçait auparavant « N vendeurs ouverts en ce moment » en se
- * contentant de compter les vendeurs *listés*, ouverts ou non — la même
- * inexactitude que celle corrigée sur `/restaurants`. Le catalogue de
- * production ne comptant qu'un vendeur, actuellement fermé, la home affirmait
- * « 1 vendeur ouvert en ce moment » au-dessus d'une carte « Fermé ». On s'en
- * tient donc à une accroche qui ne prétend rien de vérifiable.
+ * `SLOTS = 4` (les quatre colonnes de la grille) partait au serveur en
+ * `?limit=4`. Neuf vendeurs publiés, quatre visibles, `meta.total` jeté, et des
+ * emplacements « Prochain vendeur ici » pour compléter la rangée : rien ne
+ * laissait deviner qu'il en manquait cinq.
+ *
+ * ## Maintenant
+ *
+ * Un **lot** de 12 dans l'ordre serveur (ouverts d'abord), indépendant du
+ * nombre de colonnes. S'il en reste, « Afficher plus » demande le lot suivant
+ * (`?vendeurs=24`, rendu serveur : partageable, fonctionne sans JavaScript,
+ * le retour arrière retrouve la même liste). Au-delà de 96, l'accueil cesse de
+ * grandir et le lien « Voir les N vendeurs » — N = `meta.total` du serveur —
+ * mène au catalogue paginé et filtrable.
  */
-export function FeaturedRestaurants() {
+export function FeaturedRestaurants({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <section className="py-16 lg:py-20">
+    <section id="vendeurs" aria-labelledby="vendeurs-titre" className="scroll-mt-20 py-14 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <h2 className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl">
-              Ils font saliver tout Brazza
-            </h2>
-            {/* « Sélectionnés pour toi » n'est vrai que si quelqu'un a
-                réellement sélectionné. Cette grille montre le catalogue
-                public — les vendeurs mis en avant y remontent, mais rien ne
-                garantit qu'il y en ait : l'accroche ne doit pas affirmer une
-                curation qui n'a peut-être pas eu lieu. */}
-            <p className="mt-2 text-sm text-ink-500">
-              Les vendeurs à découvrir en ce moment à Brazzaville.
-            </p>
-          </div>
-
-          <Link
-            href="/restaurants"
-            className="group hidden shrink-0 items-center gap-2 rounded-pill border-[1.5px] border-cream-300 bg-white px-5 py-2.5 text-sm font-semibold text-ink-700 transition-colors hover:border-tomato-500 hover:text-tomato-700 sm:inline-flex"
-          >
-            Voir tout
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
-
-        <Suspense fallback={<FeaturedGridFallback />}>
-          <FeaturedGrid />
+        <h2
+          id="vendeurs-titre"
+          className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl"
+        >
+          Ils font saliver tout Brazza
+        </h2>
+        <Suspense fallback={<ShowcaseFallback />}>
+          <Showcase searchParams={searchParams} />
         </Suspense>
-
-        <div className="mt-8 text-center sm:hidden">
-          <Link
-            href="/restaurants"
-            className="inline-flex items-center gap-2 rounded-pill bg-tomato-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-tomato-700"
-          >
-            Voir tous les vendeurs
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
       </div>
     </section>
+  );
+}
+
+async function Showcase({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const requested = parseShowcaseCount((await searchParams).vendeurs);
+  const result = await getVendorPage({ page: 1, limit: requested });
+
+  if (result.status === 'error') {
+    return (
+      <>
+        <p className="mt-2 text-sm text-ink-500">Les vendeurs de Brazzaville, en direct.</p>
+        <VendorsLoadError className="mt-8" />
+      </>
+    );
+  }
+
+  const { vendors, meta } = result.value;
+  const open = vendors.filter((v) => v.isOpen).length;
+  const view = showcaseView(vendors.length, meta.total, requested);
+
+  if (meta.total === 0) {
+    return (
+      <div className="mt-8 rounded-xl border border-cream-300 bg-white p-6">
+        <p className="font-semibold text-ink-900">Aucun vendeur disponible pour le moment.</p>
+        <p className="mt-1 text-sm text-ink-500">
+          Les premières boutiques arrivent bientôt.{' '}
+          <Link href="/devenir-vendeur" className="font-semibold text-tomato-700 underline-offset-2 hover:underline">
+            Tu cuisines ? Rejoins Lilia Food.
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Le serveur classe les ouverts en tête : quand tout le catalogue tient
+          dans le lot, compter les ouverts du lot compte ceux du catalogue. */}
+      <p className="mt-2 text-sm text-ink-500" aria-live="polite">
+        {vendors.length >= meta.total
+          ? vendorCountLabel(meta.total, open)
+          : `${meta.total} vendeurs à Brazzaville · les ouverts en premier`}
+      </p>
+
+      <VendorGrid vendors={vendors} className="mt-6" />
+
+      <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        {view.canShowMore && (
+          <Link
+            href={`/?vendeurs=${view.nextCount}`}
+            scroll={false}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-tomato-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-tomato-700"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Afficher plus
+          </Link>
+        )}
+        {view.showCatalogueLink && (
+          <Link
+            href="/restaurants"
+            className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-pill border-[1.5px] border-cream-300 bg-white px-6 text-sm font-semibold text-ink-700 transition-colors hover:border-tomato-600 hover:text-tomato-700"
+          >
+            {meta.total > 1 ? `Voir les ${meta.total} vendeurs` : 'Voir le catalogue'}
+            <ArrowRight
+              className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Hauteur réservée pour un premier lot : pas de décalage à l'arrivée des cartes. */
+function ShowcaseFallback() {
+  return (
+    <>
+      <p className="mt-2 text-sm text-ink-500">Les vendeurs de Brazzaville, en direct.</p>
+      <div className={`mt-6 ${VENDOR_GRID_CLASSNAME}`} aria-hidden>
+        {Array.from({ length: Math.min(SHOWCASE_BATCH, 8) }).map((_, i) => (
+          <RestaurantCardSkeleton key={i} />
+        ))}
+      </div>
+    </>
   );
 }

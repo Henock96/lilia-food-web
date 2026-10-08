@@ -1,149 +1,201 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { cacheLife, cacheTag } from 'next/cache';
-import { connection } from 'next/server';
-import { apiClientRaw } from '@lilia/api-client';
-import type { Restaurant } from '@lilia/types';
-import { RestaurantsFilters } from '@/components/restaurants/restaurants-filters';
+import Link from 'next/link';
 import { RestaurantCardSkeleton } from '@/components/ui';
+import { VendorGrid, VENDOR_GRID_CLASSNAME } from '@/components/restaurants/vendor-grid';
+import { VendorsLoadError } from '@/components/restaurants/vendors-load-error';
+import { CatalogueControls } from '@/components/restaurants/catalogue-controls';
+import { CataloguePagination } from '@/components/restaurants/catalogue-pagination';
+import { TrackEmptyFilter } from '@/components/restaurants/track-empty-filter';
+import { getAllVendors, getVendorFacets, getVendorPage, type Loaded } from '@/lib/vendors';
+import {
+  CATALOGUE_PAGE_SIZE,
+  VENDOR_TYPE_PLURAL,
+  availableTypeFilters,
+  catalogueHref,
+  matchesVendorQuery,
+  paginate,
+  parseCatalogueParams,
+  vendorCountLabel,
+  type CatalogueParams,
+} from '@/lib/vendor-catalog';
+import type { Restaurant } from '@lilia/types';
 
 export const metadata: Metadata = {
   title: 'Vendeurs à Brazzaville',
   description:
-    'Découvrez tous les restaurants, cuisines maison, boulangeries et boutiques de boissons disponibles à Brazzaville. Commandez et faites-vous livrer.',
+    'Restaurants, cuisines maison et boutiques de boissons à Brazzaville : filtre par univers ou par ouverture, consulte les cartes et commande en ligne.',
   alternates: { canonical: '/restaurants' },
 };
 
-/**
- * LIL-119 : on consomme le marketplace `/vendors`. Le backend filtre déjà
- * `adminApproved=true AND isActive=true`. Filtrage par `vendorType` client-side
- * via les chips (cf. RestaurantsFilters).
- *
- * `'use cache'` + `cacheTag('vendors')` : le backend est un service Render
- * qui s'endort (cold start de 30-60s) et `apiClientRaw` n'a pas de timeout —
- * chaque visite ne doit donc PAS déclencher un aller-retour réseau. Le succès
- * est mis en cache normalement ; un throw levé à l'intérieur d'une fonction
- * `'use cache'` n'est en revanche jamais persisté par le cache handler, donc
- * un échec réseau reste un échec à la prochaine requête sans action
- * supplémentaire. Le bouton « Réessayer » (VendorGrid) appelle en plus
- * `retryVendors()` (Server Action, `revalidateTag('vendors')`) avant de
- * rafraîchir, pour ne pas dépendre uniquement de cette hypothèse de
- * non-mise-en-cache des erreurs — voir `lib/actions/vendors.ts`.
- */
-async function fetchVendors(): Promise<Restaurant[]> {
-  'use cache';
-  cacheTag('vendors');
-  // Borne la fraîcheur : sans `cacheLife`, l'entrée ne dépendait que d'une
-  // invalidation explicite, et un vendeur qui ouvrait pouvait rester affiché
-  // fermé pendant des jours.
-  cacheLife('minutes');
-  const res = await apiClientRaw<{ data: Restaurant[] }>('/vendors?limit=50');
-  return res.data ?? [];
-}
+type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
- * Wrapper non caché : distingue un échec réseau (`failed: true`) d'un
- * catalogue réellement vide. Cette distinction vit délibérément en dehors de
- * la frontière `'use cache'` de `fetchVendors` — sans quoi un échec risquerait
- * d'être normalisé en `{ vendors: [], failed: true }` *avant* la mise en
- * cache, ce qui le rendrait, lui, mémoïsable.
+ * Catalogue complet des vendeurs.
  *
- * `await connection()` sort cet appel du prerender de build. Le `try/catch`
- * ci-dessous ne suffisait pas : une rejection levée dans une frontière
- * `'use cache'` est observée par le prerender lui-même, et faisait échouer la
- * compilation (« Error occurred prerendering page /restaurants ») dès que le
- * backend Render répondait autre chose qu'un 200 — ce qui arrive quand il sort
- * de veille. Un déploiement ne doit pas dépendre de la disponibilité d'un
- * service tiers. Voir le commentaire jumeau dans `lib/vendors.ts`.
- */
-async function getVendors(): Promise<{ vendors: Restaurant[]; failed: boolean }> {
-  await connection();
-  try {
-    const vendors = await fetchVendors();
-    return { vendors, failed: false };
-  } catch {
-    return { vendors: [], failed: true };
-  }
-}
-
-/**
- * Décrit le catalogue sans le travestir.
+ * ## Avant
  *
- * L'ancienne formulation annonçait « N vendeurs ouverts » en se contentant de
- * compter les vendeurs *listés* : la page affichait donc « 1 vendeur ouvert »
- * au-dessus d'une carte portant le badge « Fermé ». On distingue désormais le
- * nombre de vendeurs référencés de ceux réellement ouverts à l'instant T.
+ * `GET /vendors?limit=50`, puis filtres, recherche et décompte **en mémoire**
+ * sur ces 50 : au 51ᵉ vendeur, il disparaissait du catalogue et des filtres,
+ * sans message.
+ *
+ * ## Maintenant
+ *
+ * - **Sans recherche texte** : une vraie page serveur
+ *   (`/vendors?page=N&limit=24&vendorType=…&isOpen=true`). Les filtres sont
+ *   ceux du serveur, la pagination aussi ; `meta.total` donne le décompte.
+ * - **Avec recherche texte** : `/vendors` n'a pas de paramètre de recherche.
+ *   On lit alors tout le catalogue filtré par le serveur (pages de 100,
+ *   borné), on cherche, puis on pagine **côté serveur** : seules les 24 cartes
+ *   de la page partent au navigateur. Une page de lecture en échec fait
+ *   échouer l'ensemble — jamais un résultat partiel présenté comme complet.
+ *
+ * Tous les filtres vivent dans l'URL (`?q=`, `?vendorType=`, `?ouvert=1`,
+ * `?page=`) : partageables, rechargeables, compatibles avec le retour arrière.
  */
-function vendorCountLabel(restaurants: Restaurant[]): string {
-  const total = restaurants.length;
-  const open = restaurants.filter((r) => r.isOpen).length;
-  const plural = total > 1 ? 's' : '';
-
-  if (total === 0) return 'Aucun vendeur pour le moment';
-  if (open === 0) return `${total} vendeur${plural} · aucun ouvert en ce moment`;
-  if (open === total) return `${total} vendeur${plural} ouvert${plural}`;
-  return `${total} vendeur${plural} · ${open} ouvert${open > 1 ? 's' : ''} en ce moment`;
-}
-
-function FiltersFallback() {
+export default function RestaurantsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <RestaurantCardSkeleton key={i} />
-      ))}
+    <div className="mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
+      <h1 className="font-display text-3xl font-extrabold text-ink-900">Tous les vendeurs</h1>
+      <Suspense fallback={<CatalogueFallback />}>
+        <Catalogue searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }
 
-/** Accroche générique, affichée tant que le catalogue n'est pas chargé. */
-const GENERIC_SUBTITLE = 'Restaurants, cuisines maison, boulangeries & boissons.';
+interface CatalogueResult {
+  vendors: Restaurant[];
+  total: number;
+  totalPages: number;
+}
 
-/**
- * Partie dépendante du backend : le décompte et la grille filtrable. Rendue à
- * la requête (cf. `getVendors`), donc obligatoirement sous `<Suspense>`.
- */
-async function VendorCatalogue() {
-  const { vendors: restaurants, failed } = await getVendors();
+async function loadCatalogue(params: CatalogueParams): Promise<Loaded<CatalogueResult>> {
+  const filter = { vendorType: params.vendorType, isOpen: params.openOnly || undefined };
+
+  if (!params.q) {
+    const result = await getVendorPage({ ...filter, page: params.page, limit: CATALOGUE_PAGE_SIZE });
+    if (result.status === 'error') return result;
+    const { vendors, meta } = result.value;
+    return { status: 'ok', value: { vendors, total: meta.total, totalPages: meta.totalPages } };
+  }
+
+  const all = await getAllVendors(filter);
+  if (all.status === 'error') return all;
+  const matches = all.value.vendors.filter((v) => matchesVendorQuery(v, params.q));
+  const { items, totalPages } = paginate(matches, params.page, CATALOGUE_PAGE_SIZE);
+  return { status: 'ok', value: { vendors: items, total: matches.length, totalPages } };
+}
+
+async function Catalogue({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = parseCatalogueParams(await searchParams);
+  const [facets, result] = await Promise.all([getVendorFacets(), loadCatalogue(params)]);
+
+  const typeFilters = facets.status === 'ok' ? availableTypeFilters(facets.value) : [];
+  // Le filtre courant reste proposé même si son compteur est tombé à zéro
+  // entre-temps : sinon on ne pourrait plus le désélectionner.
+  if (params.vendorType && !typeFilters.some((f) => f.type === params.vendorType)) {
+    typeFilters.push({ type: params.vendorType, label: VENDOR_TYPE_PLURAL[params.vendorType], count: 0 });
+  }
+  const hasFilter = Boolean(params.q || params.vendorType || params.openOnly);
 
   return (
     <>
       <p className="mt-2 text-sm text-ink-500">
-        {failed ? (
-          GENERIC_SUBTITLE
-        ) : (
-          <>
-            {vendorCountLabel(restaurants)} · restaurants, cuisines maison, boulangeries &
-            boissons
-          </>
-        )}
+        {facets.status === 'ok'
+          ? vendorCountLabel(facets.value.total, facets.value.open)
+          : 'Restaurants, cuisines maison et boutiques de Brazzaville.'}
       </p>
 
-      <div className="mt-8">
-        <RestaurantsFilters restaurants={restaurants} failed={failed} />
+      <CatalogueControls
+        params={params}
+        typeFilters={typeFilters}
+        openCount={facets.status === 'ok' ? facets.value.open : null}
+      />
+
+      <div className="mt-6" id="resultats">
+        {result.status === 'error' ? (
+          <VendorsLoadError />
+        ) : result.value.total === 0 ? (
+          <EmptyResult params={params} hasFilter={hasFilter} />
+        ) : result.value.vendors.length === 0 ? (
+          <div className="rounded-xl border border-cream-300 bg-white p-6">
+            <p className="font-semibold text-ink-900">Cette page n’existe plus.</p>
+            <Link
+              href={catalogueHref(params, { page: 1 })}
+              className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-tomato-700 underline underline-offset-4"
+            >
+              Revenir à la première page
+            </Link>
+          </div>
+        ) : (
+          <>
+            {hasFilter && (
+              <p className="mb-4 text-sm text-ink-500" role="status">
+                {result.value.total} résultat{result.value.total > 1 ? 's' : ''}
+              </p>
+            )}
+            <VendorGrid vendors={result.value.vendors} />
+            <CataloguePagination
+              params={params}
+              page={params.page}
+              totalPages={result.value.totalPages}
+            />
+          </>
+        )}
       </div>
     </>
   );
 }
 
-/** Reprend la structure exacte de `VendorCatalogue` — pas de décalage visuel. */
+function emptyMessage(params: CatalogueParams): string {
+  const among = params.openOnly ? ' parmi les vendeurs ouverts' : '';
+  if (params.q) return `Aucun vendeur ne correspond à « ${params.q} »${among}.`;
+  if (params.vendorType) return `Aucun vendeur dans cet univers${among}.`;
+  return 'Aucun vendeur n’est ouvert en ce moment.';
+}
+
+function EmptyResult({ params, hasFilter }: { params: CatalogueParams; hasFilter: boolean }) {
+  if (!hasFilter) {
+    return (
+      <div className="rounded-xl border border-cream-300 bg-white p-6">
+        <p className="font-semibold text-ink-900">Aucun vendeur disponible pour le moment.</p>
+        <p className="mt-1 text-sm text-ink-500">Les premières boutiques arrivent bientôt.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-cream-300 bg-white p-6">
+      <TrackEmptyFilter vendorType={params.vendorType} hasSearch={Boolean(params.q)} />
+      <p className="font-semibold text-ink-900">{emptyMessage(params)}</p>
+      <p className="mt-1 text-sm text-ink-500">
+        {params.openOnly
+          ? 'Beaucoup de vendeurs ouvrent plus tard dans la journée.'
+          : 'Essaie un autre mot ou un autre univers.'}
+      </p>
+      <Link
+        href="/restaurants"
+        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-tomato-700 underline underline-offset-4"
+      >
+        Voir tous les vendeurs
+      </Link>
+    </div>
+  );
+}
+
+/** Reprend la structure de `Catalogue` — pas de décalage visuel à l'arrivée. */
 function CatalogueFallback() {
   return (
     <>
-      <p className="mt-2 text-sm text-ink-500">{GENERIC_SUBTITLE}</p>
-      <div className="mt-8">
-        <FiltersFallback />
+      <p className="mt-2 text-sm text-ink-500">
+        Restaurants, cuisines maison et boutiques de Brazzaville.
+      </p>
+      <div className="mt-6 h-[7.5rem] sm:h-[6.5rem]" aria-hidden />
+      <div className={`mt-6 ${VENDOR_GRID_CLASSNAME}`} aria-hidden>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <RestaurantCardSkeleton key={i} />
+        ))}
       </div>
     </>
-  );
-}
-
-export default function RestaurantsPage() {
-  return (
-    <div className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 lg:px-8">
-      <h1 className="font-display text-3xl font-extrabold text-ink-900">Tous les vendeurs</h1>
-      <Suspense fallback={<CatalogueFallback />}>
-        <VendorCatalogue />
-      </Suspense>
-    </div>
   );
 }

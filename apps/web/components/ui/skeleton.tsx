@@ -8,17 +8,18 @@ export function Skeleton({ className }: SkeletonProps) {
   return <div className={cn('skeleton', className)} aria-hidden />;
 }
 
+/** Même gabarit que `VendorCard` : ligne sur mobile, carte verticale dès `sm`. */
 export function RestaurantCardSkeleton() {
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-cream-300">
-      <Skeleton className="w-full h-48 rounded-none" />
-      <div className="p-4 flex flex-col gap-3">
+    <div className="flex gap-3.5 rounded-xl border border-cream-300 bg-white p-3 sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0">
+      <Skeleton className="aspect-square w-24 shrink-0 rounded-lg sm:aspect-[16/10] sm:w-full sm:rounded-none" />
+      <div className="flex flex-1 flex-col gap-2.5 sm:p-4">
         <Skeleton className="h-5 w-3/4" />
         <Skeleton className="h-4 w-1/2" />
-        <div className="flex gap-4 mt-1">
+        <Skeleton className="h-4 w-2/5" />
+        <div className="flex gap-3">
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-14" />
         </div>
       </div>
     </div>
