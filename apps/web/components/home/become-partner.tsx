@@ -4,7 +4,7 @@ import { ArrowRight, Store, Truck, Wallet } from 'lucide-react';
 
 /**
  * Section « Devenir vendeur » — recruter est la priorité #1 du catalogue.
- * Fond `tomato-600` (#D2371A, 4,88:1 avec du blanc — passe AA).
+ * Fond `tomato-600` (#C8421A, `orange600` de l'app : 4,94:1 avec du blanc — passe AA).
  * Layout horizontal : image à gauche, texte + avantages à droite.
  */
 export function BecomePartner() {
@@ -32,7 +32,7 @@ export function BecomePartner() {
                 <br />
                 <span className="text-cream-100">Gagne de l&apos;argent</span> sur Lilia Food.
               </h2>
-              <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/90 sm:text-base">
+              <p className="mt-4 max-w-lg text-sm leading-relaxed text-white sm:text-base">
                 Inscris ton restaurant, ta cuisine maison, ta boulangerie ou ta boutique de
                 boissons. On s&apos;occupe des commandes, du paiement et de la livraison — tu
                 te concentres sur ce que tu fais le mieux : cuisiner.
@@ -40,15 +40,15 @@ export function BecomePartner() {
 
               {/* Avantages */}
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:gap-6">
-                <div className="flex items-center gap-2 text-sm text-white/85">
+                <div className="flex items-center gap-2 text-sm text-white">
                   <Store className="h-4 w-4 shrink-0 text-cream-100" />
                   Inscription gratuite
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/85">
+                <div className="flex items-center gap-2 text-sm text-white">
                   <Truck className="h-4 w-4 shrink-0 text-cream-100" />
                   Livraison prise en charge
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/85">
+                <div className="flex items-center gap-2 text-sm text-white">
                   <Wallet className="h-4 w-4 shrink-0 text-cream-100" />
                   Paiement MoMo / Airtel
                 </div>
