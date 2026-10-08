@@ -152,6 +152,11 @@ export interface Refund {
   processedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Référence du virement chez le prestataire. Présente sur un `PROCESSING` :
+   * le virement est en vol, seul le prestataire le conclut (R-01, D-2).
+   */
+  providerRefundId?: string | null;
   /** F3-06 — motif codé ; les quatre premiers sont des remboursements totaux automatiques. */
   reasonCode?: RefundReasonCode;
   /** F3-06 — qui supporte la perte. */
@@ -253,7 +258,14 @@ export interface ComposedRefund {
   bearer: RefundBearer;
   lines: (RefundLine & { label: string })[];
   remainingAfterXaf: number;
-  execution: { executed: boolean; status: string; message: string };
+  execution: {
+    executed: boolean;
+    status: string;
+    message: string;
+    /** R-01 — au-delà du seuil, le virement attend un second administrateur. */
+    approvalRequired?: boolean;
+    approvalId?: string | null;
+  };
 }
 
 export type ClaimReason = 'MISSING_ITEM' | 'WRONG_ITEM' | 'DAMAGED' | 'LATE' | 'OTHER';

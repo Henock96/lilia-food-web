@@ -32,11 +32,29 @@ export function describeApproval(a: FinancialApproval): {
           p.payoutProvider ?? '?',
         )})${p.payoutAccountName ? ` — titulaire ${String(p.payoutAccountName)}` : ''}`,
       };
-    case 'REFUND_EXECUTION':
+    case 'REFUND_EXECUTION': {
+      const amount = `${(a.amountXaf ?? 0).toLocaleString('fr-FR')} FCFA`;
+      const notes = typeof p.notes === 'string' && p.notes ? ` — note : ${p.notes}` : '';
+      // R-01 — une demande de CLÔTURE déclarative (`closeAs`) : approuver
+      // applique le statut, sans virement. La confondre avec un virement
+      // ferait croire à l'approbateur qu'il fait partir de l'argent.
+      if (p.closeAs === 'COMPLETED') {
+        return {
+          title: `Clôture « remboursé » de ${amount}`,
+          detail: `Aucun virement : le demandeur déclare avoir remboursé le client hors application${notes}.`,
+        };
+      }
+      if (p.closeAs === 'REJECTED') {
+        return {
+          title: `Refus d’un remboursement de ${amount}`,
+          detail: `Le client ne sera pas remboursé${notes}.`,
+        };
+      }
       return {
-        title: `Remboursement de ${(a.amountXaf ?? 0).toLocaleString('fr-FR')} FCFA`,
+        title: `Remboursement de ${amount}`,
         detail: 'Le virement part vers le numéro qui a payé la commande.',
       };
+    }
     case 'CAPABILITY_GRANT': {
       const caps = (p.capabilities as AdminCapability[] | undefined) ?? [];
       return {

@@ -5,11 +5,13 @@ import {
   REFUNDS_PAGE_SIZE,
   nextRefundStatuses,
   refundRequiresNote,
+  useExecuteRefund,
+  usePaymentProviders,
   useRefunds,
   useUpdateRefundStatus,
   type RefundStatusFilter,
 } from '@lilia/api-client';
-import type { Refund, RefundStatus } from '@lilia/types';
+import type { PaymentMode, Refund, RefundStatus } from '@lilia/types';
 import {
   AlertCircle,
   ChevronLeft,
@@ -23,6 +25,12 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiMessage } from '@/lib/api-message';
+import {
+  canTransferRefund,
+  refundErrorOutcome,
+  refundResultOutcome,
+  type RefundOutcome,
+} from '@/lib/refund-outcome';
 
 const STATUS_LABELS: Record<RefundStatus, string> = {
   PENDING: 'À traiter',
@@ -88,19 +96,65 @@ function waitingSince(iso: string): string {
   return `depuis ${days} jours`;
 }
 
+/**
+ * R-01 — rend l'issue d'un geste : succès, approbation requise (rien n'a
+ * changé), double authentification (déjà prise en charge par la fenêtre
+ * globale), ou refus du serveur avec son message.
+ */
+function announce(outcome: RefundOutcome, success: string) {
+  switch (outcome.kind) {
+    case 'SUCCESS':
+      toast.success(outcome.message ?? success);
+      return;
+    case 'APPROVAL_REQUIRED':
+      toast.info(outcome.message, { duration: 8000 });
+      return;
+    case 'MFA':
+      return;
+    case 'FORBIDDEN':
+    case 'ERROR':
+      toast.error(outcome.message);
+  }
+}
+
 function RefundRow({
   refund,
   token,
+  paymentMode,
 }: {
   refund: Refund;
   token: string | null;
+  paymentMode: PaymentMode | undefined;
 }) {
   const [notes, setNotes] = useState('');
   const update = useUpdateRefundStatus(token);
-  const transitions = nextRefundStatuses(refund.status);
-  const isOpen = transitions.length > 0;
+  const transfer = useExecuteRefund(token);
+  const busy = update.isPending || transfer.isPending;
+  const transitions = nextRefundStatuses(refund.status, refund);
+  const canTransfer = canTransferRefund(refund, paymentMode);
+  const inFlight = refund.status === 'PROCESSING' && !!refund.providerRefundId;
+  const isOpen = transitions.length > 0 || canTransfer;
   const client = refund.order?.user;
   const phone = client?.phone ?? refund.order?.contactPhone ?? null;
+
+  async function handleTransfer() {
+    if (
+      !window.confirm(
+        `Virer ${formatXaf(refund.amount)} FCFA à ${client?.nom ?? 'ce client'} ?\n\n` +
+          'Le virement part vers le numéro qui a payé la commande. Au-delà du ' +
+          'seuil fixé par le serveur, un second administrateur devra d’abord ' +
+          'l’approuver.',
+      )
+    ) {
+      return;
+    }
+    try {
+      const result = await transfer.mutateAsync(refund.id);
+      announce(refundResultOutcome(result), 'Virement envoyé au prestataire.');
+    } catch (e) {
+      announce(refundErrorOutcome(e), '');
+    }
+  }
 
   async function handleAdvance(target: RefundStatus) {
     if (refundRequiresNote(target) && !notes.trim()) {
@@ -116,29 +170,33 @@ function RefundRow({
         target === 'COMPLETED'
           ? `Confirmer que ${formatXaf(refund.amount)} FCFA ont bien été envoyés à ` +
             `${client?.nom ?? 'ce client'} ?\n\n` +
-            "Lilia Food n'effectue pas ce virement : cette file suit une dette, " +
-            'elle ne déplace pas d’argent. Ne validez que si le transfert Mobile ' +
-            'Money a réellement été fait.'
+            "Ce bouton n'effectue pas de virement : il déclare un transfert Mobile " +
+            'Money déjà fait hors application. Ne validez que s’il a réellement eu ' +
+            'lieu. Au-delà du seuil, un second administrateur devra l’approuver.'
           : `Refuser le remboursement de ${formatXaf(refund.amount)} FCFA à ` +
-            `${client?.nom ?? 'ce client'} ?\n\nCette décision est définitive.`,
+            `${client?.nom ?? 'ce client'} ?\n\nCette décision est définitive. ` +
+            'Au-delà du seuil, un second administrateur devra l’approuver.',
       )
     ) {
       return;
     }
 
     try {
-      await update.mutateAsync({
+      const result = await update.mutateAsync({
         refundId: refund.id,
         status: target,
         notes,
       });
-      toast.success(`Remboursement : ${STATUS_LABELS[target].toLowerCase()}`);
-      setNotes('');
+      const outcome = refundResultOutcome(result);
+      // Une demande d'approbation n'a rien changé : la note reste, elle
+      // accompagne la demande telle quelle.
+      announce(outcome, `Remboursement : ${STATUS_LABELS[target].toLowerCase()}`);
+      if (outcome.kind === 'SUCCESS') setNotes('');
     } catch (e) {
-      // Le serveur explique les conflits (« déjà clos », « modifié
-      // entre-temps. Rechargez la fiche. ») : ce sont les seuls messages qui
-      // disent quoi faire ensuite.
-      toast.error(apiMessage(e, 'Impossible de mettre à jour ce remboursement'));
+      // Le serveur explique les conflits (« déjà clos », « virement en cours
+      // chez le prestataire », « modifié entre-temps ») : ce sont les seuls
+      // messages qui disent quoi faire ensuite.
+      announce(refundErrorOutcome(e), '');
     }
   }
 
@@ -229,11 +287,20 @@ function RefundRow({
             className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-primary-500 focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-zinc-100"
           />
           <div className="flex flex-wrap gap-2">
+            {canTransfer && (
+              <button
+                onClick={handleTransfer}
+                disabled={busy}
+                className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-40"
+              >
+                {transfer.isPending ? 'Envoi…' : 'Virer au client'}
+              </button>
+            )}
             {transitions.map((target) => (
               <button
                 key={target}
                 onClick={() => handleAdvance(target)}
-                disabled={update.isPending}
+                disabled={busy}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
                   target === 'REJECTED'
                     ? 'border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10'
@@ -247,6 +314,11 @@ function RefundRow({
             ))}
           </div>
         </div>
+      ) : inFlight ? (
+        <p className="mt-3 border-t border-zinc-100 pt-3 text-[11px] text-blue-700 dark:border-dark-border dark:text-blue-400">
+          Virement en cours chez le prestataire : son issue sera appliquée
+          automatiquement. Ne le clôturez pas à la main.
+        </p>
       ) : (
         <p className="mt-3 border-t border-zinc-100 pt-3 text-[11px] text-zinc-400 dark:border-dark-border">
           Dossier clos
@@ -259,6 +331,8 @@ function RefundRow({
 
 export default function RemboursementsPage() {
   const { token } = useAuthStore();
+  // Rail en service : « Virer au client » n'a de sens que s'il sait verser.
+  const { data: providers } = usePaymentProviders();
   const [status, setStatus] = useState<RefundStatusFilter>('PENDING');
   const [page, setPage] = useState(1);
 
@@ -354,7 +428,12 @@ export default function RemboursementsPage() {
       ) : (
         <div className={`space-y-3 ${isPlaceholderData ? 'opacity-60' : ''}`}>
           {refunds.map((r) => (
-            <RefundRow key={r.id} refund={r} token={token} />
+            <RefundRow
+              key={r.id}
+              refund={r}
+              token={token}
+              paymentMode={providers?.mode}
+            />
           ))}
         </div>
       )}

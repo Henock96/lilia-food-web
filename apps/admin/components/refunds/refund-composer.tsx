@@ -12,6 +12,10 @@ import { toast } from 'sonner';
 import { Undo2 } from 'lucide-react';
 import { apiMessage } from '@/lib/api-message';
 import {
+  composedRefundOutcome,
+  refundErrorOutcome,
+} from '@/lib/refund-outcome';
+import {
   BEARER_LABELS,
   REASON_LABELS,
   buildRefundLines,
@@ -95,7 +99,8 @@ export function RefundComposer({
       !window.confirm(
         `Rembourser ${fmt(total)} au client ?\n\n` +
           `Payeur : ${BEARER_LABELS[effectiveBearer]}\n` +
-          'Le virement part tout de suite sur le numéro qui a payé la commande.',
+          'Le virement part tout de suite sur le numéro qui a payé la commande ' +
+          '(au-delà du seuil, après l’approbation d’un second administrateur).',
       )
     )
       return;
@@ -109,11 +114,22 @@ export function RefundComposer({
       },
       {
         onSuccess: (r) => {
-          if (r.execution.executed) toast.success(`${fmt(r.amountXaf)} remboursés.`);
-          else toast.warning(r.execution.message);
+          // R-01 — enregistré, mais le virement peut attendre un second
+          // administrateur : ni un succès (rien n'est parti), ni un échec.
+          const outcome = composedRefundOutcome(r.execution);
+          if (outcome.kind === 'SENT') toast.success(`${fmt(r.amountXaf)} remboursés.`);
+          else if (outcome.kind === 'APPROVAL_REQUIRED') {
+            toast.info(outcome.message, { duration: 8000 });
+          } else toast.warning(outcome.message);
           onDone?.();
         },
-        onError: (e) => toast.error(apiMessage(e, 'Remboursement impossible.')),
+        onError: (e) => {
+          const outcome = refundErrorOutcome(e);
+          // La double authentification est prise en charge par la fenêtre
+          // globale (`MutationCache`) : pas d'erreur générique par-dessus.
+          if (outcome.kind === 'MFA') return;
+          toast.error(apiMessage(e, 'Remboursement impossible.'));
+        },
       },
     );
   }
