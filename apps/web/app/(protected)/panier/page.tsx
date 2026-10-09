@@ -33,7 +33,13 @@ import {
 } from '@lilia/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
-import { formatCurrency, cn, isValidCongoPhone, isPreorderCart } from '@lilia/utils';
+import {
+  formatCurrency,
+  cn,
+  isValidCongoPhone,
+  isPreorderCart,
+  normalizeCongoPhone,
+} from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
@@ -389,14 +395,16 @@ export default function PanierPage() {
     });
 
     setCheckoutLoading(true);
-    const trimmedPhone = contactPhone.trim();
+    // La forme envoyée est celle que `isValidCongoPhone` a validée — la saisie
+    // brute (`+242 06 …`) faisait refuser l'encaissement après la commande.
+    const phoneToSend = normalizeCongoPhone(contactPhone);
     try {
       const result = await createOrder.mutateAsync({
         paymentMethod,
         isDelivery,
         adresseId: isDelivery ? (selectedAdresseId ?? undefined) : undefined,
         notes: notes || undefined,
-        contactPhone: trimmedPhone,
+        contactPhone: phoneToSend,
         promoCode: promoResult?.valid ? promoCode : undefined,
         // Simple intention : le serveur recalcule seul le nombre de points et
         // la remise. Le client n'envoie jamais de valeur financière.
@@ -431,7 +439,7 @@ export default function PanierPage() {
       try {
         const intent = await createPayment.mutateAsync({
           orderId: result.id,
-          phoneNumber: trimmedPhone,
+          phoneNumber: phoneToSend,
           method: paymentMethod,
           payerMessage: `Commande ${result.id.slice(-6).toUpperCase()}`,
         });

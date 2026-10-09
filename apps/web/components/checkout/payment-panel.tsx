@@ -22,7 +22,13 @@ import type {
   PaymentMethod,
   PaymentStatusView,
 } from '@lilia/types';
-import { formatCurrency, formatDateTime, cn, isValidCongoPhone } from '@lilia/utils';
+import {
+  formatCurrency,
+  formatDateTime,
+  cn,
+  isValidCongoPhone,
+  normalizeCongoPhone,
+} from '@lilia/utils';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { toast } from 'sonner';
 
@@ -348,7 +354,7 @@ function PaymentForm({
     try {
       const intent = await createPayment.mutateAsync({
         orderId,
-        phoneNumber: phone.trim(),
+        phoneNumber: normalizeCongoPhone(phone),
         method,
         payerMessage: `Commande ${orderId.slice(-6).toUpperCase()}`,
       });

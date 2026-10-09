@@ -235,9 +235,22 @@ export function getInitials(name: string | null | undefined): string {
  * puis 7 chiffres. Le préfixe `+242` ou `00242` est optionnel.
  */
 export function isValidCongoPhone(phone: string | null | undefined): boolean {
-  if (!phone) return false;
-  const cleaned = phone.replace(/[\s.\-()]/g, '');
-  return /^(?:\+?242|00242)?0[456]\d{7}$/.test(cleaned);
+  const cleaned = normalizeCongoPhone(phone);
+  return cleaned !== '' && /^(?:\+?242)?0[456]\d{7}$/.test(cleaned);
+}
+
+/**
+ * Forme à **envoyer** au serveur : séparateurs retirés, préfixe `00242`
+ * réécrit en `+242`.
+ *
+ * Valider une forme et en envoyer une autre faisait échouer l'encaissement :
+ * `+242 06 123 45 67` passait le formulaire, créait la commande, puis
+ * `POST /payments` répondait 400. Le serveur normalise lui aussi les
+ * séparateurs, mais il ne connaît pas `00242` : c'est ici qu'on le traduit.
+ */
+export function normalizeCongoPhone(phone: string | null | undefined): string {
+  if (!phone) return '';
+  return phone.replace(/[\s.\-()]/g, '').replace(/^00242/, '+242');
 }
 
 /**
