@@ -11,6 +11,11 @@ import { ProductImageBuffer, type DraftImage } from '@/components/product-image-
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
 import { useAuthStore } from '@/store/auth';
 import { useCatalogScope } from '@/lib/use-catalog-scope';
+import {
+  defaultProductType,
+  defaultStockPolicy,
+  productTypeChoices,
+} from '@/lib/product-type-defaults';
 import { apiMessage } from '@/lib/api-message';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -63,19 +68,6 @@ const EMPTY_FORM: ProductForm = {
   madeToOrder: false, availableFrom: '', availableUntil: '',
 };
 
-/**
- * Types de produits autorisés par type de vendeur (LIL-114).
- * Aligné sur la matrice côté backend ProductValidatorService.
- * ALCOHOL est exclu partout (pivot — pas de vente d'alcool au lancement).
- */
-const VENDOR_PRODUCT_OPTIONS: Record<VendorType, ProductType[]> = {
-  RESTAURANT: ['FOOD', 'BEVERAGE'],
-  HOME_COOK: ['FOOD', 'PASTRY'],
-  BAKERY: ['PASTRY', 'FOOD'],
-  BEVERAGE_SHOP: ['BEVERAGE'],
-  GROCERY: ['GROCERY', 'BEVERAGE'],
-};
-
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   FOOD: 'Plat / Repas',
   BEVERAGE: 'Boisson',
@@ -88,9 +80,16 @@ type PanelState = null | { mode: 'create' } | { mode: 'edit'; product: Product }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function initForm(p?: Product): ProductForm {
+function initForm(vendorType: VendorType, p?: Product): ProductForm {
   if (!p) {
-    return { ...EMPTY_FORM, variants: [{ _key: Date.now(), label: '', prix: '', stockConsumption: '1' }] };
+    // Le type et la disponibilité suivent le vendeur : « Auto (FOOD) »
+    // n'envoyait rien, et le serveur refusait FOOD à une épicerie.
+    return {
+      ...EMPTY_FORM,
+      productType: defaultProductType(vendorType),
+      stockPolicy: defaultStockPolicy(vendorType),
+      variants: [{ _key: Date.now(), label: '', prix: '', stockConsumption: '1' }],
+    };
   }
   return {
     nom:          p.nom,
@@ -108,7 +107,10 @@ function initForm(p?: Product): ProductForm {
           stockConsumption: String(v.stockConsumption ?? 1),
         }))
       : [{ _key: Date.now(), label: '', prix: '', stockConsumption: '1' }],
-    productType:   p.productType   ?? '',
+    // ALCOHOL n'est ni proposé ni conservé : un produit qui le porte devra
+    // recevoir un type valide avant d'être enregistré.
+    productType:
+      p.productType === 'ALCOHOL' ? '' : (p.productType ?? defaultProductType(vendorType)),
     ingredients:   p.ingredients   ?? '',
     shelfLifeDays: p.shelfLifeDays != null ? String(p.shelfLifeDays) : '',
     madeToOrder:   p.madeToOrder   ?? false,
@@ -139,7 +141,7 @@ function ProductPanel({
   isSaving: boolean;
 }) {
   const [form, setForm] = useState<ProductForm>(() =>
-    initForm(panel.mode === 'edit' ? panel.product : undefined),
+    initForm(vendorType, panel.mode === 'edit' ? panel.product : undefined),
   );
   const [buffer, setBuffer] = useState<DraftImage[]>([]);
   const editedProduct = panel.mode === 'edit' ? panel.product : undefined;
@@ -262,11 +264,13 @@ function ProductPanel({
               </label>
               <select
                 value={form.productType}
-                onChange={e => set('productType', e.target.value as ProductType | '')}
+                onChange={e => set('productType', e.target.value as ProductType)}
                 className="w-full text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
               >
-                <option value="">Auto (FOOD)</option>
-                {VENDOR_PRODUCT_OPTIONS[vendorType].map(t => (
+                {form.productType === '' && (
+                  <option value="" disabled>Choisir un type…</option>
+                )}
+                {productTypeChoices(vendorType, form.productType).map(t => (
                   <option key={t} value={t}>{PRODUCT_TYPE_LABELS[t]}</option>
                 ))}
               </select>
@@ -685,8 +689,11 @@ export default function ProduitsPage() {
   const scope = useCatalogScope();
   const restaurantId = scope.restaurantId;
 
-  // Type de vendeur actif — pilote la liste des productType proposés (LIL-116).
-  const vendorType: VendorType = scope.activeVendor?.vendorType ?? 'RESTAURANT';
+  // Type du vendeur actif — pilote les types de produits proposés (LIL-116).
+  // Aucun repli : supposer RESTAURANT pendant le chargement pré-sélectionnait
+  // FOOD, que le serveur refuse à une épicerie. Tant qu'il est inconnu, on ne
+  // crée pas.
+  const vendorType: VendorType | undefined = scope.activeVendor?.vendorType;
 
   const { data: products = [], isLoading, error: productsError } =
     useProducts(restaurantId, token, stockFilter);
@@ -748,6 +755,10 @@ export default function ProduitsPage() {
   }
 
   async function handleSave(form: ProductForm, buffer: DraftImage[]) {
+    if (!form.productType) {
+      toast.error('Choisissez un type de produit.');
+      return;
+    }
     let stock: Record<string, unknown>;
     try {
       stock = stockPayload(form, panel?.mode === 'edit' ? panel.product : undefined);
@@ -763,7 +774,8 @@ export default function ProduitsPage() {
       ...stock,
       variants: variantPayload(form.variants),
     };
-    if (form.productType) payload.productType = form.productType;
+    // Toujours envoyé : absent, le serveur retombait sur FOOD.
+    payload.productType = form.productType;
     if (form.ingredients.trim()) payload.ingredients = form.ingredients.trim();
     if (form.shelfLifeDays) payload.shelfLifeDays = parseInt(form.shelfLifeDays, 10);
     if (form.madeToOrder) payload.madeToOrder = true;
@@ -981,7 +993,9 @@ export default function ProduitsPage() {
         </div>
         <button
           onClick={() => setPanel({ mode: 'create' })}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-colors shrink-0"
+          disabled={!vendorType}
+          title={vendorType ? undefined : 'Chargement du vendeur…'}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={15} /> Nouveau produit
         </button>
@@ -1036,7 +1050,7 @@ export default function ProduitsPage() {
       )}
 
       {/* Create / Edit panel */}
-      {panel && (
+      {panel && vendorType && (
         <ProductPanel
           panel={panel}
           categories={categories}

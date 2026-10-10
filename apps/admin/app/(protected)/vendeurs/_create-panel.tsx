@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useCreateVendorOnboarding } from '@lilia/api-client';
 import type { CreateVendorOnboardingDto, Restaurant, VendorType } from '@lilia/types';
 import { useAuthStore } from '@/store/auth';
+import { CREATABLE_VENDOR_TYPES } from '@/lib/vendor-types';
 import { toast } from 'sonner';
 import { X, Copy } from 'lucide-react';
 
@@ -29,12 +30,7 @@ const EMPTY: FormState = {
   description: '',
 };
 
-const VENDOR_TYPES: { value: VendorType; label: string; helper: string }[] = [
-  { value: 'RESTAURANT', label: 'Restaurant', helper: 'Plats chauds, repas — validé d’office' },
-  { value: 'HOME_COOK', label: 'Cuisine maison', helper: 'Pâtissiers, traiteurs — validation admin requise' },
-  { value: 'BAKERY', label: 'Boulangerie', helper: 'Viennoiseries, pain — validation admin requise' },
-  { value: 'BEVERAGE_SHOP', label: 'Boissons', helper: 'Sodas, jus, eaux (pas d’alcool) — validation admin requise' },
-];
+const VENDOR_TYPES = CREATABLE_VENDOR_TYPES;
 
 /**
  * Étape 1 de l'onboarding : le compte vendeur et la boutique.
