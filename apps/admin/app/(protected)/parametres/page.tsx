@@ -226,6 +226,35 @@ export default function ParametresPage() {
                 )}
               </div>
             ))}
+            {/* D-4 — taux propre aux épiceries, seulement si le serveur le connaît. */}
+            {section === 'Frais de service' && loaded.groceryServiceFeeBps !== undefined && (
+              <div>
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    htmlFor="groceryServiceFeePercent"
+                    className="text-sm text-zinc-600 dark:text-zinc-300"
+                  >
+                    Frais de service épiceries
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="groceryServiceFeePercent"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="général"
+                      value={form.groceryServiceFeePercent}
+                      onChange={(e) => set('groceryServiceFeePercent', e.target.value)}
+                      className="w-24 px-2.5 py-1.5 text-sm text-right rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-500 tabular-nums"
+                    />
+                    <span className="text-xs text-zinc-400 w-8">%</span>
+                  </div>
+                </div>
+                <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                  Appliqué aux seules épiceries, à la place du taux général. Vide : les épiceries
+                  paient le taux général. N&apos;affecte que les commandes futures.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ))}

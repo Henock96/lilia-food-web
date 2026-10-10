@@ -89,6 +89,12 @@ export interface CheckoutEstimateInput {
   promoDeliveryFee?: number;
   loyaltyPoints?: number;
   useLoyaltyPoints?: boolean;
+  /**
+   * D-4 — taux de frais de service de la boutique, annoncé par `GET /cart`
+   * (`Cart.serviceFeePercent`) : une épicerie a le sien. Absent ou `null` :
+   * taux général (`settings.serviceFeePercent`).
+   */
+  serviceFeePercent?: number | null;
 }
 
 export interface CheckoutEstimate {
@@ -128,6 +134,7 @@ export function computeCheckoutEstimate({
   loyaltyPoints = 0,
   useLoyaltyPoints = false,
   settingsKnown = true,
+  serviceFeePercent,
 }: CheckoutEstimateInput): CheckoutEstimate {
   // `OrderCalculatorService` : la livraison n'entre pas dans un retrait.
   const baseDeliveryFee = isDelivery ? Math.round(deliveryFee) : 0;
@@ -140,7 +147,8 @@ export function computeCheckoutEstimate({
       : baseDeliveryFee;
 
   // Commission calculée sur le sous-total uniquement, jamais sur la livraison.
-  const serviceFee = Math.round((subTotal * settings.serviceFeePercent) / 100);
+  const rate = serviceFeePercent ?? settings.serviceFeePercent;
+  const serviceFee = Math.round((subTotal * rate) / 100);
 
   const remaining = Math.max(
     0,

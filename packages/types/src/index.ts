@@ -1107,6 +1107,12 @@ export interface Cart {
   subTotalXaf?: number;
   /** F3-09 — au moins une ligne ne passera pas le checkout telle quelle. */
   hasIssues?: boolean;
+  /**
+   * D-4 — taux de frais de service de la boutique du panier, en pourcentage,
+   * résolu par le serveur (une épicerie a le sien). `null` pour un panier
+   * vide ; absent d'un serveur antérieur.
+   */
+  serviceFeePercent?: number | null;
 }
 
 export interface CartItem {
@@ -2174,6 +2180,11 @@ export interface PaginatedIncidents {
 export interface PlatformSettings {
   id: string;
   serviceFeePercent: number;
+  /**
+   * D-4 — frais de service des épiceries, en **points de base** (500 = 5 %).
+   * `null` = taux général. Absent d'un serveur antérieur.
+   */
+  groceryServiceFeeBps?: number | null;
   /**
    * F3-02 — `PLATFORM` refusé (409) tant qu'aucune grille n'est publiée. Le
    * retour à `VENDOR_LEGACY` est la sortie de secours, toujours permise.
