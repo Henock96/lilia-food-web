@@ -274,6 +274,8 @@ export default function PanierPage() {
     promoDeliveryFee: promoResult?.valid ? promoResult.newDeliveryFee : undefined,
     loyaltyPoints,
     useLoyaltyPoints,
+    // D-4 — taux de la boutique annoncé par le serveur (épicerie : le sien).
+    serviceFeePercent: cart?.serviceFeePercent,
   });
   const { deliveryDiscount } = estimate;
   const deliveryFee = estimate.baseDeliveryFee;

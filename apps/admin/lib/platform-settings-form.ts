@@ -42,6 +42,11 @@ export const NUMBER_FIELD_SPECS: Record<NumberFieldKey, { label: string; integer
 };
 
 export interface SettingsForm extends Record<NumberFieldKey, string> {
+  /**
+   * D-4 — frais de service des épiceries, saisis en %, envoyés en points de
+   * base. Vide = taux général (`null`).
+   */
+  groceryServiceFeePercent: string;
   /** F3-02 — qui fixe le prix de la livraison. */
   deliveryPricingMode: PlatformSettings['deliveryPricingMode'];
   /** F3-07 — versement automatique au vendeur (et son délai, en minutes). */
@@ -66,6 +71,8 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
 export function toSettingsForm(s: PlatformSettings): SettingsForm {
   return {
     serviceFeePercent: String(s.serviceFeePercent),
+    groceryServiceFeePercent:
+      s.groceryServiceFeeBps == null ? '' : String(s.groceryServiceFeeBps / 100),
     restaurantCommissionPercent: String(s.restaurantCommissionPercent),
     loyaltyPointsPerOrder: String(s.loyaltyPointsPerOrder),
     loyaltyPointValueXaf: String(s.loyaltyPointValueXaf),
@@ -114,6 +121,25 @@ export function parseNumberField(
   return { value: Number(t) };
 }
 
+/**
+ * D-4 — taux épicerie saisi en % (0 à 100, deux décimales au plus) et converti
+ * en points de base entiers (5 → 500). Vide → `null` : taux général.
+ */
+export function parseGroceryServiceFee(raw: string): { bps: number | null } | { error: string } {
+  const label = 'Frais de service épiceries';
+  const t = raw.trim();
+  if (t === '') return { bps: null };
+  if (/^\d+,\d+$/.test(t)) {
+    return { error: `${label} : utilisez un point pour les décimales (ex : 7.5).` };
+  }
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) {
+    return { error: `${label} : pourcentage attendu, deux décimales au plus (« ${t} »).` };
+  }
+  const percent = Number(t);
+  if (percent > 100) return { error: `${label} : 100 % au plus.` };
+  return { bps: Math.round(percent * 100) };
+}
+
 /** Texte libre facultatif : blanc → `null`, comme au serveur. */
 function textOrNull(raw: string): string | null {
   const t = raw.trim();
@@ -139,6 +165,16 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
       errors.push(parsed.error);
     } else if (parsed.value !== loaded[key]) {
       patch[key] = parsed.value;
+    }
+  }
+
+  // D-4 — seulement si le serveur connaît le champ (`undefined` sinon).
+  if (loaded.groceryServiceFeeBps !== undefined) {
+    const grocery = parseGroceryServiceFee(form.groceryServiceFeePercent);
+    if ('error' in grocery) {
+      errors.push(grocery.error);
+    } else if (grocery.bps !== (loaded.groceryServiceFeeBps ?? null)) {
+      patch.groceryServiceFeeBps = grocery.bps;
     }
   }
 

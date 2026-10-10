@@ -242,3 +242,49 @@ describe('F3-09 — options & suppléments : ordre de déploiement', () => {
     });
   });
 });
+
+// D-4 (10/10/2026) — frais de service propres aux épiceries, saisis en %,
+// envoyés en points de base, vide = taux général.
+describe('frais de service des épiceries (D-4)', () => {
+  // Serveur à jour : il connaît le champ, encore non posé.
+  const D4: PlatformSettings = { ...PROD, groceryServiceFeeBps: null };
+
+  it('serveur antérieur (champ inconnu) : jamais envoyé', () => {
+    const r = patchFrom({ groceryServiceFeePercent: '5' });
+    expect(r.ok && 'groceryServiceFeeBps' in r.patch).toBe(false);
+  });
+
+  it('non posé : champ vide, rien n’est envoyé', () => {
+    expect(toSettingsForm(D4).groceryServiceFeePercent).toBe('');
+    const r = patchFrom({}, D4);
+    expect(r.ok && 'groceryServiceFeeBps' in r.patch).toBe(false);
+  });
+
+  it('5 % saisi : 500 points de base envoyés', () => {
+    const r = patchFrom({ groceryServiceFeePercent: '5' }, D4);
+    expect(r.ok && r.patch.groceryServiceFeeBps).toBe(500);
+  });
+
+  it('décimal : 7.5 % → 750', () => {
+    const r = patchFrom({ groceryServiceFeePercent: '7.5' }, D4);
+    expect(r.ok && r.patch.groceryServiceFeeBps).toBe(750);
+  });
+
+  it('chargé à 500 : le champ affiche 5, et le renvoyer ne change rien', () => {
+    const loaded = { ...PROD, groceryServiceFeeBps: 500 };
+    expect(toSettingsForm(loaded).groceryServiceFeePercent).toBe('5');
+    const r = patchFrom({}, loaded);
+    expect(r.ok && 'groceryServiceFeeBps' in r.patch).toBe(false);
+  });
+
+  it('vider le champ : null envoyé, les épiceries reviennent au taux général', () => {
+    const loaded = { ...PROD, groceryServiceFeeBps: 500 };
+    const r = patchFrom({ groceryServiceFeePercent: '' }, loaded);
+    expect(r.ok && r.patch.groceryServiceFeeBps).toBeNull();
+  });
+
+  it.each(['abc', '5,5', '101', '1.234'])('« %s » est refusé, rien n’est envoyé', (raw) => {
+    const r = patchFrom({ groceryServiceFeePercent: raw }, D4);
+    expect(r.ok).toBe(false);
+  });
+});

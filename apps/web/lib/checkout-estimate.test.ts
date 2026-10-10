@@ -37,6 +37,30 @@ describe('computeCheckoutEstimate — frais de service', () => {
     expect(e.serviceFee).toBe(800);
   });
 
+  // D-4 (10/10/2026) — `GET /cart` annonce le taux de la boutique (épicerie : le sien).
+  it('taux de la boutique annoncé par le panier : il prime sur le taux général', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 20_000,
+      deliveryFee: 1000,
+      isDelivery: true,
+      settings: PROD,
+      serviceFeePercent: 5,
+    });
+    expect(e.serviceFee).toBe(1000);
+    expect(e.total).toBe(22_000);
+  });
+
+  it('sans taux de boutique (serveur ancien, panier vide) : le taux général', () => {
+    const e = computeCheckoutEstimate({
+      subTotal: 20_000,
+      deliveryFee: 0,
+      isDelivery: false,
+      settings: PROD,
+      serviceFeePercent: null,
+    });
+    expect(e.serviceFee).toBe(3000);
+  });
+
   it('arrondit comme le serveur (Math.round sur le sous-total seul)', () => {
     const e = computeCheckoutEstimate({
       subTotal: 3333,
