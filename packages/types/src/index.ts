@@ -1761,7 +1761,11 @@ export type AdminCapability =
 export type ApprovalKind =
   | 'PAYOUT_ACCOUNT_CHANGE'
   | 'REFUND_EXECUTION'
-  | 'CAPABILITY_GRANT';
+  | 'CAPABILITY_GRANT'
+  /** R-09 — réglage de plateforme qui fixe de l'argent. */
+  | 'PLATFORM_SETTINGS_CHANGE'
+  /** R-09 — commission propre à un vendeur. */
+  | 'VENDOR_COMMISSION_CHANGE';
 
 export type ApprovalStatus =
   | 'PENDING'
@@ -1790,6 +1794,29 @@ export interface FinancialApproval {
   createdAt: string;
   decidedAt: string | null;
 }
+
+/**
+ * R-09 — réglages de plateforme qui fixent de l'argent. Ils ne passent plus par
+ * `PATCH /admin/platform-settings` (409 `FINANCIAL_SETTING_REQUIRES_APPROVAL`),
+ * mais par `POST /admin/platform-settings/financial-change`, approuvé par un
+ * second administrateur. Miroir de `FINANCIAL_SETTING_KEYS` (backend).
+ */
+export type FinancialSettingKey =
+  | 'serviceFeePercent'
+  | 'groceryServiceFeeBps'
+  | 'restaurantCommissionPercent'
+  | 'loyaltyPointValueXaf'
+  | 'loyaltyPointsPerOrder'
+  | 'loyaltyMinRedemption'
+  | 'referrerBonusPoints'
+  | 'vendorPayoutAutoEnabled'
+  | 'vendorPayoutDelayMinutes'
+  | 'deliveryPricingMode';
+
+/** Corps de `POST /admin/platform-settings/financial-change`. */
+export type FinancialSettingsChangePayload = Partial<
+  Pick<UpdatePlatformSettingsPayload, FinancialSettingKey>
+> & { expectedUpdatedAt: string };
 
 /** Réponse d'un geste soumis aux 4 yeux : rien n'a encore changé. */
 export interface ApprovalRequested {

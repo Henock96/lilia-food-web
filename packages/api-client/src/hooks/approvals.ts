@@ -7,6 +7,7 @@ import type {
   ApprovalRequested,
   ApprovalStatus,
   FinancialApproval,
+  FinancialSettingsChangePayload,
 } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -92,6 +93,48 @@ export function useRequestCapabilities(token: string | null) {
         method: 'PATCH',
         token,
         body: JSON.stringify({ capabilities }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: approvalKeys.all });
+    },
+  });
+}
+
+/**
+ * R-09 — demander un changement des réglages qui fixent de l'argent (frais,
+ * commission par défaut, points, versements, tarification). Rien ne change
+ * avant l'approbation d'un second administrateur.
+ */
+export function useRequestFinancialSettingsChange(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: FinancialSettingsChangePayload) =>
+      apiClient<ApprovalRequested>('/admin/platform-settings/financial-change', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(dto),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: approvalKeys.all });
+    },
+  });
+}
+
+/** R-09 — demander une nouvelle commission pour un vendeur (`null` = taux plateforme). */
+export function useRequestVendorCommissionChange(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      vendorId,
+      commissionPercent,
+    }: {
+      vendorId: string;
+      commissionPercent: number | null;
+    }) =>
+      apiClient<ApprovalRequested>(`/admin/vendors/${vendorId}/commission-change`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ commissionPercent }),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: approvalKeys.all });

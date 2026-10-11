@@ -1,6 +1,7 @@
 import type {
   AdminCapability,
   FinancialApproval,
+  FinancialSettingKey,
 } from '@lilia/types';
 
 /**
@@ -15,6 +16,45 @@ export const CAPABILITY_LABELS: Record<AdminCapability, string> = {
   SETTINGS: 'Paramètres et tarifs',
   SUPPORT: 'Opérations courantes',
 };
+
+/** R-09 — libellés des réglages d'argent (miroir du résumé serveur). */
+const FINANCIAL_SETTING_LABELS: Record<FinancialSettingKey, string> = {
+  serviceFeePercent: 'Frais de service',
+  groceryServiceFeeBps: 'Frais de service épiceries',
+  restaurantCommissionPercent: 'Commission par défaut',
+  loyaltyPointValueXaf: 'Valeur du point',
+  loyaltyPointsPerOrder: 'Points par commande',
+  loyaltyMinRedemption: 'Seuil de dépense des points',
+  referrerBonusPoints: 'Bonus de parrainage',
+  vendorPayoutAutoEnabled: 'Versements automatiques',
+  vendorPayoutDelayMinutes: 'Délai avant versement',
+  deliveryPricingMode: 'Tarification de la livraison',
+};
+
+function formatFinancialValue(key: FinancialSettingKey, value: unknown): string {
+  switch (key) {
+    case 'serviceFeePercent':
+    case 'restaurantCommissionPercent':
+      return `${String(value)} %`;
+    case 'groceryServiceFeeBps':
+      return value === null || value === undefined ? 'taux général' : `${Number(value) / 100} %`;
+    case 'loyaltyPointValueXaf':
+      return `${String(value)} XAF`;
+    case 'loyaltyPointsPerOrder':
+    case 'loyaltyMinRedemption':
+    case 'referrerBonusPoints':
+      return `${String(value)} pts`;
+    case 'vendorPayoutAutoEnabled':
+      return value ? 'activés' : 'désactivés';
+    case 'vendorPayoutDelayMinutes':
+      return `${String(value)} min`;
+    case 'deliveryPricingMode':
+      return value === 'PLATFORM' ? 'grille plateforme' : 'prix du vendeur';
+  }
+}
+
+const commissionLabel = (v: unknown) =>
+  v === null || v === undefined ? 'taux plateforme' : `${String(v)} %`;
 
 /** Ce que le second administrateur doit vérifier avant d'approuver. */
 export function describeApproval(a: FinancialApproval): {
@@ -55,6 +95,24 @@ export function describeApproval(a: FinancialApproval): {
         detail: 'Le virement part vers le numéro qui a payé la commande.',
       };
     }
+    case 'PLATFORM_SETTINGS_CHANGE': {
+      const changes = (p.changes ?? {}) as Partial<Record<FinancialSettingKey, unknown>>;
+      const before = (p.before ?? {}) as Partial<Record<FinancialSettingKey, unknown>>;
+      return {
+        title: 'Changement de réglages qui fixent de l’argent',
+        detail: (Object.keys(changes) as FinancialSettingKey[])
+          .map(
+            (k) =>
+              `${FINANCIAL_SETTING_LABELS[k] ?? k} : ${formatFinancialValue(k, before[k])} → ${formatFinancialValue(k, changes[k])}`,
+          )
+          .join(' ; '),
+      };
+    }
+    case 'VENDOR_COMMISSION_CHANGE':
+      return {
+        title: `Commission de ${String(p.vendorName ?? 'un vendeur')}`,
+        detail: `${commissionLabel(p.before)} → ${commissionLabel(p.commissionPercent)}`,
+      };
     case 'CAPABILITY_GRANT': {
       const caps = (p.capabilities as AdminCapability[] | undefined) ?? [];
       return {
@@ -64,6 +122,14 @@ export function describeApproval(a: FinancialApproval): {
           : 'Aucune capacité (retrait de tous les droits)',
       };
     }
+    default:
+      // Un type que cette interface ne connaît pas encore (serveur plus
+      // récent) : on l'annonce plutôt que de casser la file.
+      return {
+        title: `Demande de type ${String(a.kind)}`,
+        detail:
+          'Ce type de demande n’est pas encore décrit par cette version de l’administration : vérifiez-le avec le demandeur avant d’approuver.',
+      };
   }
 }
 

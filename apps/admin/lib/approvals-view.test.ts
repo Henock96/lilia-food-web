@@ -98,6 +98,43 @@ describe('describeApproval', () => {
   });
 });
 
+describe('describeApproval — réglages d’argent (R-09)', () => {
+  it('réglages de plateforme : chaque valeur avant → après, en clair', () => {
+    const d = describeApproval(
+      base({
+        kind: 'PLATFORM_SETTINGS_CHANGE',
+        refId: 'platform-settings',
+        payload: {
+          changes: { serviceFeePercent: 12, groceryServiceFeeBps: 500, vendorPayoutAutoEnabled: true },
+          before: { serviceFeePercent: 15, groceryServiceFeeBps: null, vendorPayoutAutoEnabled: false },
+        },
+      }),
+    );
+    expect(d.title).toBe('Changement de réglages qui fixent de l’argent');
+    expect(d.detail).toBe(
+      'Frais de service : 15 % → 12 % ; Frais de service épiceries : taux général → 5 % ; ' +
+        'Versements automatiques : désactivés → activés',
+    );
+  });
+
+  it('commission d’un vendeur : nommé, avant → après', () => {
+    const d = describeApproval(
+      base({
+        kind: 'VENDOR_COMMISSION_CHANGE',
+        payload: { commissionPercent: 7.5, before: null, vendorName: 'Épicerie Mbota' },
+      }),
+    );
+    expect(d.title).toBe('Commission de Épicerie Mbota');
+    expect(d.detail).toBe('taux plateforme → 7.5 %');
+  });
+
+  it('type inconnu (serveur plus récent) : jamais une page cassée', () => {
+    const d = describeApproval(base({ kind: 'SOMETHING_NEW' as FinancialApproval['kind'] }));
+    expect(d.title).toMatch(/SOMETHING_NEW/);
+    expect(d.detail).toMatch(/demandeur/);
+  });
+});
+
 describe('outils', () => {
   it('expiration lisible', () => {
     const now = new Date('2026-09-26T09:00:00.000Z');

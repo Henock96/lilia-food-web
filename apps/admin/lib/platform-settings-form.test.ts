@@ -6,6 +6,7 @@ import {
   buildSettingsPatch,
   isStaleSettingsConflict,
   parseNumberField,
+  splitFinancialChanges,
   toSettingsForm,
 } from './platform-settings-form';
 
@@ -286,5 +287,83 @@ describe('frais de service des épiceries (D-4)', () => {
   it.each(['abc', '5,5', '101', '1.234'])('« %s » est refusé, rien n’est envoyé', (raw) => {
     const r = patchFrom({ groceryServiceFeePercent: raw }, D4);
     expect(r.ok).toBe(false);
+  });
+});
+
+/**
+ * R-09 — les réglages qui fixent de l'argent ne partent plus dans le PATCH :
+ * ils deviennent une demande, qu'un second administrateur approuve.
+ */
+describe('réglages d’argent : demande à deux administrateurs (R-09)', () => {
+  const split = (changes: Partial<ReturnType<typeof toSettingsForm>>, loaded = PROD) => {
+    const r = patchFrom(changes, loaded);
+    if (!r.ok) throw new Error(r.errors.join(' '));
+    return splitFinancialChanges(r.patch);
+  };
+
+  it('frais de service modifiés : rien dans le PATCH, tout dans la demande', () => {
+    expect(split({ serviceFeePercent: '12' })).toEqual({
+      settingsPatch: { expectedUpdatedAt: PROD.updatedAt },
+      settingsChanged: false,
+      financial: { serviceFeePercent: 12, expectedUpdatedAt: PROD.updatedAt },
+      financialChanged: true,
+    });
+  });
+
+  it('un réglage ordinaire seul : PATCH, aucune demande', () => {
+    const r = split({ maintenanceMode: true });
+    expect(r.settingsPatch).toEqual({ expectedUpdatedAt: PROD.updatedAt, maintenanceMode: true });
+    expect(r.settingsChanged).toBe(true);
+    expect(r.financialChanged).toBe(false);
+  });
+
+  it('les deux à la fois : chacun part par son chemin', () => {
+    const r = split({ maintenanceMode: true, loyaltyPointValueXaf: '40', deliveryPricingMode: 'PLATFORM' });
+    expect(r.settingsPatch).toEqual({ expectedUpdatedAt: PROD.updatedAt, maintenanceMode: true });
+    expect(r.financial).toEqual({
+      expectedUpdatedAt: PROD.updatedAt,
+      loyaltyPointValueXaf: 40,
+      deliveryPricingMode: 'PLATFORM',
+    });
+  });
+
+  it('les dix réglages d’argent sont reconnus', () => {
+    const loaded: PlatformSettings = {
+      ...PROD,
+      groceryServiceFeeBps: null,
+      vendorPayoutAutoEnabled: false,
+      vendorPayoutDelayMinutes: 60,
+    };
+    const r = split(
+      {
+        serviceFeePercent: '12',
+        groceryServiceFeePercent: '5',
+        restaurantCommissionPercent: '8',
+        loyaltyPointValueXaf: '40',
+        loyaltyPointsPerOrder: '2',
+        loyaltyMinRedemption: '10',
+        referrerBonusPoints: '5',
+        vendorPayoutAutoEnabled: true,
+        vendorPayoutDelayMinutes: '30',
+        deliveryPricingMode: 'PLATFORM',
+      },
+      loaded,
+    );
+    expect(Object.keys(r.financial).sort()).toEqual(
+      [
+        'deliveryPricingMode',
+        'expectedUpdatedAt',
+        'groceryServiceFeeBps',
+        'loyaltyMinRedemption',
+        'loyaltyPointValueXaf',
+        'loyaltyPointsPerOrder',
+        'referrerBonusPoints',
+        'restaurantCommissionPercent',
+        'serviceFeePercent',
+        'vendorPayoutAutoEnabled',
+        'vendorPayoutDelayMinutes',
+      ].sort(),
+    );
+    expect(r.settingsChanged).toBe(false);
   });
 });
