@@ -30,6 +30,7 @@ import {
   apiClient,
   ApiError,
   pricingKeys,
+  restaurantKeys,
 } from '@lilia/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ValidatePromoDto, PromoValidationResult } from '@lilia/types';
@@ -51,6 +52,12 @@ import {
 } from '@/lib/checkout-estimate';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { maintenanceNotice } from '@/lib/maintenance';
+import {
+  isServiceModeError,
+  noServiceMode,
+  resolveServiceMode,
+  serviceModesOf,
+} from '@/lib/service-modes';
 import { toast } from 'sonner';
 import { CartLineDetails } from '@/components/cart/cart-line-details';
 import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
@@ -92,7 +99,9 @@ export default function PanierPage() {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const phoneIsValid = isValidCongoPhone(contactPhone);
   const phoneError = phoneTouched && !phoneIsValid;
-  const [isDelivery, setIsDelivery] = useState(true);
+  // Choix du client. Le mode effectif (`isDelivery`) en est dérivé plus bas,
+  // contre les modes que le vendeur propose.
+  const [chosenIsDelivery, setIsDelivery] = useState(true);
   const [selectedAdresseId, setSelectedAdresseId] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
@@ -103,6 +112,13 @@ export default function PanierPage() {
   const { data: vendorRestaurant, isPending: vendorPending } =
     useRestaurant(firstItemRestaurantId);
   const leadHours = vendorRestaurant?.preorderLeadHours ?? 24;
+  // Lot 1 — seuls les modes que le vendeur propose. Le choix du client est
+  // gardé tant qu'il reste proposé, sinon il retombe sur le seul mode
+  // disponible. Le serveur relit la configuration au checkout et refuse un
+  // mode non proposé : ceci évite seulement de proposer un choix voué au refus.
+  const serviceModes = vendorRestaurant ? serviceModesOf(vendorRestaurant) : null;
+  const isDelivery = resolveServiceMode(chosenIsDelivery, serviceModes);
+  const vendorServesNobody = noServiceMode(serviceModes);
 
   // ── Montants : le serveur décide, le panier affiche ───────────────────────
   //
@@ -362,6 +378,10 @@ export default function PanierPage() {
       toast.error(maintenance);
       return;
     }
+    if (vendorServesNobody) {
+      toast.error('Ce vendeur ne prend pas de commande pour le moment.');
+      return;
+    }
     // Même règle que `OrderValidator.validateMinimumOrderAmount` : le serveur
     // reste l'autorité, on lui évite juste un aller-retour perdu.
     if (minimumError) {
@@ -486,6 +506,13 @@ export default function PanierPage() {
       // épuisé, mise en pause) : on re-chiffre, le client valide le nouveau total.
       if (err instanceof ApiError && err.code === 'VENDOR_OFFER_CHANGED') {
         void queryClient.invalidateQueries({ queryKey: ['cart', 'quote'] });
+      }
+      // Lot 1 — le vendeur ne propose plus le mode choisi : relire sa
+      // configuration, le sélecteur ne montrera plus que les modes proposés.
+      if (err instanceof ApiError && isServiceModeError(err.code)) {
+        void queryClient.invalidateQueries({
+          queryKey: restaurantKeys.detail(firstItemRestaurantId),
+        });
       }
       const msg = (err as { message?: string }).message;
       toast.error(msg ?? 'Impossible de passer la commande');
@@ -640,32 +667,58 @@ export default function PanierPage() {
             {/* Delivery mode */}
             <div className="bg-white rounded-2xl border border-cream-200 p-4">
               <p className="text-sm font-medium text-ink-700 mb-3">Mode de réception</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setIsDelivery(true)}
-                  className={cn(
-                    'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
-                    isDelivery
-                      ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
-                      : 'border-cream-300 text-ink-500 hover:border-ink-300',
+              {vendorServesNobody ? (
+                <p className="text-sm text-ink-500">
+                  Ce vendeur ne prend pas de commande pour le moment.
+                </p>
+              ) : (
+                <>
+                  <div
+                    className={cn(
+                      'grid gap-2',
+                      serviceModes && serviceModes.delivery !== serviceModes.pickup
+                        ? 'grid-cols-1'
+                        : 'grid-cols-2',
+                    )}
+                  >
+                    {serviceModes?.delivery !== false && (
+                      <button
+                        onClick={() => setIsDelivery(true)}
+                        className={cn(
+                          'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
+                          isDelivery
+                            ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
+                            : 'border-cream-300 text-ink-500 hover:border-ink-300',
+                        )}
+                      >
+                        <Bike className="w-5 h-5" />
+                        Livraison
+                      </button>
+                    )}
+                    {serviceModes?.pickup !== false && (
+                      <button
+                        onClick={() => setIsDelivery(false)}
+                        className={cn(
+                          'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
+                          !isDelivery
+                            ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
+                            : 'border-cream-300 text-ink-500 hover:border-ink-300',
+                        )}
+                      >
+                        <Store className="w-5 h-5" />
+                        Retrait
+                      </button>
+                    )}
+                  </div>
+                  {serviceModes && serviceModes.delivery !== serviceModes.pickup && (
+                    <p className="mt-2 text-xs text-ink-500">
+                      {serviceModes.delivery
+                        ? 'Ce vendeur propose uniquement la livraison.'
+                        : 'Ce vendeur propose uniquement le retrait sur place.'}
+                    </p>
                   )}
-                >
-                  <Bike className="w-5 h-5" />
-                  Livraison
-                </button>
-                <button
-                  onClick={() => setIsDelivery(false)}
-                  className={cn(
-                    'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
-                    !isDelivery
-                      ? 'border-tomato-500 bg-tomato-100 text-tomato-700'
-                      : 'border-cream-300 text-ink-500 hover:border-ink-300',
-                  )}
-                >
-                  <Store className="w-5 h-5" />
-                  Retrait
-                </button>
-              </div>
+                </>
+              )}
             </div>
 
             {/* Address selection (delivery only) */}
@@ -1107,7 +1160,7 @@ export default function PanierPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={!!maintenance || checkoutLoading || isEmpty || pricingPending || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
+                disabled={!!maintenance || vendorServesNobody || checkoutLoading || isEmpty || pricingPending || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (
