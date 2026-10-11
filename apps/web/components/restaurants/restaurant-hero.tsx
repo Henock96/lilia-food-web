@@ -6,6 +6,8 @@ import type { Restaurant } from '@lilia/types';
 import { formatCurrency, formatDeliveryTime, galleryImages } from '@lilia/utils';
 import { ImageCarousel } from '@/components/ui';
 import { DeliveryFeeText } from './delivery-fee-text';
+import { ServiceModeTags } from './service-mode-tags';
+import { serviceModesOf } from '@/lib/service-modes';
 import { openingLabel } from '@/lib/opening-label';
 
 interface RestaurantHeroProps {
@@ -13,6 +15,7 @@ interface RestaurantHeroProps {
 }
 
 export function RestaurantHero({ restaurant }: RestaurantHeroProps) {
+  const modes = serviceModesOf(restaurant);
   return (
     <div className="relative">
       {/* Couverture — hauteur abaissée pour que le menu remonte au-dessus de
@@ -89,17 +92,24 @@ export function RestaurantHero({ restaurant }: RestaurantHeroProps) {
                     )}
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-ink-700">
-                  <Clock className="w-4 h-4 text-ink-500" />
-                  {formatDeliveryTime(
-                    restaurant.estimatedDeliveryTimeMin,
-                    restaurant.estimatedDeliveryTimeMax,
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 text-ink-700">
-                  <Bike className="w-4 h-4 text-ink-500" />
-                  <DeliveryFeeText fixedDeliveryFee={restaurant.fixedDeliveryFee} prefix="Livraison" />
-                </div>
+                {/* Délai et frais de course : seulement chez un vendeur qui livre. */}
+                {modes.delivery && (
+                  <>
+                    <div className="flex items-center gap-1.5 text-ink-700">
+                      <Clock className="w-4 h-4 text-ink-500" />
+                      {formatDeliveryTime(
+                        restaurant.estimatedDeliveryTimeMin,
+                        restaurant.estimatedDeliveryTimeMax,
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-ink-700">
+                      <Bike className="w-4 h-4 text-ink-500" />
+                      <DeliveryFeeText fixedDeliveryFee={restaurant.fixedDeliveryFee} prefix="Livraison" />
+                    </div>
+                  </>
+                )}
+                {/* Ce que le client pourra choisir au moment de commander. */}
+                <ServiceModeTags modes={modes} className="text-ink-700" />
                 {restaurant.minimumOrderAmount > 0 && (
                   <div className="text-ink-500 text-xs">
                     Minimum {formatCurrency(restaurant.minimumOrderAmount)}

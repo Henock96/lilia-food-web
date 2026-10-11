@@ -14,6 +14,8 @@ import { openingLabel } from '@/lib/opening-label';
 import { VENDOR_TYPE_LABELS } from './vendor-type-badge';
 import { OfferBadge } from './offer-badge';
 import { DeliveryFeeText } from './delivery-fee-text';
+import { ServiceModeTags } from './service-mode-tags';
+import { serviceModesOf } from '@/lib/service-modes';
 
 /**
  * Carte vendeur — accueil, catalogue et favoris (une seule carte, un seul
@@ -65,6 +67,7 @@ export function VendorCard({ restaurant }: VendorCardProps) {
     ? (now - new Date(restaurant.createdAt).getTime()) / 86_400_000 <= NEW_VENDOR_DAYS
     : false;
   const status = openingLabel(restaurant, new Date(now));
+  const modes = serviceModesOf(restaurant);
   const href = `/restaurants/${restaurant.id}`;
 
   return (
@@ -137,20 +140,25 @@ export function VendorCard({ restaurant }: VendorCardProps) {
         </p>
 
         <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-[13px] text-ink-500">
-          <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" aria-hidden />
-            {formatDeliveryTime(
-              restaurant.estimatedDeliveryTimeMin,
-              restaurant.estimatedDeliveryTimeMax,
-            )}
-          </span>
-          <span className="flex items-center gap-1">
-            <Bike className="h-3.5 w-3.5" aria-hidden />
-            <DeliveryFeeText
-              fixedDeliveryFee={restaurant.fixedDeliveryFee}
-              freeLabel="Livraison offerte"
-            />
-          </span>
+          {/* Délai et frais de course : seulement chez un vendeur qui livre. */}
+          {modes.delivery && (
+            <>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
+                {formatDeliveryTime(
+                  restaurant.estimatedDeliveryTimeMin,
+                  restaurant.estimatedDeliveryTimeMax,
+                )}
+              </span>
+              <span className="flex items-center gap-1">
+                <Bike className="h-3.5 w-3.5" aria-hidden />
+                <DeliveryFeeText
+                  fixedDeliveryFee={restaurant.fixedDeliveryFee}
+                  freeLabel="Livraison offerte"
+                />
+              </span>
+            </>
+          )}
           {restaurant.averageRating ? (
             <span className="flex items-center gap-1">
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
@@ -161,6 +169,8 @@ export function VendorCard({ restaurant }: VendorCardProps) {
             </span>
           ) : null}
         </div>
+        {/* Livraison, retrait ou les deux — ce que le client pourra choisir. */}
+        <ServiceModeTags modes={modes} className="mt-1 text-[13px] text-ink-500" />
 
         {(isNew || restaurant.activeOffer) && (
           <div className="mt-2.5 flex flex-wrap gap-1.5">
