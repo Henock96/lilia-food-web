@@ -174,10 +174,12 @@ export default function ParametresPage() {
     // annoncer. La saisie d'argent n'est effacée qu'une fois la demande
     // partie : un échec la laisse à l'écran, prête à être renvoyée.
     let base = loaded;
+    let settingsSaved = false;
     try {
       if (split.settingsChanged) {
         base = await update.mutateAsync(split.settingsPatch);
         setLoaded(base);
+        settingsSaved = true;
       }
       if (split.financialChanged) {
         await requestFinancial.mutateAsync({
@@ -202,7 +204,13 @@ export default function ParametresPage() {
         return;
       }
       // APPROVAL_ALREADY_PENDING, grille non publiée… : le serveur dit quoi faire.
-      toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
+      const reason = e instanceof Error ? e.message : "Erreur lors de l'enregistrement";
+      // Échec partiel : dire ce qui est déjà fait, pour qu'on ne le refasse pas.
+      toast.error(
+        settingsSaved
+          ? `Réglages ordinaires enregistrés, mais la demande d’approbation n’est pas partie : ${reason}`
+          : reason,
+      );
     }
   }
 
