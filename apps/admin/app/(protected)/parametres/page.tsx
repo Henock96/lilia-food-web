@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { ApiError, usePlatformSettings, useUpdatePlatformSettings } from '@lilia/api-client';
+import {
+  ApiError,
+  useApprovals,
+  usePlatformSettings,
+  useRequestFinancialSettingsChange,
+  useUpdatePlatformSettings,
+} from '@lilia/api-client';
 import type { PlatformSettings } from '@lilia/types';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
@@ -16,8 +22,10 @@ import {
   appUpdateStatus,
   buildSettingsPatch,
   isStaleSettingsConflict,
+  splitFinancialChanges,
   toSettingsForm,
 } from '@/lib/platform-settings-form';
+import { describeApproval, expiresLabel } from '@/lib/approvals-view';
 import { BLOCK_CONFIRMATION_WORD, requiresBlockConfirmation } from '@/lib/app-update-rules';
 
 /** Champs numériques, par section, avec l'avertissement des réglages sensibles. */
@@ -63,6 +71,11 @@ export default function ParametresPage() {
   const { token } = useAuthStore();
   const { data, isLoading, isError, refetch } = usePlatformSettings(token);
   const update = useUpdatePlatformSettings(token);
+  // R-09 — les réglages qui fixent de l'argent se demandent et s'approuvent à deux.
+  const requestFinancial = useRequestFinancialSettingsChange(token);
+  const { data: pendingApprovals } = useApprovals(token, 'PENDING');
+  const pendingFinancial = pendingApprovals?.find((a) => a.kind === 'PLATFORM_SETTINGS_CHANGE');
+  const saving = update.isPending || requestFinancial.isPending;
 
   /**
    * Configuration **telle que le formulaire l'a chargée** : base du diff et
@@ -113,8 +126,8 @@ export default function ParametresPage() {
     if (fresh) reloadFromServer(fresh);
   }
 
-  function handleSave() {
-    if (!form || !loaded || update.isPending) return;
+  async function handleSave() {
+    if (!form || !loaded || saving) return;
     const result = buildSettingsPatch(form, loaded);
     if (!result.ok) {
       setErrors(result.errors);
@@ -126,6 +139,9 @@ export default function ParametresPage() {
       toast.info('Aucune modification à enregistrer.');
       return;
     }
+    // R-09 — deux chemins : le PATCH pour les réglages ordinaires, une
+    // demande à approuver pour ceux qui fixent de l'argent.
+    const split = splitFinancialChanges(result.patch);
     // F3-07 — allumer fait partir de l'argent sans clic : les prérequis sont
     // rappelés, et l'administrateur les confirme.
     if (
@@ -137,7 +153,7 @@ export default function ParametresPage() {
           '• au moins deux administrateurs reçoivent les notifications ;\n' +
           '• applications client et vendeurs publiées ;\n' +
           '• frais pawaPay par versement connus.\n\n' +
-          'Les commandes dont l’échéance est passée partiront dans la minute.',
+          'Une fois la demande approuvée par un second administrateur, les commandes dont l’échéance est passée partiront dans la minute.',
       )
     ) {
       return;
@@ -154,20 +170,48 @@ export default function ParametresPage() {
     ) {
       return;
     }
-    update.mutate(result.patch, {
-      onSuccess: (saved) => {
-        reloadFromServer(saved);
+    // Le PATCH d'abord : il fait avancer `updatedAt`, que la demande doit
+    // annoncer. La saisie d'argent n'est effacée qu'une fois la demande
+    // partie : un échec la laisse à l'écran, prête à être renvoyée.
+    let base = loaded;
+    let settingsSaved = false;
+    try {
+      if (split.settingsChanged) {
+        base = await update.mutateAsync(split.settingsPatch);
+        setLoaded(base);
+        settingsSaved = true;
+      }
+      if (split.financialChanged) {
+        await requestFinancial.mutateAsync({
+          ...split.financial,
+          expectedUpdatedAt: base.updatedAt,
+        });
+      }
+      reloadFromServer(base);
+      if (split.financialChanged) {
+        toast.success(
+          split.settingsChanged
+            ? 'Configuration enregistrée. Les réglages d’argent attendent l’approbation d’un second administrateur.'
+            : 'Demande envoyée : un second administrateur doit l’approuver. Rien ne change d’ici là.',
+        );
+      } else {
         toast.success('Configuration enregistrée');
-      },
-      onError: (e) => {
-        if (e instanceof ApiError && isStaleSettingsConflict(e)) {
-          setConflict(true);
-          toast.error('Un autre administrateur a modifié la configuration entre-temps.');
-          return;
-        }
-        toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
-      },
-    });
+      }
+    } catch (e) {
+      if (e instanceof ApiError && isStaleSettingsConflict(e)) {
+        setConflict(true);
+        toast.error('Un autre administrateur a modifié la configuration entre-temps.');
+        return;
+      }
+      // APPROVAL_ALREADY_PENDING, grille non publiée… : le serveur dit quoi faire.
+      const reason = e instanceof Error ? e.message : "Erreur lors de l'enregistrement";
+      // Échec partiel : dire ce qui est déjà fait, pour qu'on ne le refasse pas.
+      toast.error(
+        settingsSaved
+          ? `Réglages ordinaires enregistrés, mais la demande d’approbation n’est pas partie : ${reason}`
+          : reason,
+      );
+    }
   }
 
   const status = appUpdateStatus(loaded);
@@ -194,6 +238,26 @@ export default function ParametresPage() {
           >
             <RefreshCw size={14} /> Recharger
           </button>
+        </div>
+      )}
+
+      {pendingFinancial && (
+        <div
+          role="status"
+          className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 dark:bg-sky-950/30 dark:border-sky-900 p-4"
+        >
+          <ShieldAlert size={18} className="text-sky-600 shrink-0" />
+          <p className="flex-1 text-sm text-sky-800 dark:text-sky-200">
+            <span className="font-medium">Changement en attente d’approbation</span> (
+            {expiresLabel(pendingFinancial.expiresAt)}) : {describeApproval(pendingFinancial).detail}.
+            Les valeurs ci-dessous restent en vigueur d’ici là.
+          </p>
+          <Link
+            href="/approbations"
+            className="text-sm font-medium px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700"
+          >
+            Voir la demande
+          </Link>
         </div>
       )}
 
@@ -528,13 +592,17 @@ export default function ParametresPage() {
         </ul>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 sm:mr-auto">
+          Frais, commission, points, versements et tarification de la livraison touchent l’argent :
+          ils partent en demande, qu’un second administrateur doit approuver.
+        </p>
         <button
           onClick={handleSave}
-          disabled={update.isPending || conflict}
+          disabled={saving || conflict}
           className="text-sm font-medium px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-50"
         >
-          {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
         </button>
       </div>
     </div>

@@ -1,4 +1,9 @@
-import type { PlatformSettings, UpdatePlatformSettingsPayload } from '@lilia/types';
+import type {
+  FinancialSettingKey,
+  FinancialSettingsChangePayload,
+  PlatformSettings,
+  UpdatePlatformSettingsPayload,
+} from '@lilia/types';
 import {
   BLOCK_CONFIRMATION_WORD,
   normalizeVersion,
@@ -282,6 +287,57 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, patch, changed: Object.keys(patch).length > 1 };
+}
+
+/**
+ * R-09 — réglages qui fixent de l'argent : miroir de `FINANCIAL_SETTING_KEYS`
+ * (backend, `platform-settings/financial-settings.ts`). Le serveur reste juge :
+ * un champ oublié ici serait refusé en 409, jamais écrit en silence.
+ */
+export const FINANCIAL_SETTING_KEYS: readonly FinancialSettingKey[] = [
+  'serviceFeePercent',
+  'groceryServiceFeeBps',
+  'restaurantCommissionPercent',
+  'loyaltyPointValueXaf',
+  'loyaltyPointsPerOrder',
+  'loyaltyMinRedemption',
+  'referrerBonusPoints',
+  'vendorPayoutAutoEnabled',
+  'vendorPayoutDelayMinutes',
+  'deliveryPricingMode',
+];
+
+/**
+ * R-09 — sépare l'écart du formulaire en deux envois : le PATCH ordinaire, et
+ * la **demande** des réglages qui fixent de l'argent, qu'un second
+ * administrateur devra approuver. Le serveur refuse (409) un PATCH qui en
+ * contient un : on ne le lui envoie jamais.
+ */
+export function splitFinancialChanges(patch: UpdatePlatformSettingsPayload): {
+  settingsPatch: UpdatePlatformSettingsPayload;
+  settingsChanged: boolean;
+  financial: FinancialSettingsChangePayload;
+  financialChanged: boolean;
+} {
+  const settingsPatch: UpdatePlatformSettingsPayload = {};
+  const financial: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if ((FINANCIAL_SETTING_KEYS as readonly string[]).includes(key)) {
+      financial[key as FinancialSettingKey] = value;
+    } else {
+      (settingsPatch as Record<string, unknown>)[key] = value;
+    }
+  }
+  const financialChanged = Object.keys(financial).length > 0;
+  return {
+    settingsPatch,
+    settingsChanged: Object.keys(settingsPatch).some((k) => k !== 'expectedUpdatedAt'),
+    financial: {
+      ...(financial as Partial<FinancialSettingsChangePayload>),
+      expectedUpdatedAt: patch.expectedUpdatedAt ?? '',
+    },
+    financialChanged,
+  };
 }
 
 /** Ce qu'un administrateur doit comprendre d'un coup d'œil. */

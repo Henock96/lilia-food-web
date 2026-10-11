@@ -1,6 +1,7 @@
 'use client';
 
 import { isApprovalRequested } from '@/lib/approvals-view';
+import { planCommerceSave } from '@/lib/vendor-commerce-form';
 import { useMemo, useState } from 'react';
 import {
   useVendorOnboarding,
@@ -9,6 +10,7 @@ import {
   useUpdateVendorHours,
   useUpdateVendorDelivery,
   useUpdateVendorCommerce,
+  useRequestVendorCommissionChange,
   useUpdateVendorPayoutAccount,
   useActivateVendorOnboarding,
   useVendorPreview,
@@ -737,25 +739,45 @@ function CommerceStep({
   );
   const [minOrder, setMinOrder] = useState(String(vendor.minimumOrderAmount));
   const mutation = useUpdateVendorCommerce(token, vendor.id);
+  // R-09 — la commission se demande ; un second administrateur l'approuve.
+  const commissionRequest = useRequestVendorCommissionChange(token);
+
+  async function save() {
+    const plan = planCommerceSave({ commission, minOrder }, vendor);
+    if (!plan.ok) {
+      toast.error(plan.error);
+      return;
+    }
+    if (!plan.commerce && plan.commission === undefined) {
+      toast.info('Aucune modification à enregistrer.');
+      return;
+    }
+    try {
+      if (plan.commerce) await mutation.mutateAsync(plan.commerce);
+      if (plan.commission !== undefined) {
+        await commissionRequest.mutateAsync({
+          vendorId: vendor.id,
+          commissionPercent: plan.commission,
+        });
+        toast.success(
+          'Demande envoyée : un second administrateur doit approuver la nouvelle commission. Rien ne change d’ici là.',
+        );
+      } else {
+        toast.success('Paramètres enregistrés');
+      }
+      onDone();
+    } catch (e) {
+      toast.error(errText(e));
+    }
+  }
 
   return (
     <div className="space-y-6">
       <StepShell
       title="Paramètres commerciaux"
-      hint="Réservé aux administrateurs. Le vendeur ne peut pas modifier sa commission."
-      onSave={() =>
-        mutation.mutate(
-          {
-            commissionPercent: commission.trim() === '' ? null : Number(commission),
-            minimumOrderAmount: Number(minOrder),
-          },
-          {
-            onSuccess: () => { toast.success('Paramètres enregistrés'); onDone(); },
-            onError: (e) => toast.error(errText(e)),
-          },
-        )
-      }
-      saving={mutation.isPending}
+      hint="Réservé aux administrateurs. Le vendeur ne peut pas modifier sa commission ; la changer demande l’approbation d’un second administrateur."
+      onSave={() => void save()}
+      saving={mutation.isPending || commissionRequest.isPending}
     >
       <Field
         label="Commission plateforme (%)"
