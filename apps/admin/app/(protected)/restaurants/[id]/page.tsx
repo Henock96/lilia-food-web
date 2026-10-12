@@ -8,9 +8,11 @@ import type { VendorType } from '@lilia/types';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
 import { DeliverySettingsPanel } from '@/components/vendors/delivery-settings-panel';
 import { ClosuresPanel } from '@/components/vendors/closures-panel';
+import { SubscriptionPanel } from '@/components/vendors/subscription-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiMessage } from '@/lib/api-message';
 import { useAuthStore } from '@/store/auth';
+import { useIsAdmin } from '@/lib/use-role';
 
 const VENDOR_TYPE_LABELS: Record<VendorType, string> = {
   RESTAURANT: 'Restaurant',
@@ -47,7 +49,12 @@ export default function RestaurantDetailPage({
   // La livraison d'abord : c'est ce qui décide de ce que paie le client, alors
   // que la galerie est cosmétique. L'onglet par défaut est celui qu'on vient
   // corriger le plus souvent.
-  const [tab, setTab] = useState<'livraison' | 'fermetures' | 'photos'>('livraison');
+  const [tab, setTab] = useState<'livraison' | 'fermetures' | 'photos' | 'premium'>(
+    'livraison',
+  );
+  // Premium (Lot 2) — l'abonnement se gère côté administration : la même page
+  // sert de « Ma vitrine » au restaurateur, qui ne voit pas cet onglet.
+  const isAdmin = useIsAdmin();
 
   const vendorType = vendor?.vendorType ?? 'RESTAURANT';
   const statusLabel = !vendor
@@ -114,6 +121,7 @@ export default function RestaurantDetailPage({
             ['livraison', 'Livraison'],
             ['fermetures', 'Fermetures'],
             ['photos', 'Photos'],
+            ...(isAdmin ? ([['premium', 'Premium']] as const) : []),
           ] as const
         ).map(([key, label]) => (
           <button
@@ -135,6 +143,8 @@ export default function RestaurantDetailPage({
         <DeliverySettingsPanel vendorId={id} token={token} />
       ) : tab === 'fermetures' ? (
         <ClosuresPanel vendorId={id} token={token} />
+      ) : tab === 'premium' && isAdmin ? (
+        <SubscriptionPanel vendorId={id} token={token} />
       ) : (
         <section className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card p-5">
           <h2 className="mb-3 text-lg font-medium text-zinc-900 dark:text-zinc-100">
