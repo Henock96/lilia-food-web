@@ -2961,3 +2961,51 @@ export interface FailureConclusion {
   reason: DeliveryFailureReason | null;
   dryRun: boolean;
 }
+
+// ─── Premium (Lot 2) — abonnements vendeur ─────────────────────────────────
+
+/** Moyen par lequel le vendeur a payé son mois, hors plateforme. */
+export type SubscriptionPaymentMethod =
+  | 'MOBILE_MONEY'
+  | 'CASH'
+  | 'BANK_TRANSFER'
+  | 'OTHER';
+
+export type SubscriptionStatus = 'ACTIVE' | 'REVOKED';
+
+/** Une période d'abonnement payée (un mois calendaire). */
+export interface VendorSubscription {
+  id: string;
+  restaurantId: string;
+  plan: 'PREMIUM';
+  status: SubscriptionStatus;
+  startsAt: string;
+  endsAt: string;
+  /** Prix figé à l'attribution, en XAF entiers. */
+  priceXaf: number;
+  paymentMethod: SubscriptionPaymentMethod;
+  paymentReference: string | null;
+  note: string | null;
+  grantedById: string;
+  grantedAt: string;
+  revokedById: string | null;
+  revokedAt: string | null;
+  revokeReason: string | null;
+}
+
+/** Verdict serveur — affiché tel quel, jamais recalculé. */
+export interface SubscriptionVerdict {
+  plan: 'PREMIUM' | null;
+  active: boolean;
+  currentPeriodEndsAt: string | null;
+  paidUntil: string | null;
+  entitlements: string[];
+}
+
+/** `GET /admin/vendors/:id/subscriptions`. */
+export interface VendorSubscriptionsOverview {
+  verdict: SubscriptionVerdict;
+  /** Prix courant d'un mois, lu dans les réglages de la plateforme. */
+  priceXaf: number;
+  periods: VendorSubscription[];
+}
