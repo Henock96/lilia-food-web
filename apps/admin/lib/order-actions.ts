@@ -1,6 +1,7 @@
 import type {
   OrderAction,
   OrderStatus,
+  PickupArbitrationReason,
   VendorRejectionReason,
 } from '@lilia/types';
 
@@ -92,6 +93,40 @@ export function asksPickupCode(
   role: string | undefined,
 ): boolean {
   return !order.isDelivery && role === 'RESTAURATEUR';
+}
+
+/**
+ * 1B (ADM-03) — remise d'un retrait par l'ADMIN : c'est un arbitrage. Il pose
+ * `PICKUP_ADMIN_OVERRIDE`, qui ouvre le versement du vendeur ; il passe donc
+ * par `POST /admin/orders/:id/pickup/arbitrate`, motif obligatoire.
+ */
+export function asksPickupArbitration(
+  order: { isDelivery: boolean },
+  role: string | undefined,
+): boolean {
+  return !order.isDelivery && role === 'ADMIN';
+}
+
+/** Motifs d'arbitrage — liste fermée, identique au serveur. */
+export const PICKUP_ARBITRATION_REASONS: Array<{
+  value: PickupArbitrationReason;
+  label: string;
+}> = [
+  { value: 'CUSTOMER_COLLECTED_NO_CODE', label: 'Le client a récupéré sa commande sans son code' },
+  { value: 'CUSTOMER_CONFIRMED_TO_SUPPORT', label: 'Le client a confirmé la remise au support' },
+  { value: 'VENDOR_COULD_NOT_RECORD', label: 'Le vendeur n’a pas pu enregistrer la remise' },
+  { value: 'OTHER', label: 'Autre raison (à préciser)' },
+];
+
+/** Mêmes bornes que le DTO serveur : motif requis, note 5–300 si « Autre ». */
+export function arbitrationIsComplete(
+  reason: PickupArbitrationReason | null,
+  note: string,
+): boolean {
+  if (!reason) return false;
+  const trimmed = note.trim();
+  if (trimmed.length > 300) return false;
+  return reason !== 'OTHER' || trimmed.length >= 5;
 }
 
 /** Temps de préparation proposés (bornes serveur : 5 à 120 min). */

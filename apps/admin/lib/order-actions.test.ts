@@ -3,8 +3,11 @@ import type { OrderStatus } from '@lilia/types';
 
 import {
   ACTION_TARGET,
+  PICKUP_ARBITRATION_REASONS,
   PREP_MINUTES_CHOICES,
   REJECTION_REASONS,
+  arbitrationIsComplete,
+  asksPickupArbitration,
   asksPickupCode,
   isPickupCode,
   resolveOrderActions,
@@ -102,5 +105,38 @@ describe('retrait au comptoir (F3-07)', () => {
     for (const bad of ['482', '48210', 'abcd', '', ' 4821']) {
       expect(isPickupCode(bad)).toBe(false);
     }
+  });
+});
+
+/**
+ * 1B (ADM-03) — pour l'ADMIN, « Remise au client » d'un retrait est un
+ * arbitrage : elle ouvre un versement vendeur, elle exige un motif.
+ */
+describe('arbitrage de remise ADMIN', () => {
+  it('seul l’ADMIN, sur un retrait, passe par l’arbitrage', () => {
+    expect(asksPickupArbitration({ isDelivery: false }, 'ADMIN')).toBe(true);
+    expect(asksPickupArbitration({ isDelivery: true }, 'ADMIN')).toBe(false);
+    expect(asksPickupArbitration({ isDelivery: false }, 'RESTAURATEUR')).toBe(false);
+    expect(asksPickupArbitration({ isDelivery: false }, undefined)).toBe(false);
+  });
+
+  it('les motifs reprennent la liste fermée du serveur, « Autre » en dernier', () => {
+    expect(PICKUP_ARBITRATION_REASONS.map((r) => r.value)).toEqual([
+      'CUSTOMER_COLLECTED_NO_CODE',
+      'CUSTOMER_CONFIRMED_TO_SUPPORT',
+      'VENDOR_COULD_NOT_RECORD',
+      'OTHER',
+    ]);
+  });
+
+  it('un motif est requis ; « Autre » exige une note d’au moins 5 caractères', () => {
+    expect(arbitrationIsComplete(null, '')).toBe(false);
+    expect(arbitrationIsComplete('CUSTOMER_COLLECTED_NO_CODE', '')).toBe(true);
+    expect(arbitrationIsComplete('OTHER', '')).toBe(false);
+    expect(arbitrationIsComplete('OTHER', '  ok  ')).toBe(false);
+    expect(arbitrationIsComplete('OTHER', 'Client venu sans téléphone')).toBe(true);
+    expect(arbitrationIsComplete('VENDOR_COULD_NOT_RECORD', 'x'.repeat(301))).toBe(
+      false,
+    );
   });
 });
