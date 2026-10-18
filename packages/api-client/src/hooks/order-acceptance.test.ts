@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { acceptOrderRequest, rejectOrderRequest } from './orders';
+import {
+  acceptOrderRequest,
+  arbitratePickupRequest,
+  rejectOrderRequest,
+} from './orders';
 
 /**
  * Acceptation vendeur (Phase 3, F3-01) : forme exacte des deux requêtes.
@@ -43,5 +47,37 @@ describe('acceptation vendeur — requêtes', () => {
 
   it('l’identifiant est encodé dans le chemin', () => {
     expect(acceptOrderRequest('a/b', 10).path).toBe('/orders/a%2Fb/accept');
+  });
+});
+
+/**
+ * 1B (ADM-03) — la remise d'un retrait par l'ADMIN passe par l'arbitrage
+ * motivé, jamais par la route de statut.
+ */
+describe('arbitrage de remise ADMIN — requête', () => {
+  it('POST /admin/orders/:id/pickup/arbitrate avec motif et note nettoyée', () => {
+    expect(
+      arbitratePickupRequest('o1', {
+        reason: 'CUSTOMER_COLLECTED_NO_CODE',
+        note: '  Téléphone déchargé ',
+      }),
+    ).toEqual({
+      path: '/admin/orders/o1/pickup/arbitrate',
+      method: 'POST',
+      body: { reason: 'CUSTOMER_COLLECTED_NO_CODE', note: 'Téléphone déchargé' },
+    });
+  });
+
+  it('sans note : la note n’est pas envoyée (ni vide)', () => {
+    expect(
+      arbitratePickupRequest('o1', { reason: 'VENDOR_COULD_NOT_RECORD', note: '  ' })
+        .body,
+    ).toEqual({ reason: 'VENDOR_COULD_NOT_RECORD' });
+  });
+
+  it('l’identifiant est encodé dans le chemin', () => {
+    expect(
+      arbitratePickupRequest('a/b', { reason: 'OTHER', note: 'Cas particulier' }).path,
+    ).toBe('/admin/orders/a%2Fb/pickup/arbitrate');
   });
 });

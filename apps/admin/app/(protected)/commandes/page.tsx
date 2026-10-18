@@ -9,7 +9,9 @@ import {
   useAcceptOrder,
   useRejectOrder,
   useHandOverPickup,
+  useArbitratePickup,
   useDownloadReceipt,
+  ApiError,
   type OrderStatusFilter,
 } from '@lilia/api-client';
 import { useAuthStore } from '@/store/auth';
@@ -18,6 +20,7 @@ import type {
   AdminOrder,
   OrderStatus,
   OrderStatusCounts,
+  PickupArbitrationReason,
   VendorRejectionReason,
 } from '@lilia/types';
 import Link from 'next/link';
@@ -36,6 +39,7 @@ import {
 import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
 import { apiMessage } from '@/lib/api-message';
+import { mfaDemand } from '@/lib/mfa';
 import { OrderActions } from '@/components/orders/order-actions';
 import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
 import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration-panel';
@@ -134,6 +138,7 @@ function OrderCard({
   onAccept,
   onReject,
   onHandOverWithCode,
+  onArbitratePickup,
   pending,
 }: {
   order: AdminOrder;
@@ -148,6 +153,11 @@ function OrderCard({
     outOfStockProductIds?: string[],
   ) => void;
   onHandOverWithCode: (id: string, code: string) => void;
+  onArbitratePickup: (
+    id: string,
+    reason: PickupArbitrationReason,
+    note?: string,
+  ) => Promise<boolean>;
   pending?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -234,6 +244,7 @@ function OrderCard({
             onAccept={onAccept}
             onReject={onReject}
             onHandOverWithCode={onHandOverWithCode}
+            onArbitratePickup={onArbitratePickup}
           />
         </div>
       </div>
@@ -447,6 +458,7 @@ function CommandesPageContent() {
   const acceptOrder = useAcceptOrder(token);
   const rejectOrder = useRejectOrder(token);
   const handOverPickup = useHandOverPickup(token);
+  const arbitratePickup = useArbitratePickup(token);
 
   const orders = data?.data ?? [];
   const meta = data?.meta;
@@ -563,6 +575,31 @@ function CommandesPageContent() {
         onError: (e) => toast.error(apiMessage(e, 'Code refusé')),
       },
     );
+  }
+
+  // 1B (ADM-03) — clôture d'arbitrage d'un retrait (FINANCE_EXECUTE). Une
+  // demande MFA (réauthentification ou inscription) est déjà prise en charge
+  // par le `MutationCache` global : pas de second toast par-dessus.
+  // Rend `true` au succès : le formulaire ne se ferme qu'à ce moment-là, pour
+  // qu'un refus ne fasse pas perdre le motif saisi.
+  async function handleArbitratePickup(
+    orderId: string,
+    reason: PickupArbitrationReason,
+    note?: string,
+  ): Promise<boolean> {
+    try {
+      await arbitratePickup.mutateAsync({ orderId, reason, note });
+      toast.success('Commande clôturée par arbitrage — versement du vendeur ouvert');
+      return true;
+    } catch (e) {
+      if (mfaDemand(e)) return false;
+      toast.error(
+        e instanceof ApiError && e.status === 404
+          ? 'Le serveur ne propose pas encore l’arbitrage de remise : il doit être mis à jour.'
+          : apiMessage(e, 'Arbitrage impossible'),
+      );
+      return false;
+    }
   }
 
   const visible = todayOnly
@@ -711,10 +748,12 @@ function CommandesPageContent() {
               onAccept={handleAccept}
               onReject={handleReject}
               onHandOverWithCode={handleHandOverWithCode}
+              onArbitratePickup={handleArbitratePickup}
               pending={
                 acceptOrder.isPending ||
                 rejectOrder.isPending ||
-                handOverPickup.isPending
+                handOverPickup.isPending ||
+                arbitratePickup.isPending
               }
             />
           ))}
