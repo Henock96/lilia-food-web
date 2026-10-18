@@ -16,6 +16,7 @@ import type {
   OrderStatus,
   StuckOrders,
   VendorRejectionReason,
+  PickupArbitrationReason,
 } from '@lilia/types';
 import { apiClient, apiClientRaw, API_URL, ApiError } from '../client';
 
@@ -178,6 +179,46 @@ export function useHandOverPickup(token: string | null) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.all });
     },
+  });
+}
+
+/**
+ * 1B (ADM-03) — l'ADMIN clôture un retrait à la place du client : arbitrage
+ * motivé, jamais `PATCH …/status`. Exige `FINANCE_EXECUTE` côté serveur ; un
+ * `MFA_STEP_UP_REQUIRED` ouvre la fenêtre de réauthentification globale.
+ */
+export function arbitratePickupRequest(
+  orderId: string,
+  arbitration: { reason: PickupArbitrationReason; note?: string },
+) {
+  const note = arbitration.note?.trim();
+  return {
+    path: `/admin/orders/${encodeURIComponent(orderId)}/pickup/arbitrate`,
+    method: 'POST' as const,
+    body: { reason: arbitration.reason, ...(note ? { note } : {}) },
+  };
+}
+
+export function useArbitratePickup(token: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      reason,
+      note,
+    }: {
+      orderId: string;
+      reason: PickupArbitrationReason;
+      note?: string;
+    }) => {
+      const req = arbitratePickupRequest(orderId, { reason, note });
+      return apiClient<{ id: string; status: string; deliveryProof: string | null }>(
+        req.path,
+        { method: req.method, body: JSON.stringify(req.body), token },
+      );
+    },
+    // Promesse rendue : le bouton reste désactivé jusqu'à la relecture.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orderKeys.all }),
   });
 }
 

@@ -5,6 +5,7 @@ import type {
   AdminOrder,
   OrderAction,
   OrderStatus,
+  PickupArbitrationReason,
   VendorRejectionReason,
 } from '@lilia/types';
 import { Timer } from 'lucide-react';
@@ -12,14 +13,17 @@ import { Timer } from 'lucide-react';
 import {
   ACTION_LABELS,
   ACTION_TARGET,
+  PICKUP_ARBITRATION_REASONS,
   PREP_MINUTES_CHOICES,
   REJECTION_REASONS,
+  arbitrationIsComplete,
+  asksPickupArbitration,
   asksPickupCode,
   isPickupCode,
   resolveOrderActions,
 } from '@/lib/order-actions';
 
-type Mode = 'idle' | 'accept' | 'reject' | 'handover';
+type Mode = 'idle' | 'accept' | 'reject' | 'handover' | 'arbitrate';
 
 /**
  * Gestes sur une commande (Phase 3, F3-01 — règle R1).
@@ -36,6 +40,7 @@ export function OrderActions({
   onAccept,
   onReject,
   onHandOverWithCode,
+  onArbitratePickup,
 }: {
   order: AdminOrder;
   role: string | undefined;
@@ -50,6 +55,15 @@ export function OrderActions({
   ) => void;
   /** Retrait : remise avec le code du client (F3-07). */
   onHandOverWithCode?: (id: string, code: string) => void;
+  /**
+   * 1B — ADMIN, retrait : clôture d'arbitrage motivée. Rend `true` au succès :
+   * le formulaire ne se ferme qu'alors, un refus garde le motif saisi.
+   */
+  onArbitratePickup?: (
+    id: string,
+    reason: PickupArbitrationReason,
+    note?: string,
+  ) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState<Mode>('idle');
   const [prepMinutes, setPrepMinutes] = useState<number>(20);
@@ -57,6 +71,8 @@ export function OrderActions({
   const [note, setNote] = useState('');
   const [missing, setMissing] = useState<string[]>([]);
   const [code, setCode] = useState('');
+  const [arbReason, setArbReason] = useState<PickupArbitrationReason | null>(null);
+  const [arbNote, setArbNote] = useState('');
   const actions = resolveOrderActions(order, role);
 
   if (actions.length === 0) return null;
@@ -67,6 +83,11 @@ export function OrderActions({
     if (action === 'HAND_OVER' && onHandOverWithCode && asksPickupCode(order, role)) {
       setCode('');
       return setMode('handover');
+    }
+    if (action === 'HAND_OVER' && onArbitratePickup && asksPickupArbitration(order, role)) {
+      setArbReason(null);
+      setArbNote('');
+      return setMode('arbitrate');
     }
     if (action === 'CONFIRM_PICKUP') return;
     if (
@@ -169,6 +190,63 @@ export function OrderActions({
             className="text-xs px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium disabled:opacity-50"
           >
             Valider le code
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 1B (ADM-03) — l'ADMIN arbitre la remise d'un retrait : motif obligatoire.
+  if (mode === 'arbitrate') {
+    const complete = arbitrationIsComplete(arbReason, arbNote);
+    return (
+      <div
+        role="group"
+        aria-label="Arbitrer la remise"
+        className="w-full space-y-2 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3"
+      >
+        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+          Clôture d’arbitrage : la commande passe « remise » sans le code du
+          client, et le versement du vendeur est ouvert. Le motif est journalisé.
+        </p>
+        <div className="space-y-1">
+          {PICKUP_ARBITRATION_REASONS.map((r) => (
+            <label key={r.value} className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-200">
+              <input
+                type="radio"
+                name={`arbitrate-${order.id}`}
+                checked={arbReason === r.value}
+                onChange={() => setArbReason(r.value)}
+              />
+              {r.label}
+            </label>
+          ))}
+        </div>
+        <input
+          type="text"
+          maxLength={300}
+          value={arbNote}
+          onChange={(e) => setArbNote(e.target.value)}
+          placeholder={arbReason === 'OTHER' ? 'Précisez le motif (obligatoire)' : 'Précision (facultatif)'}
+          aria-label="Précision du motif"
+          className="w-full text-xs rounded-lg border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-card px-2 py-1.5"
+        />
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={() => setMode('idle')} className="text-xs px-3 py-1.5 text-zinc-600 dark:text-zinc-300">
+            Retour
+          </button>
+          <button
+            type="button"
+            disabled={!complete || pending}
+            onClick={async () => {
+              if (!arbReason || !complete || !onArbitratePickup) return;
+              if (await onArbitratePickup(order.id, arbReason, arbNote)) {
+                setMode('idle');
+              }
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium disabled:opacity-50"
+          >
+            Clôturer par arbitrage
           </button>
         </div>
       </div>

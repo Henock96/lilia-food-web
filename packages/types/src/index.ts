@@ -52,6 +52,16 @@ export type VendorRejectionReason =
   | 'CLOSING'
   | 'OUT_OF_ZONE'
   | 'OTHER';
+
+/**
+ * Motif d'un arbitrage de remise par l'ADMIN (1B, ADM-03) — liste fermée,
+ * identique à `PICKUP_ARBITRATION_REASONS` côté serveur.
+ */
+export type PickupArbitrationReason =
+  | 'CUSTOMER_COLLECTED_NO_CODE'
+  | 'CUSTOMER_CONFIRMED_TO_SUPPORT'
+  | 'VENDOR_COULD_NOT_RECORD'
+  | 'OTHER';
 /**
  * Opérateur choisi par le client pour payer.
  *
