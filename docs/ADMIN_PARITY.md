@@ -35,6 +35,7 @@ Flutter.** L'inverse est admis si c'est une décision écrite ici.
 | Paiements : rapprochement pawaPay | ✅ | ✅ | ❌ | **Web seulement** |
 | Reversements vendeur (par commande) | ✅ | ✅ | ✅ | parité ; idempotence côté serveur |
 | File des reversements (`/admin/payouts`) | ✅ | ✅ | ❌ | **Web seulement** |
+| Remboursements : virement au client, clôture, refus | ✅ | ✅ | lecture | **Web seulement** — décision D-3 du 22/10/2026 : l'app affiche la file et renvoie au web |
 
 ## Ce qui reste un risque assumé
 

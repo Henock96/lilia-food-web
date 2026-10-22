@@ -15,6 +15,8 @@ describe('double authentification (F3-08)', () => {
   it('traduit les refus du serveur : inscription ou réauthentification', () => {
     expect(mfaDemand(new ApiError(403, 'x', 'MFA_REQUIRED'))).toBe('ENROLL');
     expect(mfaDemand(new ApiError(401, 'x', 'MFA_STEP_UP_REQUIRED'))).toBe('STEP_UP');
+    // Lot 1C : session sans second facteur sur un geste sensible.
+    expect(mfaDemand(new ApiError(401, 'x', 'MFA_SESSION_REQUIRED'))).toBe('STEP_UP');
     expect(mfaDemand(new ApiError(403, 'x', 'CAPABILITY_REQUIRED'))).toBeNull();
     expect(mfaDemand(new Error('réseau'))).toBeNull();
   });

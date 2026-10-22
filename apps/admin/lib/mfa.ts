@@ -23,6 +23,10 @@ import { getFirebaseAuth } from './firebase';
  *    (403 `MFA_REQUIRED`) ;
  *  - une authentification de moins de 15 min pour les gestes financiers
  *    (401 `MFA_STEP_UP_REQUIRED`) — d'où la réauthentification ci-dessous.
+ *
+ * Et, quand `ADMIN_SECOND_FACTOR_ENFORCED=true` (Lot 1C), une session ouverte
+ * avec le second facteur pour les gestes sensibles sans capacité
+ * (401 `MFA_SESSION_REQUIRED`) — même réauthentification.
  */
 
 export const TOTP_ISSUER = 'Lilia Food Admin';
@@ -39,6 +43,10 @@ export function mfaDemand(
   if (!(error instanceof ApiError)) return null;
   if (error.code === 'MFA_REQUIRED') return 'ENROLL';
   if (error.code === 'MFA_STEP_UP_REQUIRED') return 'STEP_UP';
+  // Lot 1C (ADM-05) — geste sensible sans capacité, session ouverte sans
+  // second facteur (avant l'enrôlement) : la réauthentification avec le code
+  // produit un jeton qui le porte.
+  if (error.code === 'MFA_SESSION_REQUIRED') return 'STEP_UP';
   return null;
 }
 
