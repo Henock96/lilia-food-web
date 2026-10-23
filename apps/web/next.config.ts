@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 import path from 'path';
-import { cspReporting } from './lib/csp-report';
+import { apiConnectSources, cspReporting } from './lib/csp-report';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -68,7 +68,7 @@ const nextConfig: NextConfig = {
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
       // Backend Render, Firebase Auth, Cloudinary, Sentry.
-      "connect-src 'self' https://lilia-backend.onrender.com https://*.googleapis.com https://*.firebaseio.com https://securetoken.googleapis.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
+      `connect-src 'self' ${apiConnectSources(process.env.NEXT_PUBLIC_API_URL)} https://*.googleapis.com https://*.firebaseio.com https://securetoken.googleapis.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io`,
       // Popup de connexion Google (signInWithPopup).
       "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
       "object-src 'none'",

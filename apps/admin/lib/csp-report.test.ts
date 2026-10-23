@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cspReporting, sentryCspReportUri } from './csp-report';
+import { apiConnectSources, cspReporting, sentryCspReportUri } from './csp-report';
 
 describe('sentryCspReportUri', () => {
   it('dérive l’endpoint security du DSN, hôte régional conservé', () => {
@@ -32,5 +32,33 @@ describe('cspReporting', () => {
     const uri = 'https://o1.ingest.sentry.io/api/42/security/?sentry_key=k';
     expect(directives).toEqual([`report-uri ${uri}`, 'report-to csp-endpoint']);
     expect(headers).toEqual([{ key: 'Reporting-Endpoints', value: `csp-endpoint="${uri}"` }]);
+  });
+});
+
+describe('apiConnectSources', () => {
+  it('sans variable, ne garde que le backend de production', () => {
+    expect(apiConnectSources(undefined, '')).toBe('https://lilia-backend.onrender.com');
+  });
+
+  it('ajoute l’origine du backend configuré (préproduction)', () => {
+    expect(apiConnectSources('https://lilia-backend-staging.onrender.com/')).toBe(
+      'https://lilia-backend.onrender.com https://lilia-backend-staging.onrender.com',
+    );
+  });
+
+  it('ne garde que l’origine, sans chemin ni doublon', () => {
+    expect(
+      apiConnectSources(
+        'https://api.test/v1',
+        'https://api.test',
+        'https://lilia-backend.onrender.com',
+      ),
+    ).toBe('https://lilia-backend.onrender.com https://api.test');
+  });
+
+  it('ignore une URL relative (couverte par self) ou illisible', () => {
+    expect(apiConnectSources('/api-proxy', 'pas une url', 'javascript:alert(1)')).toBe(
+      'https://lilia-backend.onrender.com',
+    );
   });
 });
