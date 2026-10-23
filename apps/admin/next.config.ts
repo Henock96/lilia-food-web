@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 import path from 'path';
-import { cspReporting } from './lib/csp-report';
+import { apiConnectSources, cspReporting } from './lib/csp-report';
 
 
 const nextConfig: NextConfig = {
@@ -88,7 +88,7 @@ const nextConfig: NextConfig = {
       // `images.unoptimized` : les URLs d'images sont saisies librement par
       // les vendeurs, elles peuvent pointer sur n'importe quel hôte HTTPS.
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://lilia-backend.onrender.com https://*.googleapis.com https://*.firebaseio.com https://securetoken.googleapis.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
+      `connect-src 'self' ${apiConnectSources(process.env.NEXT_PUBLIC_API_URL)} https://*.googleapis.com https://*.firebaseio.com https://securetoken.googleapis.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io`,
       "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
       "object-src 'none'",
       "base-uri 'self'",

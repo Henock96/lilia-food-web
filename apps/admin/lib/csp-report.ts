@@ -55,3 +55,30 @@ export function cspReporting(dsn: string | undefined, environment?: string) {
     headers: [{ key: 'Reporting-Endpoints', value: `${CSP_REPORT_GROUP}="${uri}"` }],
   };
 }
+
+/** Backend de production — toujours admis, pour qu'un build sans variable ne casse rien. */
+export const PRODUCTION_API_ORIGIN = 'https://lilia-backend.onrender.com';
+
+/**
+ * Sources `connect-src` du backend.
+ *
+ * L'hôte de production était écrit en dur dans la politique : un front pointé
+ * sur la préproduction (`NEXT_PUBLIC_API_URL`) voyait chacun de ses appels
+ * signalé comme violation, et bloqué le jour où la CSP deviendra bloquante.
+ * On ajoute donc l'origine des URL configurées. Une URL relative (`/api-proxy`)
+ * est déjà couverte par `'self'` ; une URL illisible ou non HTTP est ignorée.
+ */
+export function apiConnectSources(...urls: Array<string | undefined>): string {
+  const origins = new Set([PRODUCTION_API_ORIGIN]);
+  for (const raw of urls) {
+    const value = raw?.trim();
+    if (!value) continue;
+    try {
+      const url = new URL(value);
+      if (url.protocol === 'https:' || url.protocol === 'http:') origins.add(url.origin);
+    } catch {
+      // relative ou illisible
+    }
+  }
+  return [...origins].join(' ');
+}
