@@ -3,6 +3,8 @@ export type Role = 'ADMIN' | 'RESTAURATEUR' | 'LIVREUR' | 'CLIENT';
 export type StatusUser = 'INACTIVE' | 'ACTIVE' | 'BLOCKED' | 'DELETED';
 export type VehicleType = 'MOTO' | 'VELO' | 'VOITURE' | 'PIETON';
 export type OrderStatus =
+  /** Lot 3 — demande à accepter avant paiement (parcours `ACCEPT_FIRST`). */
+  | 'DEMANDE_ENVOYEE'
   | 'EN_ATTENTE'
   | 'PAYER'
   /** Acceptée par le vendeur, pas encore en préparation (Phase 3, F3-01). */
@@ -2792,6 +2794,52 @@ export type DriverSettlementStatus = 'PAID' | 'CANCELLED';
  * versement couvre exactement les courses vues, et pas celles terminées
  * pendant qu'on allait payer.
  */
+/** Lot 3 — situation de paie d'une course, décidée par le serveur. */
+export type DriverCourseSituation =
+  | 'SETTLED'
+  | 'PAYABLE'
+  | 'RETAINED'
+  | 'DISPUTED'
+  | 'UNKNOWN_PAY'
+  | 'IN_PROGRESS';
+
+export interface DriverCourse {
+  deliveryId: string;
+  orderId: string;
+  deliveryStatus: string;
+  orderStatus: OrderStatus;
+  failureLiability: string | null;
+  createdAt: string;
+  deliveredAt: string | null;
+  failedAt: string | null;
+  /** `null` = économie non figée : montant inconnu. */
+  driverPayXaf: number | null;
+  driverSharePercent: number | null;
+  driverBaseXaf: number | null;
+  settlement: {
+    id: string;
+    reference: string | null;
+    method: string;
+    paidAt: string;
+  } | null;
+  situation: DriverCourseSituation;
+}
+
+export interface DriverCoursesPage {
+  data: DriverCourse[];
+  meta: {
+    currency: 'XAF';
+    returned: number;
+    totals: {
+      payableXaf: number;
+      settledXaf: number;
+      retainedCount: number;
+      disputedCount: number;
+      unknownPayCount: number;
+    };
+  };
+}
+
 export interface DriverOutstanding {
   driverId: string;
   coveredUntil: string;

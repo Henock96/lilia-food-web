@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DriverProfileCard } from '@/components/drivers/driver-profile-card';
 import { DriverSettlementCard } from '@/components/drivers/driver-settlement-card';
+import { DriverCoursesCard } from '@/components/drivers/driver-courses-card';
 import {
   ArrowLeft,
   Bike,
@@ -241,6 +242,8 @@ export default function DelivererDetailPage({
       {/* Ce que Lilia Food lui doit, et ce qu'elle lui a versé. Aucun virement
           n'est déclenché d'ici : l'argent est remis hors application. */}
       <DriverSettlementCard driverId={id} />
+      {/* Lot 3 — détail par course (paie figée, situation, référence). */}
+      <DriverCoursesCard driverId={id} />
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -138,6 +138,7 @@ export function formatRelativeTime(date: string | Date): string {
 
 export function formatOrderStatus(status: OrderStatus): string {
   const labels: Record<OrderStatus, string> = {
+    DEMANDE_ENVOYEE: 'Demande envoyée',
     EN_ATTENTE: 'En attente',
     PAYER: 'Payé',
     ACCEPTEE: 'Accepté',
@@ -153,6 +154,7 @@ export function formatOrderStatus(status: OrderStatus): string {
 
 export function getOrderStatusColor(status: OrderStatus): string {
   const colors: Record<OrderStatus, string> = {
+    DEMANDE_ENVOYEE: 'text-violet-700 bg-violet-50 border-violet-200',
     EN_ATTENTE: 'text-amber-600 bg-amber-50 border-amber-200',
     PAYER: 'text-emerald-600 bg-emerald-50 border-emerald-200',
     ACCEPTEE: 'text-lime-700 bg-lime-50 border-lime-200',

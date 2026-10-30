@@ -115,12 +115,30 @@ async function toApiError(response: Response): Promise<ApiError> {
  * Pour les endpoints qui ne doivent pas être déballés (pagination
  * `{ data, total, page, limit }`, etc.), utiliser {@link apiClientRaw}.
  */
+/**
+ * Lot 3 (30/10/2026) — capacité « accepter puis payer », **déclarée par
+ * application**, jamais par défaut : le back-office sait répondre à une
+ * demande (`DEMANDE_ENVOYEE`), le site client ne sait pas encore attendre
+ * l'accord du vendeur avant de payer. Une application qui n'appelle pas
+ * {@link declareOrderFlowCapability} reste dans le parcours historique.
+ */
+let orderFlowCapability: string | null = null;
+
+export function declareOrderFlowCapability(value: 'accept-first' | null): void {
+  orderFlowCapability = value;
+}
+
+function orderFlowHeaders(): Record<string, string> {
+  return orderFlowCapability ? { 'X-Lilia-Order-Flow': orderFlowCapability } : {};
+}
+
 export async function apiClient<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, ...fetchOptions } = options;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Lilia-Payment-Flow': PAYMENT_FLOW_CAPABILITY,
+    ...orderFlowHeaders(),
     // Signal anti-abus du parrainage. Vide côté serveur (pas de `localStorage`)
     // et en navigation privée stricte : le serveur traite un signal absent
     // comme absent. ⚠️ Tout en-tête ajouté ici doit l'être aussi dans
@@ -170,6 +188,7 @@ export async function apiClientRaw<T>(path: string, options: FetchOptions = {}):
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Lilia-Payment-Flow': PAYMENT_FLOW_CAPABILITY,
+    ...orderFlowHeaders(),
     // Signal anti-abus du parrainage. Vide côté serveur (pas de `localStorage`)
     // et en navigation privée stricte : le serveur traite un signal absent
     // comme absent. ⚠️ Tout en-tête ajouté ici doit l'être aussi dans
