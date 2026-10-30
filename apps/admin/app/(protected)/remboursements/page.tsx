@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   REFUNDS_PAGE_SIZE,
+  missingClosureProof,
   nextRefundStatuses,
   refundRequiresNote,
   useExecuteRefund,
@@ -11,7 +12,13 @@ import {
   useUpdateRefundStatus,
   type RefundStatusFilter,
 } from '@lilia/api-client';
-import type { PaymentMode, Refund, RefundStatus } from '@lilia/types';
+import type {
+  DeclaredRefundClosureMethod,
+  PaymentMode,
+  Refund,
+  RefundProofLevel,
+  RefundStatus,
+} from '@lilia/types';
 import {
   AlertCircle,
   ChevronLeft,
@@ -64,6 +71,28 @@ const FILTERS: { value: RefundStatusFilter; label: string }[] = [
 ];
 
 const formatXaf = (n: number) => n.toLocaleString('fr-FR');
+
+/** F-12 — comment un administrateur a remboursé hors prestataire. */
+const CLOSURE_METHOD_LABELS: Record<DeclaredRefundClosureMethod, string> = {
+  MOBILE_MONEY_MANUAL: 'Mobile Money (à la main)',
+  CASH: 'Espèces',
+  BANK_TRANSFER: 'Virement bancaire',
+  OTHER: 'Autre',
+};
+
+/**
+ * F-12 — qui affirme le remboursement. Un « Remboursé » confirmé par le
+ * prestataire et une déclaration d'administrateur n'ont pas la même valeur :
+ * l'écran le dit.
+ */
+const PROOF_LABELS: Partial<Record<RefundProofLevel, string>> = {
+  PROVIDER_CONFIRMED: 'Confirmé par le prestataire',
+  DECLARED: 'Déclaré par un administrateur',
+  UNQUALIFIED: 'Clôture ancienne, sans preuve enregistrée',
+};
+
+/** Aujourd'hui, au format attendu par `<input type="date">`. */
+const todayInput = () => new Date().toISOString().slice(0, 10);
 
 /** Une ligne de remboursement partiel, lisible (F3-06). */
 function refundLineLabel(line: NonNullable<Refund['lines']>[number]): string {
@@ -127,6 +156,12 @@ function RefundRow({
   paymentMode: PaymentMode | undefined;
 }) {
   const [notes, setNotes] = useState('');
+  // F-12 — preuve d'une clôture « remboursé » déclarée.
+  const [proofMethod, setProofMethod] = useState<
+    DeclaredRefundClosureMethod | ''
+  >('');
+  const [proofReference, setProofReference] = useState('');
+  const [proofDate, setProofDate] = useState(todayInput());
   const update = useUpdateRefundStatus(token);
   const transfer = useExecuteRefund(token);
   const busy = update.isPending || transfer.isPending;
@@ -162,6 +197,24 @@ function RefundRow({
       return;
     }
 
+    // F-12 — « remboursé » déclaré : méthode, référence et date obligatoires.
+    // Le serveur revérifie (400 REFUND_PROOF_REQUIRED) ; ici on le dit avant.
+    const proof =
+      target === 'COMPLETED' && proofMethod
+        ? {
+            method: proofMethod,
+            externalReference: proofReference,
+            paidAt: proofDate ? new Date(`${proofDate}T12:00:00`).toISOString() : '',
+          }
+        : undefined;
+    if (target === 'COMPLETED') {
+      const missing = missingClosureProof(proof ?? {});
+      if (missing.length > 0) {
+        toast.error(`Preuve du remboursement incomplète : ${missing.join(', ')}.`);
+        return;
+      }
+    }
+
     // Les deux issues sont définitives : le serveur refuse ensuite tout
     // changement (409). On demande donc confirmation, et on nomme le montant.
     if (
@@ -186,6 +239,7 @@ function RefundRow({
         refundId: refund.id,
         status: target,
         notes,
+        proof,
       });
       const outcome = refundResultOutcome(result);
       // Une demande d'approbation n'a rien changé : la note reste, elle
@@ -275,6 +329,23 @@ function RefundRow({
         </p>
       )}
 
+      {/* F-12 — qui affirme ce remboursement, et sur quelle pièce. */}
+      {refund.status === 'COMPLETED' && refund.proofLevel && PROOF_LABELS[refund.proofLevel] && (
+        <p
+          className={`mt-1 text-xs ${
+            refund.proofLevel === 'PROVIDER_CONFIRMED'
+              ? 'text-emerald-700 dark:text-emerald-400'
+              : 'text-amber-700 dark:text-amber-400'
+          }`}
+        >
+          {PROOF_LABELS[refund.proofLevel]}
+          {refund.proofLevel === 'DECLARED' && refund.externalReference
+            ? ` · réf. ${refund.externalReference}` +
+              (refund.externalPaidAt ? ` · ${formatDate(refund.externalPaidAt)}` : '')
+            : ''}
+        </p>
+      )}
+
       {isOpen ? (
         <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3 dark:border-dark-border">
           <input
@@ -286,6 +357,49 @@ function RefundRow({
             placeholder="Note interne (obligatoire pour un refus)…"
             className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-primary-500 focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-zinc-100"
           />
+          {transitions.includes('COMPLETED') && (
+            // F-12 — « Marquer remboursé » déclare un virement fait hors
+            // application : il exige sa pièce.
+            <fieldset className="grid gap-2 sm:grid-cols-3">
+              <legend className="mb-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                Preuve exigée pour « Marquer remboursé »
+              </legend>
+              <select
+                value={proofMethod}
+                onChange={(e) =>
+                  setProofMethod(e.target.value as DeclaredRefundClosureMethod | '')
+                }
+                aria-label="Méthode du remboursement"
+                className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 focus:border-primary-500 focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-zinc-100"
+              >
+                <option value="">Méthode…</option>
+                {(
+                  Object.keys(CLOSURE_METHOD_LABELS) as DeclaredRefundClosureMethod[]
+                ).map((m) => (
+                  <option key={m} value={m}>
+                    {CLOSURE_METHOD_LABELS[m]}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={proofReference}
+                onChange={(e) => setProofReference(e.target.value)}
+                maxLength={120}
+                aria-label="Référence de l’opération"
+                placeholder="Référence (n° de transaction, de reçu)"
+                className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-primary-500 focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-zinc-100"
+              />
+              <input
+                type="date"
+                value={proofDate}
+                max={todayInput()}
+                onChange={(e) => setProofDate(e.target.value)}
+                aria-label="Date du remboursement"
+                className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 focus:border-primary-500 focus:outline-none dark:border-dark-border dark:bg-dark-surface dark:text-zinc-100"
+              />
+            </fieldset>
+          )}
           <div className="flex flex-wrap gap-2">
             {canTransfer && (
               <button

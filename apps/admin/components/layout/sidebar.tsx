@@ -38,7 +38,7 @@ import {
   Undo2,
   Route,
   Siren,
-  MessageSquareWarning, ShieldCheck, BadgePercent } from 'lucide-react';
+  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -78,6 +78,8 @@ const NAV_ITEMS: {
   // Marketplace multi-vendeurs (LIL-116) : créer / valider / suspendre les
   // HOME_COOK, BAKERY, BEVERAGE_SHOP. Admin only.
   { href: '/vendeurs',    label: 'Vendeurs',    icon: Building2,       badge: 'vendors', adminOnly: true  },
+  // Audit du 28/10/2026 (F-03) — qui sera prévenu d'une commande payée.
+  { href: '/vendeurs/joignabilite', label: 'Joignabilité', icon: BellRing, badge: false, adminOnly: true },
   // Clients : ADMIN voit /admin/clients (plateforme), RESTAURATEUR voit ses
   // clients scopés via GET /restaurants/:id/clients (LIL-107).
   { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: false },
@@ -91,6 +93,8 @@ const NAV_ITEMS: {
   { href: '/offres-vendeurs', label: 'Offres vendeurs', icon: BadgePercent, badge: false, adminOnly: true },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
   { href: '/remboursements', label: 'Remboursements', icon: Undo2,      badge: 'refunds', adminOnly: true  },
+  // Lot 2 (30/10/2026) — écarts Lilia ↔ prestataire ; un écart ouvert bloque des versements.
+  { href: '/rapprochement', label: 'Rapprochement', icon: Scale,       badge: false, adminOnly: true  },
   // F3-08 — gestes financiers à deux administrateurs.
   { href: '/approbations', label: 'Approbations', icon: ShieldCheck,    badge: false, adminOnly: true  },
   // File d'arbitrage des récompenses de parrainage retenues par le scoring
