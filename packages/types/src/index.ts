@@ -174,6 +174,16 @@ export interface Refund {
   incidentId?: string | null;
   /** F3-06 — vide = remboursement total (historique ou automatique). */
   lines?: RefundLine[];
+  /**
+   * Audit du 28/10/2026 (F-12) — qui affirme le remboursement. `PROVIDER` :
+   * confirmé par le prestataire ; sinon déclaré par un administrateur, avec
+   * référence et date. `null` : clôture historique non qualifiée.
+   */
+  closureMethod?: RefundClosureMethod | null;
+  externalReference?: string | null;
+  externalPaidAt?: string | null;
+  /** Calculé par le serveur — ne jamais le déduire côté client. */
+  proofLevel?: RefundProofLevel;
   order?: {
     id: string;
     total: number;
@@ -183,6 +193,34 @@ export interface Refund {
     user: { id: string; nom: string | null; phone: string | null } | null;
     restaurant: { id: string; nom: string } | null;
   };
+}
+
+/** F-12 — comment un remboursement a été conclu (miroir du CHECK serveur). */
+export type RefundClosureMethod =
+  | 'PROVIDER'
+  | 'MOBILE_MONEY_MANUAL'
+  | 'CASH'
+  | 'BANK_TRANSFER'
+  | 'OTHER';
+
+/** F-12 — méthodes qu'un administrateur peut déclarer (jamais `PROVIDER`). */
+export type DeclaredRefundClosureMethod = Exclude<RefundClosureMethod, 'PROVIDER'>;
+
+/** F-12 — niveau de preuve calculé par le serveur. */
+export type RefundProofLevel =
+  | 'PROVIDER_CONFIRMED'
+  | 'DECLARED'
+  | 'UNQUALIFIED'
+  | 'IN_PROGRESS'
+  | 'OPEN'
+  | 'REJECTED';
+
+/** F-12 — preuve exigée pour déclarer un remboursement effectué. */
+export interface RefundClosureProof {
+  method: DeclaredRefundClosureMethod;
+  externalReference: string;
+  /** ISO 8601. */
+  paidAt: string;
 }
 
 // --- Remboursements partiels et réclamations (F3-06) ---
@@ -1861,7 +1899,9 @@ export type PayoutIneligibilityCode =
   | 'VENDOR_PAYOUT_ACCOUNT_MISSING'
   | 'PAYOUT_ALREADY_COMPLETED'
   | 'PAYOUT_IN_PROGRESS'
-  | 'PROVIDER_DOES_NOT_SUPPORT_PAYOUT';
+  | 'PROVIDER_DOES_NOT_SUPPORT_PAYOUT'
+  // Lot 2 (30/10/2026) — écart de rapprochement ouvert et bloquant.
+  | 'RECONCILIATION_BLOCKED';
 
 export interface PayoutBreakdown {
   grossAmount: number;
@@ -2906,7 +2946,35 @@ export type OpsBucketKey =
   | 'pickup_unconfirmed'
   | 'payouts_failed'
   | 'incidents_open'
-  | 'outbox_failed';
+  | 'outbox_failed'
+  /** Audit du 28/10/2026 — toute commande non terminale immobile. */
+  | 'order_stale'
+  /** Argent en vol chez le prestataire, sans issue. */
+  | 'payouts_in_flight'
+  | 'refunds_in_flight'
+  /** Réclamation prise en charge qui n'avance plus. */
+  | 'claims_stalled';
+
+/** F-03 — joignabilité d'une boutique (`GET /admin/vendors/reachability`). */
+export type VendorReachabilityStatus =
+  | 'NO_CHANNEL'
+  | 'NO_DEVICE'
+  | 'STALE_DEVICE'
+  | 'NO_SMS_FALLBACK'
+  | 'OK';
+
+export interface VendorReachabilityRow {
+  restaurantId: string;
+  nom: string;
+  isActive: boolean;
+  adminApproved: boolean;
+  deviceCount: number;
+  lastDeviceRegisteredAt: string | null;
+  ownerLastLoginAt: string | null;
+  smsFallback: 'OWNER' | 'SHOP' | null;
+  status: VendorReachabilityStatus;
+  needsAction: boolean;
+}
 
 export interface OpsItem {
   id: string;
@@ -3018,4 +3086,86 @@ export interface VendorSubscriptionsOverview {
   /** Prix courant d'un mois, lu dans les réglages de la plateforme. */
   priceXaf: number;
   periods: VendorSubscription[];
+}
+
+// ─── Rapprochement Lilia ↔ prestataire (lot 2, 30/10/2026) ──────────────────
+
+export type ReconciliationBlockScope = 'VENDOR' | 'GLOBAL' | 'NONE';
+export type ReconciliationSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM';
+export type ReconciliationResolutionKind =
+  | 'EXPLAINED'
+  | 'CORRECTED'
+  | 'WRITTEN_OFF';
+
+export interface ReconciliationRun {
+  id: string;
+  kind: 'PROVIDER_EXPORT' | 'INTERNAL_SCAN';
+  periodStart: string;
+  periodEnd: string;
+  findingsCount: number;
+  createdAt: string;
+}
+
+export interface ReconciliationSummary {
+  openItems: number;
+  globalBlocking: number;
+  vendorBlocking: number;
+  bySeverity: Record<ReconciliationSeverity, number>;
+  /** Le serveur décide : vrai = aucun versement ne part. */
+  payoutsGloballyBlocked: boolean;
+  lastRun: ReconciliationRun | null;
+}
+
+export interface ReconciliationItemEvent {
+  id: string;
+  kind: 'OPENED' | 'REOPENED' | 'RESOLVED' | 'NOTE';
+  actorUserId: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ReconciliationItem {
+  id: string;
+  itemKey: string;
+  type: string;
+  label: string;
+  procedure: string | null;
+  severity: ReconciliationSeverity;
+  blockScope: ReconciliationBlockScope;
+  status: 'OPEN' | 'RESOLVED';
+  restaurantId: string | null;
+  orderId: string | null;
+  externalId: string | null;
+  expectedXaf: number | null;
+  actualXaf: number | null;
+  detail: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolutionKind: ReconciliationResolutionKind | null;
+  resolutionNote: string | null;
+  resolvedAt: string | null;
+  events?: ReconciliationItemEvent[];
+}
+
+export interface ReconciliationItemsPage {
+  items: ReconciliationItem[];
+  nextCursor: string | null;
+}
+
+export interface ReconciliationRunReport {
+  runId: string;
+  duplicate: boolean;
+  findings: number;
+  opened: number;
+  reopened: number;
+}
+
+/** Ligne d'export prestataire normalisée (format pawaPay non figé). */
+export interface ReconciliationProviderRow {
+  externalId: string;
+  kind: 'DEPOSIT' | 'PAYOUT';
+  status: string;
+  amountXaf: number;
+  currency: string;
+  feeXaf?: number | null;
 }

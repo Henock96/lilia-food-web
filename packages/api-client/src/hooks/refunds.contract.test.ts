@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   REFUNDS_PAGE_SIZE,
+  missingClosureProof,
   nextRefundStatuses,
   refundExecuteRequest,
   refundRequiresNote,
@@ -201,6 +202,35 @@ describe('refundUpdateRequest', () => {
     });
   });
 
+  it('F-12 — une clôture « remboursé » porte sa preuve', () => {
+    expect(
+      refundUpdateRequest('r1', 'COMPLETED', 'ok', {
+        method: 'MOBILE_MONEY_MANUAL',
+        externalReference: '  MP-0001  ',
+        paidAt: '2026-10-29T09:00:00.000Z',
+      }),
+    ).toEqual({
+      path: '/refunds/r1/status',
+      body: {
+        status: 'COMPLETED',
+        notes: 'ok',
+        closureMethod: 'MOBILE_MONEY_MANUAL',
+        externalReference: 'MP-0001',
+        externalPaidAt: '2026-10-29T09:00:00.000Z',
+      },
+    });
+  });
+
+  it('F-12 — un refus n’envoie pas de preuve de virement', () => {
+    expect(
+      refundUpdateRequest('r1', 'REJECTED', 'Doublon', {
+        method: 'CASH',
+        externalReference: 'REC-1',
+        paidAt: '2026-10-29T09:00:00.000Z',
+      }).body,
+    ).toEqual({ status: 'REJECTED', notes: 'Doublon' });
+  });
+
   it('omet un motif vide plutôt que d’écraser celui déjà en base', () => {
     // `updateStatus` fait `notes: notes ?? refund.notes` : envoyer une chaîne
     // vide effacerait le motif écrit à l'étape précédente.
@@ -212,5 +242,27 @@ describe('refundUpdateRequest', () => {
       path: '/refunds/r1/status',
       body: { status: 'COMPLETED' },
     });
+  });
+});
+
+describe('missingClosureProof (F-12)', () => {
+  const now = new Date('2026-10-29T12:00:00Z');
+  const ok = {
+    method: 'MOBILE_MONEY_MANUAL' as const,
+    externalReference: 'MP-0001',
+    paidAt: '2026-10-29T09:00:00.000Z',
+  };
+
+  it('une preuve complète ne manque de rien', () => {
+    expect(missingClosureProof(ok, now)).toEqual([]);
+  });
+
+  it.each([
+    ['sans méthode', { ...ok, method: undefined }, 'la méthode'],
+    ['référence trop courte', { ...ok, externalReference: 'ab' }, 'la référence'],
+    ['sans date', { ...ok, paidAt: undefined }, 'la date'],
+    ['date future', { ...ok, paidAt: '2026-10-30T12:00:00Z' }, 'futur'],
+  ])('%s : signalé', (_l, proof, expected) => {
+    expect(missingClosureProof(proof, now).join(' ')).toContain(expected);
   });
 });

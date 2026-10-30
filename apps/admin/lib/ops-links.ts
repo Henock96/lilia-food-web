@@ -11,12 +11,17 @@ export function opsItemHref(bucket: OpsBucketKey, item: OpsItem): string | null 
     case 'en_route_long':
     case 'delivery_failed':
     case 'pickup_unconfirmed':
+    // Audit du 28/10/2026 — toute commande immobile s'ouvre sur sa fiche.
+    case 'order_stale':
       return item.orderId ? `/commandes?q=${encodeURIComponent(item.orderId)}` : null;
     case 'refunds_pending':
+    case 'refunds_in_flight':
       return '/remboursements';
     case 'claims_unanswered':
+    case 'claims_stalled':
       return `/reclamations/${encodeURIComponent(item.id)}`;
     case 'payouts_failed':
+    case 'payouts_in_flight':
       return '/paiements/reversements';
     case 'incidents_open':
       return `/incidents/${encodeURIComponent(item.id)}`;

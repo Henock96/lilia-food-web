@@ -9,6 +9,7 @@ import {
 import type {
   ApprovalRequested,
   Refund,
+  RefundClosureProof,
   RefundStatus,
   RefundsPage,
 } from '@lilia/types';
@@ -91,6 +92,7 @@ export function refundUpdateRequest(
   refundId: string,
   status: RefundStatus,
   notes?: string,
+  proof?: RefundClosureProof,
 ) {
   const trimmed = notes?.trim();
   return {
@@ -98,8 +100,39 @@ export function refundUpdateRequest(
     body: {
       status,
       ...(trimmed ? { notes: trimmed } : {}),
+      // F-12 — une clôture « remboursé » déclarée porte sa preuve ; le
+      // serveur la refuse sans elle (400 REFUND_PROOF_REQUIRED).
+      ...(status === 'COMPLETED' && proof
+        ? {
+            closureMethod: proof.method,
+            externalReference: proof.externalReference.trim(),
+            externalPaidAt: proof.paidAt,
+          }
+        : {}),
     },
   };
+}
+
+/**
+ * F-12 — ce qui manque à une preuve de clôture, pour le dire avant l'envoi.
+ * Miroir de `assertDeclaredClosureProof` côté serveur, qui reste seul juge.
+ */
+export function missingClosureProof(
+  proof: Partial<RefundClosureProof>,
+  now = new Date(),
+): string[] {
+  const missing: string[] = [];
+  if (!proof.method) missing.push('la méthode');
+  if (!proof.externalReference || proof.externalReference.trim().length < 4) {
+    missing.push('la référence de l’opération (4 caractères au moins)');
+  }
+  const paidAt = proof.paidAt ? new Date(proof.paidAt) : null;
+  if (!paidAt || Number.isNaN(paidAt.getTime())) {
+    missing.push('la date du remboursement');
+  } else if (paidAt.getTime() > now.getTime() + 5 * 60_000) {
+    missing.push('une date qui ne soit pas dans le futur');
+  }
+  return missing;
 }
 
 export interface RefundsQuery {
@@ -204,12 +237,14 @@ export function useUpdateRefundStatus(token: string | null) {
       refundId,
       status,
       notes,
+      proof,
     }: {
       refundId: string;
       status: RefundStatus;
       notes?: string;
+      proof?: RefundClosureProof;
     }) => {
-      const { path, body } = refundUpdateRequest(refundId, status, notes);
+      const { path, body } = refundUpdateRequest(refundId, status, notes, proof);
       return apiClient<Refund | ApprovalRequested>(path, {
         method: 'PATCH',
         token,

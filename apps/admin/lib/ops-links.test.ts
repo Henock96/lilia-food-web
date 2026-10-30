@@ -19,6 +19,16 @@ describe('cockpit ops (F3-04)', () => {
     expect(opsItemHref('outbox_failed', item)).toBeNull();
   });
 
+  it('audit du 28/10/2026 — les nouvelles files ouvrent le bon écran', () => {
+    // `id` d'une commande immobile = `<orderId>@<état>` : on ouvre la commande.
+    expect(
+      opsItemHref('order_stale', { ...item, id: 'cmorder1@EN_PREPARATION' }),
+    ).toBe('/commandes?q=cmorder1');
+    expect(opsItemHref('payouts_in_flight', item)).toBe('/paiements/reversements');
+    expect(opsItemHref('refunds_in_flight', item)).toBe('/remboursements');
+    expect(opsItemHref('claims_stalled', item)).toBe('/reclamations/x1');
+  });
+
   it('ancienneté lisible', () => {
     const now = new Date('2026-09-28T12:00:00.000Z');
     expect(ageLabel('2026-09-28T11:48:00.000Z', now)).toBe('il y a 12 min');
