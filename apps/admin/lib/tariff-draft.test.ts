@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formFromTariff, tariffFormToDto, type TariffForm } from './tariff-draft';
+import {
+  formFromTariff,
+  pairFee,
+  setPairFee,
+  tariffFormToDto,
+  type TariffForm,
+} from './tariff-draft';
 
 const base: TariffForm = {
   roadFactor: '1,3',
@@ -77,5 +83,50 @@ describe('tariffFormToDto', () => {
       overrides: [],
       note: 'v2',
     });
+  });
+});
+
+describe('matrice des prix fixes (lot 4)', () => {
+  it('saisie symétrique : remplit les deux sens', () => {
+    const next = setPairFee([], 'a', 'b', '1200', true);
+    expect(pairFee(next, 'a', 'b')).toBe('1200');
+    expect(pairFee(next, 'b', 'a')).toBe('1200');
+  });
+
+  it('chaque sens reste modifiable à part', () => {
+    const both = setPairFee([], 'a', 'b', '1200', true);
+    const next = setPairFee(both, 'b', 'a', '1500', false);
+    expect(pairFee(next, 'a', 'b')).toBe('1200');
+    expect(pairFee(next, 'b', 'a')).toBe('1500');
+    expect(next).toHaveLength(2);
+  });
+
+  it('un retour saisi exprès (différent) n’est jamais écrasé ni effacé', () => {
+    let o = setPairFee([], 'a', 'b', '1200', true);
+    o = setPairFee(o, 'b', 'a', '1500', false);
+    o = setPairFee(o, 'a', 'b', '1300', true);
+    expect(pairFee(o, 'b', 'a')).toBe('1500');
+    o = setPairFee(o, 'a', 'b', '', true);
+    expect(pairFee(o, 'a', 'b')).toBe('');
+    expect(pairFee(o, 'b', 'a')).toBe('1500');
+  });
+
+  it('même quartier : une seule case, même en symétrique', () => {
+    expect(setPairFee([], 'a', 'a', '500', true)).toEqual([
+      { originQuartierId: 'a', destQuartierId: 'a', feeXaf: '500' },
+    ]);
+  });
+
+  it('case vidée : le prix fixe disparaît (retour aux tranches)', () => {
+    const both = setPairFee([], 'a', 'b', '1200', true);
+    expect(setPairFee(both, 'a', 'b', ' ', true)).toEqual([]);
+  });
+
+  it('la matrice produit un DTO valide, sans doublon', () => {
+    let overrides = setPairFee([], 'a', 'b', '1200', true);
+    overrides = setPairFee(overrides, 'a', 'b', '1300', true);
+    const { dto } = tariffFormToDto({ ...base, overrides });
+    expect(dto?.overrides).toHaveLength(2);
+    expect(dto?.overrides).toContainEqual({ originQuartierId: 'b', destQuartierId: 'a', feeXaf: 1300 });
   });
 });

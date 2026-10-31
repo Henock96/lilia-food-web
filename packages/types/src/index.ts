@@ -521,6 +521,24 @@ export interface DeliveryTariffSimulation {
   }>;
 }
 
+/**
+ * `GET /admin/delivery-tariffs/:id/readiness` (durcissement lot 4) — la
+ * version peut-elle porter seule la tarification (bascule `PLATFORM`) ?
+ */
+export interface DeliveryTariffReadiness {
+  /** Aucun vendeur sans quartier et aucun couple au prix de repli. */
+  ready: boolean;
+  quartiersWithoutCentroid: Array<{ id: string; nom: string }>;
+  vendorsWithoutQuartier: Array<{ id: string; nom: string }>;
+  counts: Record<'OVERRIDE' | 'BAND' | 'FALLBACK', number> & { pairs: number };
+  /** Couples sans prix fixe ; origines = quartiers des vendeurs visibles. */
+  missingOverrides: Array<{
+    originQuartierId: string;
+    destQuartierId: string;
+    basis: 'BAND' | 'FALLBACK';
+  }>;
+}
+
 /** `GET /delivery-tariffs/current` — la grille en vigueur, vue vendeur. */
 export interface CurrentDeliveryTariff {
   mode: DeliveryPricingMode;

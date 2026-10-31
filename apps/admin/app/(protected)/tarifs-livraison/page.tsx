@@ -6,6 +6,7 @@ import {
   useAdminQuartiers,
   useCreateDeliveryTariff,
   useDeleteDeliveryTariff,
+  useDeliveryTariffReadiness,
   useDeliveryTariffs,
   usePlatformSettings,
   usePublishDeliveryTariff,
@@ -14,13 +15,15 @@ import {
 } from '@lilia/api-client';
 import type { DeliveryTariff, DeliveryTariffSimulation, Quartier } from '@lilia/types';
 import { toast } from 'sonner';
-import { Copy, FlaskConical, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
+import { Copy, FlaskConical, ListChecks, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiMessage } from '@/lib/api-message';
 import {
   EMPTY_TARIFF_FORM,
   formFromTariff,
+  pairFee,
+  setPairFee,
   tariffFormToDto,
   type TariffForm,
 } from '@/lib/tariff-draft';
@@ -72,7 +75,9 @@ export default function TarifsLivraisonPage() {
           key={editor.id ?? 'new'}
           id={editor.id}
           initial={editor.form}
-          quartiers={quartiers.data ?? []}
+          // `null` tant que la liste n'est pas lue : une erreur de chargement
+          // ne doit pas passer pour un référentiel vide.
+          quartiers={quartiers.isSuccess ? quartiers.data : null}
           token={token}
           onDone={() => setEditor(null)}
         />
@@ -297,6 +302,183 @@ function TariffCard({
           )}
         </div>
       </div>
+
+      {tariff.status !== 'RETIRED' && (
+        <ReadinessPanel tariffId={tariff.id} token={token} quartierNames={quartierNames} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Durcissement lot 4 — cette version peut-elle porter seule la tarification ?
+ * Verdict du serveur (`GET …/readiness`), jamais recalculé ici. La bascule
+ * elle-même reste dans Paramètres.
+ */
+function ReadinessPanel({
+  tariffId,
+  token,
+  quartierNames,
+}: {
+  tariffId: string;
+  token: string | null;
+  quartierNames: Map<string, string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const readiness = useDeliveryTariffReadiness(open ? tariffId : null, token);
+  const r = readiness.data;
+  const fallback = r?.missingOverrides.filter((p) => p.basis === 'FALLBACK') ?? [];
+
+  return (
+    <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-dark-border">
+      <button type="button" className={btnCls} onClick={() => setOpen((o) => !o)}>
+        <ListChecks size={14} /> {open ? 'Masquer la préparation' : 'Préparation de la bascule'}
+      </button>
+      {open &&
+        (readiness.isLoading ? (
+          <Skeleton className="mt-3 h-16 rounded-xl" />
+        ) : readiness.isError ? (
+          <p className="mt-3 text-sm text-red-500">
+            {apiMessage(readiness.error, 'Vérification impossible.')}
+          </p>
+        ) : r ? (
+          <div className="mt-3 space-y-2 text-sm">
+            <p className={r.ready ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}>
+              {r.ready
+                ? 'Prête : chaque trajet depuis un quartier de vendeur a un prix fixe ou une tranche.'
+                : 'Pas encore prête pour la bascule.'}
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              {r.counts.pairs} trajets : {r.counts.OVERRIDE} à prix fixe, {r.counts.BAND} par
+              tranche, {r.counts.FALLBACK} au prix de repli.
+            </p>
+            {r.vendorsWithoutQuartier.length > 0 && (
+              <p className="text-zinc-600 dark:text-zinc-400">
+                Vendeurs sans quartier : {r.vendorsWithoutQuartier.map((v) => v.nom).join(', ')}
+              </p>
+            )}
+            {r.quartiersWithoutCentroid.length > 0 && (
+              <p className="text-zinc-600 dark:text-zinc-400">
+                Quartiers sans centroïde (un prix fixe les couvre) :{' '}
+                {r.quartiersWithoutCentroid.map((q) => q.nom).join(', ')}
+              </p>
+            )}
+            {fallback.length > 0 && (
+              <p className="text-zinc-600 dark:text-zinc-400">
+                Trajets au prix de repli :{' '}
+                {fallback
+                  .slice(0, 20)
+                  .map(
+                    (p) =>
+                      `${quartierNames.get(p.originQuartierId) ?? '?'} → ${quartierNames.get(p.destQuartierId) ?? '?'}`,
+                  )
+                  .join(', ')}
+                {fallback.length > 20 && ` (+${fallback.length - 20})`}
+              </p>
+            )}
+          </div>
+        ) : null)}
+    </div>
+  );
+}
+
+/**
+ * Prix fixes en matrice (durcissement lot 4) : lignes = quartier du vendeur,
+ * colonnes = quartier du client. Saisie symétrique par défaut (le retour prend
+ * le même prix, modifiable ensuite). Case vide = la tranche de distance
+ * s'applique. Le corps envoyé au serveur ne change pas : la liste des couples.
+ */
+function OverrideMatrix({
+  quartiers,
+  overrides,
+  onChange,
+}: {
+  quartiers: Quartier[] | null;
+  overrides: TariffForm['overrides'];
+  onChange: (next: TariffForm['overrides']) => void;
+}) {
+  const [symmetric, setSymmetric] = useState(true);
+  if (quartiers === null) {
+    return (
+      <p className="text-sm text-red-500">
+        Liste des quartiers indisponible : la matrice des prix fixes ne peut pas s&apos;afficher.
+        Rechargez la page.
+      </p>
+    );
+  }
+  if (quartiers.length === 0) {
+    return <p className="text-sm text-zinc-400">Aucun quartier : la matrice est vide.</p>;
+  }
+  const known = new Set(quartiers.map((q) => q.id));
+  const outside = overrides.filter(
+    (o) => !known.has(o.originQuartierId) || !known.has(o.destQuartierId),
+  ).length;
+  return (
+    <div>
+      {outside > 0 && (
+        <p className="mb-2 text-sm text-amber-700 dark:text-amber-400">
+          {outside} prix fixe{outside > 1 ? 's' : ''} vise{outside > 1 ? 'nt' : ''} un quartier
+          absent de la liste : conservé{outside > 1 ? 's' : ''} tel{outside > 1 ? 's' : ''} quel
+          {outside > 1 ? 's' : ''}, invisible{outside > 1 ? 's' : ''} ici.
+        </p>
+      )}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Prix fixes par trajet ({overrides.length}) — ligne : quartier du vendeur, colonne :
+          quartier du client
+        </p>
+        <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+          <input
+            type="checkbox"
+            checked={symmetric}
+            onChange={(e) => setSymmetric(e.target.checked)}
+          />
+          Même prix au retour
+        </label>
+      </div>
+      <div className="max-h-[28rem] overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <table className="text-xs">
+          <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-800">
+            <tr>
+              <th className="sticky left-0 z-20 bg-zinc-50 px-2 py-1 text-left dark:bg-zinc-800">
+                Départ \ Arrivée
+              </th>
+              {quartiers.map((q) => (
+                <th key={q.id} className="whitespace-nowrap px-1 py-1 font-medium">
+                  {q.nom}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {quartiers.map((origin) => (
+              <tr key={origin.id} className="border-t border-zinc-100 dark:border-zinc-700">
+                <th className="sticky left-0 whitespace-nowrap bg-white px-2 py-1 text-left font-medium dark:bg-dark-card">
+                  {origin.nom}
+                </th>
+                {quartiers.map((dest) => (
+                  <td key={dest.id} className="p-0.5">
+                    <input
+                      className="w-20 rounded border border-zinc-200 bg-white px-1.5 py-1 text-right text-zinc-900 focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                      inputMode="numeric"
+                      aria-label={`Prix de ${origin.nom} vers ${dest.nom}`}
+                      placeholder="—"
+                      value={pairFee(overrides, origin.id, dest.id)}
+                      onChange={(e) =>
+                        onChange(setPairFee(overrides, origin.id, dest.id, e.target.value, symmetric))
+                      }
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-1 text-xs text-zinc-400">
+        Case vide : la tranche de distance s&apos;applique. « Préparation de la bascule » dit quels
+        trajets n&apos;ont encore aucun prix.
+      </p>
     </div>
   );
 }
@@ -310,7 +492,8 @@ function TariffEditor({
 }: {
   id: string | null;
   initial: TariffForm;
-  quartiers: Quartier[];
+  /** `null` : liste des quartiers non chargée (chargement ou erreur). */
+  quartiers: Quartier[] | null;
   token: string | null;
   onDone: () => void;
 }) {
@@ -340,11 +523,6 @@ function TariffEditor({
 
   const setBand = (i: number, patch: Partial<TariffForm['bands'][number]>) =>
     setForm((f) => ({ ...f, bands: f.bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) }));
-  const setOverride = (i: number, patch: Partial<TariffForm['overrides'][number]>) =>
-    setForm((f) => ({
-      ...f,
-      overrides: f.overrides.map((o, j) => (j === i ? { ...o, ...patch } : o)),
-    }));
 
   return (
     <div className={`${cardCls} space-y-4`}>
@@ -408,70 +586,11 @@ function TariffEditor({
         </button>
       </div>
 
-      <div>
-        <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Prix fixes par trajet (quartier du vendeur → quartier du client)
-        </p>
-        <div className="space-y-2">
-          {form.overrides.map((o, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select
-                className={inputCls}
-                value={o.originQuartierId}
-                onChange={(e) => setOverride(i, { originQuartierId: e.target.value })}
-              >
-                <option value="">Départ…</option>
-                {quartiers.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.nom}
-                  </option>
-                ))}
-              </select>
-              <span className="text-zinc-400">→</span>
-              <select
-                className={inputCls}
-                value={o.destQuartierId}
-                onChange={(e) => setOverride(i, { destQuartierId: e.target.value })}
-              >
-                <option value="">Arrivée…</option>
-                {quartiers.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.nom}
-                  </option>
-                ))}
-              </select>
-              <input
-                className={inputCls}
-                inputMode="numeric"
-                placeholder="FCFA"
-                value={o.feeXaf}
-                onChange={(e) => setOverride(i, { feeXaf: e.target.value })}
-              />
-              <button
-                type="button"
-                aria-label="Retirer le prix fixe"
-                onClick={() =>
-                  setForm((f) => ({ ...f, overrides: f.overrides.filter((_, j) => j !== i) }))
-                }
-              >
-                <Trash2 size={14} className="text-zinc-400" />
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          className={`${btnCls} mt-2`}
-          onClick={() =>
-            setForm((f) => ({
-              ...f,
-              overrides: [...f.overrides, { originQuartierId: '', destQuartierId: '', feeXaf: '' }],
-            }))
-          }
-        >
-          <Plus size={14} /> Prix fixe
-        </button>
-      </div>
+      <OverrideMatrix
+        quartiers={quartiers}
+        overrides={form.overrides}
+        onChange={(overrides) => setForm((f) => ({ ...f, overrides }))}
+      />
 
       <label className="block text-sm">
         <span className="text-zinc-600 dark:text-zinc-400">Note (motif du changement)</span>
@@ -498,7 +617,9 @@ function TariffEditor({
         <button
           type="button"
           onClick={save}
-          disabled={saving}
+          // Sans la liste des quartiers, la matrice n'est pas affichée :
+          // on n'enregistre pas des prix que l'administrateur ne voit pas.
+          disabled={saving || quartiers === null}
           className="rounded-lg bg-primary-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
         >
           {saving ? 'Enregistrement…' : 'Enregistrer le brouillon'}

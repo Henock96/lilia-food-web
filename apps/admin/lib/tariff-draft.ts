@@ -38,6 +38,43 @@ export function formFromTariff(tariff: DeliveryTariff): TariffForm {
   };
 }
 
+type OverrideRow = TariffForm['overrides'][number];
+
+/** Prix saisi pour un couple orienté, `''` s'il n'y en a pas. */
+export function pairFee(overrides: readonly OverrideRow[], origin: string, dest: string): string {
+  return (
+    overrides.find((o) => o.originQuartierId === origin && o.destQuartierId === dest)?.feeXaf ?? ''
+  );
+}
+
+/**
+ * Saisie d'une case de la matrice (durcissement lot 4). `symmetric` : le même
+ * prix vaut pour le trajet retour, qui reste modifiable à part ensuite. Le
+ * retour n'est suivi que s'il était vide ou égal à l'aller : un prix retour
+ * saisi exprès n'est jamais écrasé. Une case vidée retire le prix fixe (le
+ * couple retombe sur les tranches).
+ */
+export function setPairFee(
+  overrides: readonly OverrideRow[],
+  origin: string,
+  dest: string,
+  feeXaf: string,
+  symmetric: boolean,
+): OverrideRow[] {
+  const reverse = pairFee(overrides, dest, origin);
+  const followsForward = reverse === '' || reverse === pairFee(overrides, origin, dest);
+  const targets =
+    symmetric && origin !== dest && followsForward
+      ? [[origin, dest], [dest, origin]]
+      : [[origin, dest]];
+  let next = [...overrides];
+  for (const [o, d] of targets) {
+    const others = next.filter((r) => !(r.originQuartierId === o && r.destQuartierId === d));
+    next = feeXaf.trim() === '' ? others : [...others, { originQuartierId: o, destQuartierId: d, feeXaf }];
+  }
+  return next;
+}
+
 const MAX_FEE_XAF = 50_000;
 
 function parseFee(raw: string): number | null {
