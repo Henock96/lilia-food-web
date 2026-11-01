@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  DriverCoursesPage,
   DriverOutstanding,
   DriverSettlement,
   DriverSettlementMethod,
@@ -35,6 +36,23 @@ export function useDriverOutstanding(driverId: string, token: string | null) {
     queryFn: () =>
       apiClient<DriverOutstanding>(
         `/admin/driver-settlements/outstanding/${driverId}`,
+        { token },
+      ),
+    enabled: Boolean(driverId && token),
+  });
+}
+
+/**
+ * Lot 3 (point 5) — détail des courses d'un livreur : paie figée et situation
+ * calculée par le serveur (réglée, à recevoir, retenue, en litige, inconnue).
+ * ADMIN seul : le livreur ne voit jamais sa paie (D-PAY).
+ */
+export function useDriverCourses(driverId: string, token: string | null) {
+  return useQuery({
+    queryKey: [...driverSettlementKeys.all, 'courses', driverId] as const,
+    queryFn: () =>
+      apiClientRaw<DriverCoursesPage>(
+        `/admin/driver-settlements/courses/${driverId}`,
         { token },
       ),
     enabled: Boolean(driverId && token),

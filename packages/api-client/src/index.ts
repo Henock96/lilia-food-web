@@ -1,4 +1,11 @@
-export { apiClient, apiClientRaw, ApiError, API_URL, MAX_PAGE_SIZE } from './client';
+export {
+  apiClient,
+  apiClientRaw,
+  ApiError,
+  API_URL,
+  MAX_PAGE_SIZE,
+  declareOrderFlowCapability,
+} from './client';
 export { getInstallationId, installationHeaders } from './installation-id';
 export * from './hooks/restaurants';
 export * from './hooks/orders';

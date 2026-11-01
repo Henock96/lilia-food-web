@@ -6,6 +6,7 @@ import type {
   DeliverySubsidySimulation,
   DeliveryTariff,
   DeliveryTariffDraftDto,
+  DeliveryTariffReadiness,
   DeliveryTariffSimulation,
   UpdateDeliverySubsidyDto,
 } from '@lilia/types';
@@ -27,6 +28,7 @@ export const deliveryTariffKeys = {
   all: ['delivery-tariffs'] as const,
   list: ['delivery-tariffs', 'list'] as const,
   current: ['delivery-tariffs', 'current'] as const,
+  readiness: (id: string) => ['delivery-tariffs', 'readiness', id] as const,
   subsidySimulation: (vendorId: string, dto: UpdateDeliverySubsidyDto) =>
     ['delivery-tariffs', 'subsidy-simulation', vendorId, dto] as const,
 };
@@ -109,6 +111,20 @@ export function usePublishDeliveryTariff(token: string | null) {
         token,
       }),
     onSuccess: () => invalidateTariffs(queryClient),
+  });
+}
+
+/**
+ * `GET /admin/delivery-tariffs/:id/readiness` (lot 4) — couples sans prix
+ * fixe, quartiers sans centroïde, vendeurs sans quartier. `id` nul : rien à
+ * lire (brouillon pas encore enregistré). Invalidée avec les grilles.
+ */
+export function useDeliveryTariffReadiness(id: string | null, token: string | null) {
+  return useQuery({
+    queryKey: deliveryTariffKeys.readiness(id ?? ''),
+    queryFn: () =>
+      apiClient<DeliveryTariffReadiness>(`/admin/delivery-tariffs/${id}/readiness`, { token }),
+    enabled: !!token && !!id,
   });
 }
 

@@ -49,6 +49,7 @@ import { deliveryProofSummary } from '@/lib/delivery-proof';
 import { formatLineOptions } from '@lilia/utils';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
+  DEMANDE_ENVOYEE: 'Demande',
   EN_ATTENTE:     'En attente',
   PAYER:          'Payé',
   ACCEPTEE:       'Accepté',
@@ -61,6 +62,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
+  DEMANDE_ENVOYEE: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-400',
   EN_ATTENTE:     'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
   PAYER:          'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
   ACCEPTEE:       'bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-400',
@@ -74,6 +76,8 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 
 /** Ordre des onglets — celui du cycle de vie, pas celui de l'enum. */
 const STATUS_TABS: OrderStatus[] = [
+  // Lot 3 — demandes à accepter ou refuser avant paiement.
+  'DEMANDE_ENVOYEE',
   'EN_ATTENTE',
   'PAYER',
   'ACCEPTEE',

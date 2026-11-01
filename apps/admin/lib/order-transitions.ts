@@ -49,6 +49,12 @@ export function nextOrderStatus({
   const isAdmin = role === 'ADMIN';
 
   switch (current) {
+    case 'DEMANDE_ENVOYEE':
+      // Lot 3 — accepter une demande exige un temps de préparation : c'est
+      // « Accepter » (`POST /orders/:id/accept`, porté par `allowedActions`),
+      // jamais la route de statut, qui le refuse.
+      return null;
+
     case 'EN_ATTENTE':
       // Rien, pour personne (Master Audit v1, F-07). « Payée » n'est plus un
       // statut qu'on déclare : le serveur refuse `EN_ATTENTE → PAYER` sur la
