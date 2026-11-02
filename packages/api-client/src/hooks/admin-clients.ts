@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   useQuery,
   useMutation,
   useQueryClient,
   keepPreviousData,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   Paginated,
   AdminClientListItem,
@@ -89,15 +90,15 @@ function normalizeRestaurantClients(res: unknown): {
  * recherche + pagination se font côté front. ADMIN passe par `useAdminClients`.
  */
 export function useRestaurantClients(
-  token: string | null,
+  token: AuthCredential | null,
   restaurantId: string | undefined,
 ) {
   return useQuery({
     queryKey: restaurantClientKeys.list(restaurantId),
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClientRaw<unknown>(
         `/restaurants/${restaurantId}/clients?page=1&limit=200`,
-        { token },
+        { signal, token },
       );
       return normalizeRestaurantClients(res);
     },
@@ -110,16 +111,16 @@ export function useRestaurantClients(
 export function useRestaurantClientOrders(
   restaurantId: string | undefined,
   clientId: string | null,
-  token: string | null,
+  token: AuthCredential | null,
 ) {
   return useQuery({
     queryKey: restaurantClientKeys.orders(restaurantId, clientId),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       // `findClientWithOrders` renvoie `{ data, message }` (conforme v2) →
       // `apiClient` déballe le tableau de commandes.
       apiClient<RestaurantClientOrder[]>(
         `/restaurants/${restaurantId}/clients/${clientId}/orders`,
-        { token },
+        { signal, token },
       ),
     enabled: !!token && !!restaurantId && !!clientId,
     staleTime: 60 * 1000,
@@ -128,19 +129,19 @@ export function useRestaurantClientOrders(
 
 /** Liste clients paginée + recherche (GET /admin/clients). */
 export function useAdminClients(
-  token: string | null,
+  token: AuthCredential | null,
   page: number,
   search: string,
 ) {
   return useQuery({
     queryKey: adminClientKeys.list(page, search),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (search.trim()) params.set('search', search.trim());
       // Contrat v2 : `{ data, meta }` préservé via apiClientRaw.
       return apiClientRaw<Paginated<AdminClientListItem>>(
         `/admin/clients?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token,
@@ -150,22 +151,22 @@ export function useAdminClients(
 }
 
 /** Solde + historique de fidélité d'un client (GET /admin/clients/:id/loyalty). */
-export function useClientLoyalty(clientId: string | null, token: string | null) {
+export function useClientLoyalty(clientId: string | null, token: AuthCredential | null) {
   return useQuery({
     queryKey: adminClientKeys.loyalty(clientId),
-    queryFn: () =>
-      apiClient<AdminClientLoyalty>(`/admin/clients/${clientId}/loyalty`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<AdminClientLoyalty>(`/admin/clients/${clientId}/loyalty`, { signal, token }),
     enabled: !!clientId && !!token,
     staleTime: 2 * 60 * 1000,
   });
 }
 
 /** Stats de parrainage d'un client (GET /admin/clients/:id/referral). */
-export function useClientReferral(clientId: string | null, token: string | null) {
+export function useClientReferral(clientId: string | null, token: AuthCredential | null) {
   return useQuery({
     queryKey: adminClientKeys.referral(clientId),
-    queryFn: () =>
-      apiClient<AdminClientReferral>(`/admin/clients/${clientId}/referral`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<AdminClientReferral>(`/admin/clients/${clientId}/referral`, { signal, token }),
     enabled: !!clientId && !!token,
     staleTime: 2 * 60 * 1000,
   });
@@ -188,7 +189,7 @@ export const referralRewardKeys = {
  * reste vide dans la plupart des cas. Chaque appel écrit une ligne de ledger
  * nominative **et** une entrée au journal d'audit.
  */
-export function useAdjustClientLoyalty(token: string | null) {
+export function useAdjustClientLoyalty(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -220,16 +221,16 @@ export function useAdjustClientLoyalty(token: string | null) {
  * retenues sans les refuser — celles qui attendent une décision humaine.
  */
 export function useReferralRewards(
-  token: string | null,
+  token: AuthCredential | null,
   status: ReferralRewardStatus | 'ALL' = 'PENDING_REVIEW',
   page = 1,
 ) {
   return useQuery({
     queryKey: referralRewardKeys.list(status, page),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClientRaw<Paginated<ReferralReward>>(
         `/admin/referral-rewards?page=${page}&limit=20${status === 'ALL' ? '' : `&status=${status}`}`,
-        { token },
+        { signal, token },
       ),
     enabled: !!token,
     staleTime: 60 * 1000,
@@ -237,7 +238,7 @@ export function useReferralRewards(
 }
 
 /** Arbitrage humain d'une récompense `PENDING_REVIEW`. */
-export function useReviewReferralReward(token: string | null) {
+export function useReviewReferralReward(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({

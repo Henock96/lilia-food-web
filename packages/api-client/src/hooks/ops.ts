@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../session-query';
 import type { OpsQueue } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -14,10 +15,10 @@ export const opsKeys = {
  * vraie. Relire chaque minute suffit — c'est aussi la cadence du scan
  * d'alerte côté serveur.
  */
-export function useOpsQueue(token: string | null) {
+export function useOpsQueue(token: AuthCredential | null) {
   return useQuery({
     queryKey: opsKeys.queue,
-    queryFn: () => apiClient<OpsQueue>('/admin/ops/queue', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<OpsQueue>('/admin/ops/queue', { signal, token }),
     enabled: !!token,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,

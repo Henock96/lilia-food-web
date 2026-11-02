@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { Cart, AddToCartDto } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -9,11 +10,11 @@ export const cartKeys = {
   detail: () => [...cartKeys.all, 'detail'] as const,
 };
 
-export function useCart(token: string | null) {
+export function useCart(token: AuthCredential | null) {
   return useQuery({
     queryKey: cartKeys.detail(),
-    queryFn: async () => {
-      const cart = await apiClient<Cart>('/cart', { token });
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const cart = await apiClient<Cart>('/cart', { signal, token });
       return { ...cart, items: Array.isArray(cart.items) ? cart.items : [] };
     },
     enabled: !!token,
@@ -21,7 +22,7 @@ export function useCart(token: string | null) {
   });
 }
 
-export function useAddToCart(token: string | null) {
+export function useAddToCart(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: AddToCartDto) =>
@@ -50,7 +51,7 @@ export function useAddToCart(token: string | null) {
  * une suite de produits individuels — le sous-total serait faux, et le serveur
  * facture le prix du menu (`OrderCalculatorService`).
  */
-export function useAddMenuToCart(token: string | null) {
+export function useAddMenuToCart(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: { menuId: string; quantite: number }) =>
@@ -65,7 +66,7 @@ export function useAddMenuToCart(token: string | null) {
   });
 }
 
-export function useUpdateCartItem(token: string | null) {
+export function useUpdateCartItem(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ itemId, quantite }: { itemId: string; quantite: number }) =>
@@ -80,7 +81,7 @@ export function useUpdateCartItem(token: string | null) {
   });
 }
 
-export function useRemoveCartItem(token: string | null) {
+export function useRemoveCartItem(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (itemId: string) =>
@@ -94,7 +95,7 @@ export function useRemoveCartItem(token: string | null) {
   });
 }
 
-export function useClearCart(token: string | null) {
+export function useClearCart(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>

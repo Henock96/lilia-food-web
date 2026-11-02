@@ -1,6 +1,7 @@
 'use client';
+import { assertCurrentSession, type AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient, type UseMutationOptions } from '../session-query';
 import type {
   PaymentIntent,
   PaymentMethod,
@@ -42,7 +43,7 @@ export interface CreatePaymentDto {
 export function usePaymentProviders() {
   return useQuery({
     queryKey: paymentKeys.providers,
-    queryFn: () => apiClient<PaymentProvidersInfo>('/payments/providers'),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<PaymentProvidersInfo>('/payments/providers', { signal }),
     // Le serveur met déjà la configuration prestataire en cache 15 min ; on ne
     // la redemande pas à chaque montage d'écran.
     staleTime: 5 * 60 * 1000,
@@ -62,25 +63,29 @@ export function usePaymentProviders() {
  * précédente ne lui a jamais été soumise. C'est la base qui arbitre le double
  * clic, pas cette fonction.
  */
-export function useCreatePayment(token: string | null) {
+export function useCreatePayment(token: AuthCredential | null) {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation(createPaymentMutationOptions(token, queryClient));
+}
+
+export function createPaymentMutationOptions(
+  token: AuthCredential | null,
+  queryClient: QueryClient,
+): UseMutationOptions<PaymentIntent, Error, CreatePaymentDto> {
+  return {
     mutationFn: (dto: CreatePaymentDto) =>
       apiClient<PaymentIntent>('/payments', {
         method: 'POST',
         body: JSON.stringify(dto),
         token,
       }),
-    onSuccess: (intent) => {
-      void queryClient.invalidateQueries({
-        queryKey: paymentKeys.forOrder(intent.orderId),
-      });
-      void queryClient.invalidateQueries({ queryKey: orderKeys.mine() });
-      void queryClient.invalidateQueries({
-        queryKey: orderKeys.detail(intent.orderId),
-      });
-    },
-  });
+    // A lost POST response can still mean a pending collection exists.
+    onSettled: (_intent, _error, dto) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: paymentKeys.forOrder(dto.orderId) }),
+      queryClient.invalidateQueries({ queryKey: orderKeys.mine() }),
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(dto.orderId) }),
+    ]).then(() => undefined),
+  };
 }
 
 /**
@@ -131,30 +136,65 @@ export function paymentPollIntervalMs(
  */
 export function useOrderPayment(
   orderId: string,
-  token: string | null,
+  token: AuthCredential | null,
   options: { enabled?: boolean } = {},
 ) {
   return useQuery({
     queryKey: paymentKeys.forOrder(orderId),
-    queryFn: async () => {
-      const latest = await apiClient<PaymentStatusView | null>(
-        `/payments/by-order/${orderId}`,
-        { token },
-      );
-      if (!latest || latest.status !== 'PENDING') return latest;
-
-      // Force une interrogation du prestataire. Un échec réseau ici ne doit pas
-      // faire disparaître l'état connu : on retombe sur la lecture précédente.
-      return apiClient<PaymentStatusView>(
-        `/payments/${latest.paymentId}/status`,
-        { token },
-      ).catch(() => latest);
-    },
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      readOrderPayment(orderId, token, signal),
+    staleTime: 0,
+    retry: false,
+    refetchOnMount: 'always',
+    refetchOnReconnect: 'always',
     enabled: !!orderId && !!token && options.enabled !== false,
     refetchInterval: (query) =>
-      paymentPollIntervalMs(
-        query.state.data as PaymentStatusView | null | undefined,
-      ),
+      paymentReadPollIntervalMs(query.state.data as PaymentStatusView | null | undefined, query.state.error),
     refetchOnWindowFocus: true,
   });
+}
+
+/** A failed refresh is an error, even when the preceding read found PENDING. */
+export class PaymentStatusReadError extends Error {
+  constructor(public readonly pending: PaymentStatusView) {
+    super('Le statut du paiement ne peut pas être vérifié. Ne payez pas une seconde fois.');
+    this.name = 'PaymentStatusReadError';
+  }
+}
+
+export function parseOrderPayment(value: unknown, orderId: string): PaymentStatusView | null {
+  if (value === null) return null;
+  if (!value || typeof value !== 'object') throw new Error('Réponse de paiement invalide.');
+  const p = value as Partial<PaymentStatusView>;
+  if (p.orderId !== orderId || typeof p.paymentId !== 'string' || !p.paymentId ||
+      !['PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(String(p.status)) ||
+      !Number.isSafeInteger(p.amount) || (p.amount ?? -1) < 0 || p.currency !== 'XAF' ||
+      typeof p.provider !== 'string' || !p.provider ||
+      typeof p.createdAt !== 'string' || !Number.isFinite(Date.parse(p.createdAt))) {
+    throw new Error('Réponse de paiement invalide.');
+  }
+  return p as PaymentStatusView;
+}
+
+export async function readOrderPayment(orderId: string, token: AuthCredential | null, signal?: AbortSignal): Promise<PaymentStatusView | null> {
+  const latest = parseOrderPayment(await apiClient<unknown>(`/payments/by-order/${orderId}`, { token, signal }), orderId);
+  if (!latest || latest.status !== 'PENDING') return latest;
+  try {
+    const current = parseOrderPayment(await apiClient<unknown>(`/payments/${latest.paymentId}/status`, { token, signal }), orderId);
+    if (!current || current.paymentId !== latest.paymentId) throw new Error('Réponse de paiement incohérente.');
+    return current;
+  } catch (error) {
+    assertCurrentSession(token);
+    if (signal?.aborted) throw error;
+    throw new PaymentStatusReadError(latest);
+  }
+}
+
+/** Pending evidence survives a failed status GET, with the original deadline. */
+export function paymentReadPollIntervalMs(
+  payment: PaymentStatusView | null | undefined,
+  error: unknown,
+  now: number = Date.now(),
+): number | false {
+  return paymentPollIntervalMs(error instanceof PaymentStatusReadError ? error.pending : payment, now);
 }

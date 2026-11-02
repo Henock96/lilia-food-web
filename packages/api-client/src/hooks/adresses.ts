@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { Adresse, CreateAdresseDto, Quartier } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -12,21 +13,21 @@ export const adresseKeys = {
 export function useQuartiers() {
   return useQuery({
     queryKey: ['quartiers'],
-    queryFn: () => apiClient<Quartier[]>('/quartiers'),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Quartier[]>('/quartiers', { signal }),
     staleTime: 60 * 60 * 1000,
   });
 }
 
-export function useAdresses(token: string | null) {
+export function useAdresses(token: AuthCredential | null) {
   return useQuery({
     queryKey: adresseKeys.list(),
-    queryFn: () => apiClient<Adresse[]>('/adresses', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Adresse[]>('/adresses', { signal, token }),
     enabled: !!token,
     staleTime: 60 * 1000,
   });
 }
 
-export function useCreateAdresse(token: string | null) {
+export function useCreateAdresse(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateAdresseDto) =>
@@ -41,7 +42,7 @@ export function useCreateAdresse(token: string | null) {
   });
 }
 
-export function useSetDefaultAdresse(token: string | null) {
+export function useSetDefaultAdresse(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -55,7 +56,7 @@ export function useSetDefaultAdresse(token: string | null) {
   });
 }
 
-export function useDeleteAdresse(token: string | null) {
+export function useDeleteAdresse(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>

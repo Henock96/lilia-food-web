@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   DriverCoursesPage,
   DriverOutstanding,
@@ -30,13 +31,13 @@ export const driverSettlementKeys = {
  * `useRecordDriverSettlement` : c'est lui qui garantit que le versement couvre
  * exactement les courses affichées.
  */
-export function useDriverOutstanding(driverId: string, token: string | null) {
+export function useDriverOutstanding(driverId: string, token: AuthCredential | null) {
   return useQuery({
     queryKey: driverSettlementKeys.outstanding(driverId),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClient<DriverOutstanding>(
         `/admin/driver-settlements/outstanding/${driverId}`,
-        { token },
+        { signal, token },
       ),
     enabled: Boolean(driverId && token),
   });
@@ -47,13 +48,13 @@ export function useDriverOutstanding(driverId: string, token: string | null) {
  * calculée par le serveur (réglée, à recevoir, retenue, en litige, inconnue).
  * ADMIN seul : le livreur ne voit jamais sa paie (D-PAY).
  */
-export function useDriverCourses(driverId: string, token: string | null) {
+export function useDriverCourses(driverId: string, token: AuthCredential | null) {
   return useQuery({
     queryKey: [...driverSettlementKeys.all, 'courses', driverId] as const,
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClientRaw<DriverCoursesPage>(
         `/admin/driver-settlements/courses/${driverId}`,
-        { token },
+        { signal, token },
       ),
     enabled: Boolean(driverId && token),
   });
@@ -62,15 +63,15 @@ export function useDriverCourses(driverId: string, token: string | null) {
 /** Historique des règlements d'un livreur. */
 export function useDriverSettlements(
   driverId: string,
-  token: string | null,
+  token: AuthCredential | null,
   page = 1,
 ) {
   return useQuery({
     queryKey: driverSettlementKeys.list(driverId, page),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClientRaw<PaginatedDriverSettlements>(
         `/admin/driver-settlements?driverId=${driverId}&page=${page}&limit=20`,
-        { token },
+        { signal, token },
       ),
     enabled: Boolean(driverId && token),
   });
@@ -84,7 +85,7 @@ export function useDriverSettlements(
  * terminées entre l'affichage et le clic seraient absorbées dans un montant
  * déjà remis, et le livreur sous-payé sans que rien ne le signale.
  */
-export function useRecordDriverSettlement(token: string | null) {
+export function useRecordDriverSettlement(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: {
@@ -110,7 +111,7 @@ export function useRecordDriverSettlement(token: string | null) {
 }
 
 /** Annule une saisie erronée — les courses redeviennent réglables. */
-export function useCancelDriverSettlement(token: string | null) {
+export function useCancelDriverSettlement(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>

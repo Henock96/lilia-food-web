@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { Product } from '@lilia/types';
 import { apiClient, apiClientRaw, MAX_PAGE_SIZE } from '../client';
 
@@ -20,11 +21,11 @@ export const productKeys = {
   detail: (id: string)            => [...productKeys.all, 'detail', id] as const,
 };
 
-export function useMyRestaurant(token: string | null) {
+export function useMyRestaurant(token: AuthCredential | null) {
   return useQuery({
     queryKey: ['restaurants', 'mine'],
-    queryFn:  async () => {
-      const res = await apiClient<unknown>('/restaurants/mine', { token });
+    queryFn:  async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const res = await apiClient<unknown>('/restaurants/mine', { signal, token });
       return (res as { data?: unknown })?.data ?? res;
     },
     enabled:    !!token,
@@ -72,14 +73,14 @@ type ProductPage = { data: Product[]; meta?: { totalPages?: number } };
  */
 export function ownerCatalogQueryOptions(
   restaurantId: string | undefined,
-  token: string | null,
-  fetchPage: (path: string) => Promise<ProductPage> = (path) =>
-    apiClientRaw<ProductPage>(path, { token }),
+  token: AuthCredential | null,
+  fetchPage: (path: string, signal?: AbortSignal) => Promise<ProductPage> = (path, signal) =>
+    apiClientRaw<ProductPage>(path, { token, signal }),
   stockStatus?: StockStatus,
 ) {
   return {
     queryKey: productKeys.list(restaurantId, stockStatus),
-    queryFn: async (): Promise<Product[]> => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<Product[]> => {
       const all: Product[] = [];
       // Le filtre est appliqué **par le serveur**, pas sur le résultat : une
       // liste paginée filtrée côté client ne rendrait que les ruptures de la
@@ -88,6 +89,7 @@ export function ownerCatalogQueryOptions(
       for (let page = 1; page <= MAX_CATALOG_PAGES; page++) {
         const res = await fetchPage(
           `/products/manage?restaurantId=${restaurantId}&page=${page}&limit=${MAX_PAGE_SIZE}${filter}`,
+          signal,
         );
         all.push(...(res.data ?? []));
         // Pas de `meta` → une seule page. Un backend antérieur à la route ne
@@ -103,7 +105,7 @@ export function ownerCatalogQueryOptions(
 
 export function useProducts(
   restaurantId: string | undefined,
-  token: string | null,
+  token: AuthCredential | null,
   stockStatus?: StockStatus,
 ) {
   return useQuery(
@@ -116,7 +118,7 @@ export function useProducts(
 // appartient à un vendeur, il faut savoir lequel demande) et deux définitions
 // du même hook exportées par le même paquet finissaient par diverger.
 
-export function useCreateProduct(token: string | null) {
+export function useCreateProduct(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -125,7 +127,7 @@ export function useCreateProduct(token: string | null) {
   });
 }
 
-export function useUpdateProduct(token: string | null) {
+export function useUpdateProduct(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
@@ -134,7 +136,7 @@ export function useUpdateProduct(token: string | null) {
   });
 }
 
-export function useDeleteProduct(token: string | null) {
+export function useDeleteProduct(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -155,7 +157,7 @@ export function useDeleteProduct(token: string | null) {
  * sur le catalogue public, le produit disparaît dès qu'il est marqué
  * indisponible, emportant avec lui le bouton qui le réactive.
  */
-export function useSetProductAvailability(token: string | null) {
+export function useSetProductAvailability(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
@@ -182,7 +184,7 @@ export function useSetProductAvailability(token: string | null) {
  * appelant ; à deux, chacun partant d'un ordre différent, le résultat ne serait
  * celui d'aucun des deux.
  */
-export function useReorderProducts(token: string | null) {
+export function useReorderProducts(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (vars: { productIds: string[]; restaurantId?: string }) =>
@@ -210,7 +212,7 @@ export type ProductStockGesture =
   | { stockQuotidien: number | null }
   | { action: 'RESTOCK' | 'COUNT'; units: number };
 
-export function useUpdateProductStock(token: string | null) {
+export function useUpdateProductStock(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...gesture }: { id: string } & ProductStockGesture) =>

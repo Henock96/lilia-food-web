@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   OrderFinancials,
   PaginatedPayouts,
@@ -34,11 +35,11 @@ export const payoutKeys = {
  * son motif — le front n'a aucune règle à rejouer, il affiche ce que le serveur
  * a décidé.
  */
-export function useOrderFinancials(orderId: string, token: string | null, enabled = true) {
+export function useOrderFinancials(orderId: string, token: AuthCredential | null, enabled = true) {
   return useQuery({
     queryKey: payoutKeys.financials(orderId),
-    queryFn: () =>
-      apiClient<OrderFinancials>(`/admin/orders/${orderId}/financials`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<OrderFinancials>(`/admin/orders/${orderId}/financials`, { signal, token }),
     enabled: !!orderId && !!token && enabled,
     staleTime: 15 * 1000,
   });
@@ -56,7 +57,7 @@ export function useOrderFinancials(orderId: string, token: string | null, enable
  * et c'est le 409 qui fait foi. Deux administrateurs simultanés n'obtiennent
  * qu'un seul virement — la contrainte d'unicité en base arbitre, pas l'écran.
  */
-export function useRequestPayout(token: string | null) {
+export function useRequestPayout(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, note }: { orderId: string; note?: string }) =>
@@ -79,7 +80,7 @@ export function useRequestPayout(token: string | null) {
  * réessayer un virement peut-être déjà parti est le seul moyen de payer deux
  * fois un vendeur, et cet argent-là ne revient pas.
  */
-export function useRetryPayout(token: string | null) {
+export function useRetryPayout(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, note }: { orderId: string; note?: string }) =>
@@ -97,16 +98,16 @@ export function useRetryPayout(token: string | null) {
 
 /** File des reversements (`GET /admin/payouts`), filtrable par statut. */
 export function useAdminPayouts(
-  token: string | null,
+  token: AuthCredential | null,
   page: number,
   status: PayoutStatus | '',
 ) {
   return useQuery({
     queryKey: payoutKeys.list(page, status),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (status) params.set('status', status);
-      return apiClientRaw<PaginatedPayouts>(`/admin/payouts?${params.toString()}`, {
+      return apiClientRaw<PaginatedPayouts>(`/admin/payouts?${params.toString()}`, { signal,
         token,
       });
     },
@@ -135,7 +136,7 @@ export function useAdminPayouts(
  * pourquoi ni où corriger. Seule l'application Flutter portait le champ.
  */
 export function useUpdateVendorPayoutAccount(
-  token: string | null,
+  token: AuthCredential | null,
   vendorId: string | null,
 ) {
   const queryClient = useQueryClient();

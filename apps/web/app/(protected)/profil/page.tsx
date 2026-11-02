@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { signOut } from 'firebase/auth';
 import {
   User, Mail, Phone, LogOut, Edit2, ChevronRight,
   Package, MapPin, Plus, Trash2, Check, X, Star,
@@ -11,8 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { auth } from '@/lib/firebase';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import {
   useProfile, useUpdateProfile,
   useMyOrders,
@@ -29,7 +27,8 @@ import { AddressPrecisionHint } from '@/components/checkout/address-precision-hi
 
 export default function ProfilPage() {
   const router = useRouter();
-  const { user: storeUser, token, signOut: storeSignOut, setUser } = useAuthStore();
+  const { user: storeUser, token, logout, setUser } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
 
   const { data: profile } = useProfile(token);
   const updateProfile = useUpdateProfile(token);
@@ -85,20 +84,24 @@ export default function ProfilPage() {
   }
 
   async function handleSaveProfile() {
+    if (!isCurrentSession()) return;
     try {
       const res = await updateProfile.mutateAsync({
         nom: editNom.trim() || undefined,
         phone: editPhone.trim() || undefined,
       });
+      if (!isCurrentSession()) return;
       if (res.user) setUser(res.user);
       toast.success('Profil mis à jour');
       setEditMode(false);
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Impossible de mettre à jour le profil');
     }
   }
 
   async function handleSaveAddress() {
+    if (!isCurrentSession()) return;
     if (!newRue.trim()) return;
     setSavingAddress(true);
     try {
@@ -119,29 +122,32 @@ export default function ProfilPage() {
         // au livreur.
         ...(newLandmark.trim() ? { landmark: newLandmark.trim() } : {}),
       });
+      if (!isCurrentSession()) return;
       setShowAddressForm(false);
       setNewRue('');
       setNewQuartierId('');
       setNewLandmark('');
       toast.success('Adresse enregistrée');
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Impossible d\'enregistrer l\'adresse');
     } finally {
-      setSavingAddress(false);
+      if (isCurrentSession()) setSavingAddress(false);
     }
   }
 
   async function handleSignOut() {
     setSignOutLoading(true);
     try {
-      await signOut(auth);
-      storeSignOut();
+      const completed = await logout();
+      if (!completed) return;
       toast.success('Déconnexion réussie');
       router.push('/');
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Erreur lors de la déconnexion');
     } finally {
-      setSignOutLoading(false);
+      if (isCurrentSession()) setSignOutLoading(false);
     }
   }
 

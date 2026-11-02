@@ -1,5 +1,9 @@
 'use client';
 
+import { useSessionGuard } from '@/lib/auth-session';
+
+import type { AuthCredential } from '@lilia/api-client';
+
 import { useState } from 'react';
 import { Flag, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
@@ -22,7 +26,7 @@ export function HandoverCodePanel({
   token,
 }: {
   orderId: string;
-  token: string | null;
+  token: AuthCredential | null;
 }) {
   const { data: delivery } = useOrderDelivery(orderId, token);
   const code = delivery?.handoverCode;
@@ -54,17 +58,20 @@ export function ReportIssuePanel({
   token,
 }: {
   orderId: string;
-  token: string | null;
+  token: AuthCredential | null;
 }) {
+  const isCurrentSession = useSessionGuard();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<OrderIssueKind | null>(null);
   const [message, setMessage] = useState('');
   const report = useReportOrderIssue(token);
 
   async function submit() {
+    if (!isCurrentSession()) return;
     if (!kind) return;
     try {
       const res = await report.mutateAsync({ orderId, kind, message });
+      if (!isCurrentSession()) return;
       toast.success(
         res.message ??
           'Signalement transmis. Notre équipe vous recontacte rapidement.',
@@ -73,6 +80,7 @@ export function ReportIssuePanel({
       setKind(null);
       setMessage('');
     } catch (e) {
+      if (!isCurrentSession()) return;
       toast.error(e instanceof Error ? e.message : 'Signalement impossible');
     }
   }

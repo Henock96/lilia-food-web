@@ -1,6 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSessionGuard } from '@/lib/auth-session';
+
+import type { AuthCredential } from '@lilia/api-client';
+
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -15,11 +19,13 @@ import {
   useCreatePayment,
   useOrderPayment,
   usePaymentProviders,
+  PaymentStatusReadError,
 } from '@lilia/api-client';
 import type {
   ManualPaymentInstructions,
   OrderStatus,
   PaymentMethod,
+  PaymentIntent,
   PaymentStatusView,
 } from '@lilia/types';
 import {
@@ -31,6 +37,7 @@ import {
 } from '@lilia/utils';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { toast } from 'sonner';
+import { paymentView, reconcilePaymentAttempt, type PaymentAttemptEvidence } from '@/lib/payment-view';
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   MTN_MOMO: 'MTN Mobile Money',
@@ -46,8 +53,8 @@ const USSD: Partial<Record<PaymentMethod, string>> = {
 /**
  * Bloc de paiement du détail d'une commande.
  *
- * C'est **la seule** surface de paiement du site : le checkout ouvre la
- * tentative puis renvoie ici, et cette page reprend la main sur tous les
+ * C'est **la seule** surface de paiement du site : le checkout enregistre la
+ * demande puis renvoie ici, sans ouvrir de paiement, et cette page reprend la main sur tous les
  * chemins de retour — rechargement, retour depuis l'historique, reprise après
  * un échec. Un second écran dédié dupliquerait ces états et finirait par en
  * oublier un.
@@ -65,6 +72,7 @@ const USSD: Partial<Record<PaymentMethod, string>> = {
 export function PaymentPanel({
   orderId,
   orderStatus,
+  paymentAllowed,
   orderTotal,
   orderMethod,
   contactPhone,
@@ -72,21 +80,45 @@ export function PaymentPanel({
 }: {
   orderId: string;
   orderStatus: OrderStatus;
+  paymentAllowed?: boolean;
   orderTotal: number;
   orderMethod: PaymentMethod;
   contactPhone?: string | null;
-  token: string | null;
+  token: AuthCredential | null;
 }) {
   // Une commande annulée n'a plus rien à encaisser, et au-delà de PAYER le
   // paiement est acquis : on n'affiche alors qu'un récapitulatif.
   const isCancelled = orderStatus === 'ANNULER';
-  const isPayable = orderStatus === 'EN_ATTENTE';
+  const [attempt, setAttempt] = useState<PaymentAttemptEvidence | null>(null);
+  const attemptRef = useRef<PaymentAttemptEvidence | null>(null);
+  const [attemptRunning, setAttemptRunning] = useState(false);
+  const isCurrentSession = useSessionGuard();
 
-  const { data: payment, isLoading, refetch, isFetching } = useOrderPayment(
+  const { data, error, isError, isLoading, refetch, isFetching } = useOrderPayment(
     orderId,
     token,
     { enabled: !isCancelled },
   );
+
+  const observed = error instanceof PaymentStatusReadError ? error.pending : data;
+  const { payment, unresolved: attemptUnverified } = reconcilePaymentAttempt(attempt, observed);
+  const view = paymentView({ payment, allowed: paymentAllowed, loading: isLoading,
+    fetching: isFetching, failedRead: isError, attemptUnverified });
+  async function verifyPayment() {
+    const result = await refetch();
+    const verified = result.error instanceof PaymentStatusReadError
+      ? result.error.pending : !result.isError ? result.data : undefined;
+    if (isCurrentSession() && verified !== undefined) {
+      if (!reconcilePaymentAttempt(attemptRef.current, verified).unresolved) {
+        if (attemptRef.current && verified) {
+          const evidence = { ...attemptRef.current, paymentId: verified.paymentId,
+            pending: verified.status === 'PENDING' ? verified : attemptRef.current.pending };
+          attemptRef.current = evidence;
+          setAttempt(evidence);
+        }
+      }
+    }
+  }
 
   // Instructions de virement (mode MANUAL) — connues seulement à l'ouverture de
   // la tentative. Elles ne sont pas persistées : au rechargement on retombe sur
@@ -132,22 +164,17 @@ export function PaymentPanel({
 
   if (isCancelled) return null;
 
-  if (isLoading) {
+  if (view === 'checking' && !attemptRunning) {
     return <div className="skeleton h-32 rounded-2xl mb-4" />;
   }
 
-  const settled = payment?.status === 'SUCCESS';
   const failed = payment?.status === 'FAILED' || payment?.status === 'CANCELLED';
 
-  if (settled) {
+  if (view === 'success' && payment && !attemptRunning) {
     return <PaymentSuccessCard payment={payment} />;
   }
 
-  if (!isPayable) {
-    // La commande a avancé sans qu'un encaissement `SUCCESS` soit visible :
-    // total réglé en points, ou confirmation manuelle. On n'invente rien.
-    return null;
-  }
+  if (view === 'unavailable' && !attemptRunning) return null;
 
   return (
     <div className="bg-white rounded-2xl border border-cream-200 p-5 mb-4">
@@ -156,15 +183,26 @@ export function PaymentPanel({
         <h3 className="font-semibold text-ink-900 text-sm">Paiement</h3>
       </div>
 
+      {view === 'pending' && isError && (
+        <p role="alert" className="mt-3 text-xs text-amber-800">
+          La dernière vérification a échoué. Le paiement reste en attente ; ne payez pas à nouveau.
+        </p>
+      )}
       <AnimatePresence mode="wait">
-        {payment?.status === 'PENDING' ? (
+        {view === 'pending' && payment && !attemptRunning ? (
           <PendingState
             key="pending"
             payment={payment}
             instructions={instructions}
-            onCheckNow={() => void refetch()}
+            onCheckNow={() => void verifyPayment()}
             checking={isFetching}
           />
+        ) : view === 'error' && !attemptRunning ? (
+          <div role="alert" className="mt-3 text-sm text-amber-800">
+            <p>Le paiement ne peut pas être vérifié. Vérifiez son état avant toute nouvelle tentative.</p>
+            <button type="button" onClick={() => void verifyPayment()} disabled={isFetching}
+              className="mt-3 font-semibold underline disabled:opacity-50">Vérifier à nouveau</button>
+          </div>
         ) : (
           <PaymentForm
             key="form"
@@ -174,7 +212,26 @@ export function PaymentPanel({
             contactPhone={contactPhone}
             token={token}
             previous={failed ? payment : null}
-            onOpened={(intent) => setInstructions(intent ?? null)}
+            onOpened={(intent) => {
+              setInstructions(intent.instructions ?? null);
+              const evidence: PaymentAttemptEvidence = {
+                previousPaymentId: attemptRef.current?.previousPaymentId ?? null,
+                paymentId: intent.paymentId,
+              };
+              attemptRef.current = evidence;
+              setAttempt(evidence);
+            }}
+            busy={attemptRunning}
+            onAttemptStarted={() => {
+              const evidence = { previousPaymentId: observed?.paymentId ?? null };
+              attemptRef.current = evidence;
+              setAttempt(evidence);
+              setAttemptRunning(true);
+            }}
+            onAttemptFinished={async () => {
+              await verifyPayment();
+              if (isCurrentSession()) setAttemptRunning(false);
+            }}
           />
         )}
       </AnimatePresence>
@@ -317,17 +374,25 @@ function PaymentForm({
   token,
   previous,
   onOpened,
+  onAttemptStarted,
+  onAttemptFinished,
+  busy,
 }: {
   orderId: string;
   orderTotal: number;
   orderMethod: PaymentMethod;
   contactPhone?: string | null;
-  token: string | null;
+  token: AuthCredential | null;
   previous: PaymentStatusView | null;
-  onOpened: (instructions: ManualPaymentInstructions | undefined) => void;
+  onOpened: (intent: PaymentIntent) => void;
+  busy: boolean;
+  onAttemptStarted: () => void;
+  onAttemptFinished: () => Promise<void>;
 }) {
+  const isCurrentSession = useSessionGuard();
   const { data: providers } = usePaymentProviders();
   const createPayment = useCreatePayment(token);
+  const submitting = useRef(false);
 
   // Le repli sur `MTN_MOMO` couvrait `CASH_ON_DELIVERY`, retiré de l'enum
   // backend en mai 2026 : la commande porte forcément un opérateur Mobile Money.
@@ -346,11 +411,14 @@ function PaymentForm({
   ];
 
   async function handleSubmit() {
+    if (!isCurrentSession() || submitting.current) return;
     if (!phoneValid) {
       setTouched(true);
       toast.error('Numéro Mobile Money invalide');
       return;
     }
+    submitting.current = true;
+    onAttemptStarted();
     try {
       const intent = await createPayment.mutateAsync({
         orderId,
@@ -358,6 +426,7 @@ function PaymentForm({
         method,
         payerMessage: `Commande ${orderId.slice(-6).toUpperCase()}`,
       });
+      if (!isCurrentSession()) return;
       // `payment_started` — une reprise après échec est une **nouvelle**
       // tentative : elle porte un `paymentId` distinct et doit être comptée.
       // La clé unique tient sur cet identifiant, jamais sur la commande : deux
@@ -374,14 +443,18 @@ function PaymentForm({
           currency: CURRENCY,
         },
       );
-      onOpened(intent.instructions);
+      onOpened(intent);
       if (intent.status === 'SUCCESS') {
         toast.success('Commande déjà réglée.');
       } else {
         toast.success('Demande de paiement envoyée sur votre téléphone');
       }
     } catch (err) {
+      if (!isCurrentSession()) return;
       toast.error(err instanceof Error ? err.message : 'Paiement impossible pour le moment');
+    } finally {
+      if (isCurrentSession()) await onAttemptFinished();
+      submitting.current = false;
     }
   }
 
@@ -470,7 +543,7 @@ function PaymentForm({
         onClick={handleSubmit}
         // Le verrou local n'est qu'un confort : la vraie garantie contre le
         // double débit est l'index unique partiel côté base.
-        disabled={createPayment.isPending || !phoneValid}
+        disabled={busy || createPayment.isPending || !phoneValid}
         className="w-full flex items-center justify-center gap-2 py-3 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold text-sm rounded-2xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {createPayment.isPending ? (

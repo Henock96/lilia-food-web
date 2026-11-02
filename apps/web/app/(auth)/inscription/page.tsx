@@ -12,41 +12,16 @@ import {
 } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } from 'lucide-react';
 import { auth } from '@/lib/firebase';
-import { setSessionCookie } from '@/lib/session';
+import { getBrowserSession, useAuthenticationGuard } from '@/lib/auth-session';
 import { pageVariants } from '@lilia/motion';
-import { API_URL, installationHeaders } from '@lilia/api-client';
+import { apiClient, type AuthCredential } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
 import { toast } from 'sonner';
 
-/**
- * `POST /users/sync` — création ou rafraîchissement du compte en base.
- *
- * `telephone` peut être vide (inscription Google : Firebase ne le fournit pas).
- * Le serveur écrit alors `NULL`, jamais la chaîne vide.
- */
-async function syncUser(token: string, telephone: string, referralCode?: string): Promise<void> {
-  const res = await fetch(`${API_URL}/users/sync`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      // Cet appel n'utilise pas `apiClient` (il tourne avant que la session
-      // React Query n'existe) : l'en-tête doit donc être posé à la main. Et
-      // c'est LA requête où le signal compte — celle qui crée le compte.
-      ...installationHeaders(),
-    },
-    body: JSON.stringify({ telephone, ...(referralCode ? { referralCode } : {}) }),
-  });
-  if (!res.ok) throw new Error(`Sync échoué (${res.status})`);
-}
-
-async function updateDbProfile(token: string, imageUrl: string): Promise<void> {
-  await fetch(`${API_URL}/users/me`, {
+async function updateDbProfile(token: AuthCredential, imageUrl: string): Promise<void> {
+  await apiClient('/users/me', {
     method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    token,
     body: JSON.stringify({ imageUrl }),
   });
 }
@@ -62,6 +37,7 @@ const STEP_LABELS: Record<Step, string | null> = {
 };
 
 export default function InscriptionPage() {
+  const authenticationCurrent = useAuthenticationGuard();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -105,42 +81,42 @@ export default function InscriptionPage() {
     }
 
     setLoading(true);
+    let ticket: number | undefined;
     try {
+      ticket = await getBrowserSession().beginAuthentication();
       // ── Étape 1 : créer le compte Firebase ────────────────────────────────
       setStep('account');
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      if (!authenticationCurrent(ticket, user)) return;
 
       // Mettre à jour le displayName immédiatement
       await updateProfile(user, { displayName: `${prenom} ${nom}` });
-
-      // Token avec le displayName mis à jour
-      const token = await user.getIdToken(true);
-
-      // Pose le cookie immédiatement (avant le router.push final) pour que le
-      // middleware voie l'utilisateur connecté à la prochaine navigation (LIL-97).
-      await setSessionCookie(token);
+      if (!authenticationCurrent(ticket, user)) return;
 
       // ── Étape 2 : sync en DB (priorité absolue) ───────────────────────────
-      // On essaie de créer le user en DB avec téléphone et nom.
-      // Si ça échoue, l'onAuthStateChanged dans auth-provider retentera.
+      // Le contrôleur est l'unique synchroniseur et writer du cookie.
       setStep('sync');
-      try {
-        await syncUser(token, telephone, referralCode.trim().toUpperCase() || undefined);
-      } catch {
-        // Non-bloquant : auth-provider retentera via onAuthStateChanged
-      }
+      await getBrowserSession().completeAuthentication(ticket, user, {
+        telephone, ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
+      });
+      if (!authenticationCurrent(ticket, user)) return;
+      const token = getBrowserSession().getCredential();
+      if (!token) return;
 
       // ── Étape 3 : upload photo (vraiment non-bloquant) ────────────────────
       if (avatarFile) {
         setStep('photo');
         try {
           const imageUrl = await uploadToCloudinary(avatarFile, token, 'users');
+          if (!authenticationCurrent(ticket, user)) return;
           // Met à jour Firebase et la DB avec la photo
           await Promise.all([
             updateProfile(user, { photoURL: imageUrl }),
             updateDbProfile(token, imageUrl),
           ]);
+          if (!authenticationCurrent(ticket, user)) return;
         } catch (err) {
+          if (!authenticationCurrent(ticket, user)) return;
           const msg = err instanceof Error ? err.message : '';
           toast.error(
             `Photo non uploadée (${msg || 'erreur réseau'}). Vous pourrez la changer dans votre profil.`,
@@ -154,6 +130,7 @@ export default function InscriptionPage() {
       toast.success('Compte créé avec succès ! Bienvenue 🎉');
       router.push('/restaurants');
     } catch (err: unknown) {
+      if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const code = (err as { code?: string }).code;
       if (code === 'auth/email-already-in-use') {
         toast.error('Cet email est déjà utilisé');
@@ -165,19 +142,22 @@ export default function InscriptionPage() {
         toast.error('Erreur lors de la création du compte');
       }
     } finally {
-      setLoading(false);
-      setStep('idle');
+      if (ticket !== undefined) await getBrowserSession().cancelAuthentication(ticket);
+      if (ticket === undefined || authenticationCurrent(ticket)) {
+        setLoading(false);
+        setStep('idle');
+      }
     }
   }
 
   async function handleGoogle() {
     setGoogleLoading(true);
+    let ticket: number | undefined;
     try {
+      ticket = await getBrowserSession().beginAuthentication();
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
-      // Pose le cookie avant la redirection (sinon race avec le middleware — LIL-97).
-      const token = await cred.user.getIdToken();
-      await setSessionCookie(token);
+      if (!authenticationCurrent(ticket, cred.user)) return;
 
       // Le code saisi sur CET écran doit suivre, quel que soit le mode
       // d'inscription choisi ensuite. Sans cet appel, un filleul qui tape son
@@ -188,25 +168,22 @@ export default function InscriptionPage() {
       // appel sur une connexion est donc sans effet, et c'est voulu : le
       // parrain ne se change pas après coup.
       const code = referralCode.trim().toUpperCase();
-      if (code) {
-        try {
-          await syncUser(token, '', code);
-        } catch {
-          // Non bloquant : `auth-provider` créera le compte de toute façon.
-        }
-      }
+      await getBrowserSession().completeAuthentication(ticket, cred.user, code ? { referralCode: code } : undefined);
+      if (!authenticationCurrent(ticket, cred.user)) return;
 
       toast.success('Bienvenue sur Lilia Food 🎉');
       router.push('/restaurants');
     } catch {
+      if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       toast.error('Inscription Google échouée');
     } finally {
-      setGoogleLoading(false);
+      if (ticket !== undefined) await getBrowserSession().cancelAuthentication(ticket);
+      if (ticket === undefined || authenticationCurrent(ticket)) setGoogleLoading(false);
     }
   }
 
   const stepLabel = STEP_LABELS[step];
-  const isDisabled = loading || !prenom || !nom || !email || !password;
+  const isDisabled = loading || googleLoading || !prenom || !nom || !email || !password;
 
   return (
     <motion.div

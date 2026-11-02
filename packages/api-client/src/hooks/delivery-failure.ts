@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   DeliveryFailureReport,
   FailureConclusion,
@@ -18,18 +19,18 @@ import { refundKeys } from './refunds';
  * calculés par le serveur, en `dryRun` pour l'aperçu puis pour de bon. Aucune
  * règle d'argent ne vit ici.
  */
-export function useFailureEvidence(token: string | null, orderId: string | null) {
+export function useFailureEvidence(token: AuthCredential | null, orderId: string | null) {
   return useQuery({
     queryKey: ['admin', 'orders', orderId ?? '', 'failure-evidence'] as const,
-    queryFn: () =>
-      apiClient<DeliveryFailureReport[]>(`/admin/orders/${orderId}/failure-evidence`, {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<DeliveryFailureReport[]>(`/admin/orders/${orderId}/failure-evidence`, { signal,
         token,
       }),
     enabled: !!token && !!orderId,
   });
 }
 
-export function useConcludeFailure(token: string | null, orderId: string) {
+export function useConcludeFailure(token: AuthCredential | null, orderId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: { liability: FailureLiability; dryRun: boolean }) =>

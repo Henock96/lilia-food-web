@@ -16,7 +16,7 @@ import {
   coverImage,
   hasModifiers,
 } from '@lilia/utils';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
 import { analytics } from '@/lib/analytics';
 import { toast } from 'sonner';
@@ -108,7 +108,8 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
 }
 
 function ProductItem({ product, restaurantOpen }: { product: Product; restaurantOpen: boolean }) {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
   const { data: cart } = useCart(token);
@@ -172,6 +173,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   }
 
   async function handleAdd() {
+    if (!isCurrentSession()) return;
     // F3-09 — jamais d'ajout « en un clic » d'un produit à options : un choix
     // obligatoire serait refusé par le serveur (`MODIFIER_REQUIRED`), et un
     // supplément facultatif ne serait même pas proposé.
@@ -192,25 +194,31 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
 
     try {
       await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+      if (!isCurrentSession()) return;
       trackAdded();
       setAdded(true);
-      setTimeout(() => setAdded(false), 2000);
+      setTimeout(() => { if (isCurrentSession()) setAdded(false); }, 2000);
       toast.success(`${product.nom} ajouté au panier`);
     } catch (err: unknown) {
+      if (!isCurrentSession()) return;
       const msg = (err as { message?: string }).message ?? '';
       if (msg.toLowerCase().includes('restaurant') || msg.toLowerCase().includes('vider')) {
         toast.error('Votre panier contient des plats d\'un autre restaurant.', {
           action: {
             label: 'Vider et ajouter',
             onClick: async () => {
+              if (!isCurrentSession()) return;
               try {
                 await clearCart.mutateAsync();
+                if (!isCurrentSession()) return;
                 await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+                if (!isCurrentSession()) return;
                 trackAdded();
                 setAdded(true);
-                setTimeout(() => setAdded(false), 2000);
+                setTimeout(() => { if (isCurrentSession()) setAdded(false); }, 2000);
                 toast.success(`${product.nom} ajouté au panier`);
               } catch {
+                if (!isCurrentSession()) return;
                 toast.error('Erreur lors de l\'ajout');
               }
             },
@@ -223,16 +231,20 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   }
 
   async function handleConfirmConflict() {
+    if (!isCurrentSession()) return;
     setConflictOpen(false);
     if (!selectedVariant) return;
     try {
       await clearCart.mutateAsync();
+      if (!isCurrentSession()) return;
       await addToCart.mutateAsync({ productId: product.id, variantId: selectedVariant.id, quantite: 1 });
+      if (!isCurrentSession()) return;
       trackAdded();
       setAdded(true);
-      setTimeout(() => setAdded(false), 2000);
+      setTimeout(() => { if (isCurrentSession()) setAdded(false); }, 2000);
       toast.success(`Panier vidé. ${product.nom} ajouté.`);
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Erreur lors du remplacement du panier');
     }
   }

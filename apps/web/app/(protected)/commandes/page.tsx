@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Package, ChevronRight, RotateCcw, Wallet } from 'lucide-react';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { useMyOrders, useReorder } from '@lilia/api-client';
 import { toast } from 'sonner';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor } from '@lilia/utils';
@@ -12,18 +12,22 @@ import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { OrderCardSkeleton } from '@/components/ui/skeleton';
 
 export default function CommandesPage() {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const { data: orders, isLoading, isError } = useMyOrders(token);
   const reorder = useReorder(token);
   const router = useRouter();
 
   async function handleReorder(e: React.MouseEvent, orderId: string) {
+    if (!isCurrentSession()) return;
     e.preventDefault();
     try {
       await reorder.mutateAsync(orderId);
+      if (!isCurrentSession()) return;
       toast.success('Articles ajoutés au panier !');
       router.push('/panier');
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Impossible de recommander cette commande');
     }
   }

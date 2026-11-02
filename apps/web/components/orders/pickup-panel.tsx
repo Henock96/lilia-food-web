@@ -1,5 +1,9 @@
 'use client';
 
+import { useSessionGuard } from '@/lib/auth-session';
+
+import type { AuthCredential } from '@lilia/api-client';
+
 import { useState } from 'react';
 import { CheckCircle, KeyRound, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,19 +17,23 @@ import { pickupView } from '@/lib/pickup-view';
  * commande ». Même route que l'app mobile ; le serveur est idempotent, et le
  * bouton se retire de lui-même quand la remise est prouvée.
  */
-export function PickupPanel({ order, token }: { order: Order; token: string | null }) {
+export function PickupPanel({ order, token }: { order: Order; token: AuthCredential | null }) {
+  const isCurrentSession = useSessionGuard();
   const confirmPickup = useConfirmPickup(token);
   const [asking, setAsking] = useState(false);
   const view = pickupView(order);
   if (!view) return null;
 
   async function confirm() {
+    if (!isCurrentSession()) return;
     if (confirmPickup.isPending) return;
     try {
       await confirmPickup.mutateAsync(order.id);
+      if (!isCurrentSession()) return;
       setAsking(false);
       toast.success('Commande récupérée. Bon appétit !');
     } catch (e) {
+      if (!isCurrentSession()) return;
       toast.error(e instanceof Error ? e.message : 'Confirmation impossible. Réessayez.');
     }
   }

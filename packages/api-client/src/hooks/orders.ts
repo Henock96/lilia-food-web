@@ -1,11 +1,12 @@
 'use client';
+import { assertCurrentSession, type AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
   useQuery,
   useMutation,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   AdminOrder,
   AdminOrdersPage,
@@ -18,7 +19,8 @@ import type {
   VendorRejectionReason,
   PickupArbitrationReason,
 } from '@lilia/types';
-import { apiClient, apiClientRaw, API_URL, ApiError } from '../client';
+import { apiClient, apiClientRaw, API_URL, ApiError, sessionFetch } from '../client';
+import { isVerifiedCheckoutQuote } from '../checkout-quote';
 
 /**
  * Taille de page de l'écran Commandes.
@@ -47,11 +49,11 @@ export const orderKeys = {
   ) => [...orderKeys.all, 'admin', role, page, status, search] as const,
 };
 
-export function useMyOrders(token: string | null) {
+export function useMyOrders(token: AuthCredential | null) {
   return useQuery({
     queryKey: orderKeys.mine(),
-    queryFn: async () => {
-      const res = await apiClient<Order[] | { data: Order[] }>('/orders/my', { token });
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const res = await apiClient<Order[] | { data: Order[] }>('/orders/my', { signal, token });
       return Array.isArray(res) ? res : (res as { data: Order[] }).data ?? [];
     },
     enabled: !!token,
@@ -60,14 +62,14 @@ export function useMyOrders(token: string | null) {
   });
 }
 
-export function useOrder(id: string, token: string | null) {
+export function useOrder(id: string, token: AuthCredential | null) {
   return useQuery({
     queryKey: orderKeys.detail(id),
-    queryFn: () => apiClient<Order>(`/orders/${id}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Order>(`/orders/${id}`, { signal, token }),
     enabled: !!id && !!token,
     refetchInterval: (query) => {
       const data = query.state.data as Order | undefined;
-      const activeStatuses = ['EN_ATTENTE', 'PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE'];
+      const activeStatuses = ['DEMANDE_ENVOYEE', 'EN_ATTENTE', 'PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE'];
       if (data && activeStatuses.includes(data.status)) return 15 * 1000;
       return false;
     },
@@ -83,7 +85,7 @@ export function useOrder(id: string, token: string | null) {
  * Brazzaville), la même clé est renvoyée : le backend détecte le doublon et
  * retourne la réponse mise en cache au lieu de créer une 2ᵉ commande.
  */
-export function useCreateOrder(token: string | null, idempotencyKey: string) {
+export function useCreateOrder(token: AuthCredential | null, idempotencyKey: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateOrderDto) =>
@@ -108,29 +110,36 @@ export function useCreateOrder(token: string | null, idempotencyKey: string) {
  * `cartSignature` fait partie de la clé : un panier modifié se re-chiffre.
  * `null` en `dto` = pas encore chiffrable (adresse ou créneau manquant).
  */
-export function useCheckoutQuote(
-  token: string | null,
+export function checkoutQuoteQueryOptions(
+  token: AuthCredential | null,
   dto: QuoteOrderDto | null,
   cartSignature: string,
 ) {
-  return useQuery({
+  return {
     queryKey: ['cart', 'quote', cartSignature, dto] as const,
-    queryFn: () =>
-      apiClient<CheckoutQuote>('/orders/quote', {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const quote = await apiClient<CheckoutQuote>('/orders/quote', { signal,
         method: 'POST',
         body: JSON.stringify(dto),
         token,
-      }),
+      });
+      if (!isVerifiedCheckoutQuote(quote)) throw new ApiError(502, 'Le devis reçu est incomplet. Réessayez avant de commander.', 'INVALID_CHECKOUT_QUOTE');
+      return quote;
+    },
     enabled: !!token && dto !== null && cartSignature !== '',
-    placeholderData: keepPreviousData,
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     // Un refus (vendeur fermé, rupture) se dit au checkout, avec son message :
     // relancer ici ne ferait que retarder l'affichage du repli.
     retry: false,
-  });
+  };
 }
 
-export function useCancelOrder(token: string | null) {
+export function useCheckoutQuote(token: AuthCredential | null, dto: QuoteOrderDto | null, cartSignature: string) {
+  return useQuery(checkoutQuoteQueryOptions(token, dto, cartSignature));
+}
+
+export function useCancelOrder(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) =>
@@ -148,7 +157,7 @@ export function useCancelOrder(token: string | null) {
  * Retrait au comptoir : « J'ai récupéré ma commande » (F3-07). Idempotent
  * côté serveur ; rend la commande à jour, qui remplace le détail en cache.
  */
-export function useConfirmPickup(token: string | null) {
+export function useConfirmPickup(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) =>
@@ -167,7 +176,7 @@ export function useConfirmPickup(token: string | null) {
  * Retrait au comptoir : le vendeur remet avec le code du client (F3-07).
  * Un code faux lève une `ApiError` portant le nombre d'essais restants.
  */
-export function useHandOverPickup(token: string | null) {
+export function useHandOverPickup(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, code }: { orderId: string; code: string }) =>
@@ -199,7 +208,7 @@ export function arbitratePickupRequest(
   };
 }
 
-export function useArbitratePickup(token: string | null) {
+export function useArbitratePickup(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -231,10 +240,10 @@ const NO_STUCK_ORDERS: StuckOrders = {
 };
 
 export interface StuckOrdersQuery {
-  token: string | null;
+  token: AuthCredential | null;
   minutes: number;
   /** Point d'injection des tests : la requête doit être exécutable sans React. */
-  fetchStuck?: (path: string) => Promise<StuckOrders | undefined>;
+  fetchStuck?: (path: string, signal?: AbortSignal) => Promise<StuckOrders | undefined>;
 }
 
 /**
@@ -259,12 +268,12 @@ export interface StuckOrdersQuery {
 export function stuckOrdersQueryOptions({
   token,
   minutes,
-  fetchStuck = (path) => apiClient<StuckOrders | undefined>(path, { token }),
+  fetchStuck = (path, signal) => apiClient<StuckOrders | undefined>(path, { token, signal }),
 }: StuckOrdersQuery) {
   return {
     queryKey: [...orderKeys.all, 'stuck', minutes] as const,
-    queryFn: async (): Promise<StuckOrders> => {
-      const res = await fetchStuck(`/orders/restaurant/stuck?minutes=${minutes}`);
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<StuckOrders> => {
+      const res = await fetchStuck(`/orders/restaurant/stuck?minutes=${minutes}`, signal);
       return res ?? { ...NO_STUCK_ORDERS, thresholdMinutes: minutes };
     },
     enabled: !!token,
@@ -275,12 +284,12 @@ export function stuckOrdersQueryOptions({
   };
 }
 
-export function useStuckOrders(token: string | null, minutes = 30) {
+export function useStuckOrders(token: AuthCredential | null, minutes = 30) {
   return useQuery(stuckOrdersQueryOptions({ token, minutes }));
 }
 
 export interface AdminOrdersQuery {
-  token: string | null;
+  token: AuthCredential | null;
   /** Rôle du compte connecté — il décide de la route, pas des droits. */
   role: string | undefined;
   page: number;
@@ -292,7 +301,7 @@ export interface AdminOrdersQuery {
    */
   search?: string;
   /** Point d'injection des tests : la requête doit être exécutable sans React. */
-  fetchPage?: (path: string) => Promise<Partial<AdminOrdersPage>>;
+  fetchPage?: (path: string, signal?: AbortSignal) => Promise<Partial<AdminOrdersPage>>;
 }
 
 /**
@@ -329,14 +338,14 @@ export function adminOrdersQueryOptions({
   page,
   status = 'ALL',
   search = '',
-  fetchPage = (path) => apiClientRaw<Partial<AdminOrdersPage>>(path, { token }),
+  fetchPage = (path, signal) => apiClientRaw<Partial<AdminOrdersPage>>(path, { token, signal }),
 }: AdminOrdersQuery) {
   const path = role === 'ADMIN' ? '/admin/orders' : '/orders/restaurant';
   const term = search.trim();
 
   return {
     queryKey: orderKeys.admin(role ?? 'INCONNU', page, status, term),
-    queryFn: async (): Promise<AdminOrdersPage> => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<AdminOrdersPage> => {
       // `URLSearchParams` encode `#` en `%23` : sans cela, tout ce qui suit un
       // dièse recopié depuis l'écran deviendrait un fragment d'URL, jamais
       // transmis au serveur — la commande cherchée ne remonterait pas, et
@@ -348,7 +357,7 @@ export function adminOrdersQueryOptions({
       if (status !== 'ALL') params.set('status', status);
       if (term) params.set('search', term);
 
-      const res = await fetchPage(`${path}?${params.toString()}`);
+      const res = await fetchPage(`${path}?${params.toString()}`, signal);
       const data = res.data ?? [];
 
       // Repli sur ce qu'on a **réellement reçu** plutôt que sur zéro : un
@@ -388,13 +397,13 @@ export function useAdminOrders(query: AdminOrdersQuery) {
  * pas filtrer. Utiliser `useAdminOrders`, qui transmet `page`, `limit` et
  * `status`. Conservé le temps que les tableaux de bord migrent.
  */
-export function useRestaurantOrders(token: string | null) {
+export function useRestaurantOrders(token: AuthCredential | null) {
   return useQuery({
     queryKey: [...orderKeys.all, 'restaurant'] as const,
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClient<AdminOrder[] | { data: AdminOrder[] }>(
         '/orders/restaurant',
-        { token },
+        { signal, token },
       );
       return Array.isArray(res)
         ? res
@@ -406,7 +415,7 @@ export function useRestaurantOrders(token: string | null) {
   });
 }
 
-export function useReorder(token: string | null) {
+export function useReorder(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) =>
@@ -425,25 +434,30 @@ export function useReorder(token: string | null) {
  * Endpoint binaire (`StreamableFile`) → on ne passe PAS par `apiClient`
  * (qui suppose du JSON). Le backend autorise le propriétaire et les ADMIN.
  */
-export async function fetchReceiptBlob(orderId: string, token: string | null): Promise<Blob> {
-  const res = await fetch(`${API_URL}/orders/${orderId}/receipt`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+export async function fetchReceiptBlob(orderId: string, token: AuthCredential | null): Promise<Blob> {
+  const res = await sessionFetch(`${API_URL}/orders/${orderId}/receipt`, token, {
+    headers: token ? { Authorization: `Bearer ${typeof token === 'string' ? token : token.getToken()}` } : {},
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({ message: res.statusText }))) as { message?: string };
     throw new ApiError(res.status, err.message ?? `HTTP ${res.status}`);
   }
-  return res.blob();
+  try {
+    return await res.blob();
+  } finally {
+    assertCurrentSession(token);
+  }
 }
 
 /**
  * Télécharge le reçu PDF dans le navigateur (déclenche le download).
  * Mutation pour exposer un état `isPending` côté bouton.
  */
-export function useDownloadReceipt(token: string | null) {
+export function useDownloadReceipt(token: AuthCredential | null) {
   return useMutation({
     mutationFn: async (orderId: string) => {
       const blob = await fetchReceiptBlob(orderId, token);
+      assertCurrentSession(token);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -495,7 +509,7 @@ export function rejectOrderRequest(
 }
 
 /** Accepter une commande payée : le temps de préparation est annoncé au client. */
-export function useAcceptOrder(token: string | null) {
+export function useAcceptOrder(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, prepMinutes }: { orderId: string; prepMinutes: number }) => {
@@ -513,7 +527,7 @@ export function useAcceptOrder(token: string | null) {
 }
 
 /** Refuser une commande payée ou acceptée : le client est remboursé. */
-export function useRejectOrder(token: string | null) {
+export function useRejectOrder(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -540,7 +554,7 @@ export function useRejectOrder(token: string | null) {
   });
 }
 
-export function useUpdateOrderStatus(token: string | null) {
+export function useUpdateOrderStatus(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>

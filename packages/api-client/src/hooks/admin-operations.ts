@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '../session-query';
 import type {
   Paginated,
   AdminPayment,
@@ -31,16 +32,16 @@ export const adminOpsKeys = {
  * Paiements paginés (GET /admin/payments).
  * Passer une chaîne vide pour `status` → vue "Tous statuts" côté backend.
  */
-export function useAdminPayments(token: string | null, page: number, status: string) {
+export function useAdminPayments(token: AuthCredential | null, page: number, status: string) {
   return useQuery({
     queryKey: adminOpsKeys.payments(page, status),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (status) params.set('status', status);
       // Contrat v2 : backend renvoie `{ data, meta }` (interceptor règle 3b).
       // `apiClientRaw` préserve l'enveloppe (liste dans `data`, pagination
       // dans `meta`).
-      return apiClientRaw<Paginated<AdminPayment>>(`/admin/payments?${params.toString()}`, { token });
+      return apiClientRaw<Paginated<AdminPayment>>(`/admin/payments?${params.toString()}`, { signal, token });
     },
     enabled: !!token,
     placeholderData: keepPreviousData,
@@ -49,10 +50,10 @@ export function useAdminPayments(token: string | null, page: number, status: str
 }
 
 /** KPI paiements (GET /admin/payments/stats). */
-export function usePaymentsStats(token: string | null) {
+export function usePaymentsStats(token: AuthCredential | null) {
   return useQuery({
     queryKey: adminOpsKeys.paymentsStats,
-    queryFn: () => apiClient<PaymentsStats>('/admin/payments/stats', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<PaymentsStats>('/admin/payments/stats', { signal, token }),
     enabled: !!token,
     staleTime: 60 * 1000,
   });
@@ -68,7 +69,7 @@ export function usePaymentsStats(token: string | null) {
  * rien n'a été débité, et le refus qui arriverait ensuite ne pourrait plus rien
  * défaire. Sur ces paiements-là, le geste est {@link useReconcilePayment}.
  */
-export function useConfirmPayment(token: string | null) {
+export function useConfirmPayment(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (paymentId: string) =>
@@ -89,7 +90,7 @@ export function useConfirmPayment(token: string | null) {
  * L'administrateur ne décide de rien — il demande à l'opérateur, qui seul sait
  * si l'argent est arrivé.
  */
-export function useReconcilePayment(token: string | null) {
+export function useReconcilePayment(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (paymentId: string) =>
@@ -114,7 +115,7 @@ export function useReconcilePayment(token: string | null) {
  * comme doublon le `COMPLETED` qui arriverait ensuite — client débité, commande
  * jamais confirmée.
  */
-export function useRejectPayment(token: string | null) {
+export function useRejectPayment(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ paymentId, reason }: { paymentId: string; reason?: string }) =>
@@ -131,13 +132,13 @@ export function useRejectPayment(token: string | null) {
 }
 
 /** Livreurs paginés (GET /admin/deliverers). */
-export function useAdminDeliverers(token: string | null, page: number) {
+export function useAdminDeliverers(token: AuthCredential | null, page: number) {
   return useQuery({
     queryKey: adminOpsKeys.deliverers(page),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       // Contrat v2 : `{ data, meta }` préservé via apiClientRaw.
-      return apiClientRaw<Paginated<AdminDeliverer>>(`/admin/deliverers?${params.toString()}`, { token });
+      return apiClientRaw<Paginated<AdminDeliverer>>(`/admin/deliverers?${params.toString()}`, { signal, token });
     },
     enabled: !!token,
     placeholderData: keepPreviousData,
@@ -149,10 +150,10 @@ export function useAdminDeliverers(token: string | null, page: number) {
  * Stats agrégées d'un livreur (GET /admin/deliverers/:id/stats).
  * Backend renvoie `{ data: DelivererStats }` — `apiClient` unwrap.
  */
-export function useDelivererStats(token: string | null, id: string) {
+export function useDelivererStats(token: AuthCredential | null, id: string) {
   return useQuery({
     queryKey: adminOpsKeys.delivererStats(id),
-    queryFn: () => apiClient<DelivererStats>(`/admin/deliverers/${id}/stats`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<DelivererStats>(`/admin/deliverers/${id}/stats`, { signal, token }),
     enabled: !!token && !!id,
     staleTime: 30 * 1000,
   });
@@ -166,14 +167,14 @@ export function useDelivererStats(token: string | null, id: string) {
  * `apiClientRaw` préserve les 2 niveaux sans déballer.
  */
 export function useDelivererMissions(
-  token: string | null,
+  token: AuthCredential | null,
   id: string,
   options: { status?: DeliveryStatus | ''; page: number; limit?: number } = { page: 1 },
 ) {
   const { status = '', page, limit = 20 } = options;
   return useQuery({
     queryKey: adminOpsKeys.delivererMissions(id, page, status),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
@@ -181,7 +182,7 @@ export function useDelivererMissions(
       if (status) params.set('status', status);
       return apiClientRaw<PaginatedDelivererMissions>(
         `/admin/deliverers/${id}/missions?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token && !!id,
@@ -191,27 +192,27 @@ export function useDelivererMissions(
 }
 
 /** Référentiel des quartiers (GET /quartiers). */
-export function useAdminQuartiers(token: string | null) {
+export function useAdminQuartiers(token: AuthCredential | null) {
   return useQuery({
     queryKey: adminOpsKeys.quartiers,
-    queryFn: () => apiClient<Quartier[]>('/quartiers', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Quartier[]>('/quartiers', { signal, token }),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
   });
 }
 
 /** Configuration plateforme (GET /admin/platform-settings). */
-export function usePlatformSettings(token: string | null) {
+export function usePlatformSettings(token: AuthCredential | null) {
   return useQuery({
     queryKey: adminOpsKeys.platformSettings,
-    queryFn: () => apiClient<PlatformSettings>('/admin/platform-settings', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<PlatformSettings>('/admin/platform-settings', { signal, token }),
     enabled: !!token,
     staleTime: 60 * 1000,
   });
 }
 
 /** Mise à jour de la configuration plateforme (PATCH /admin/platform-settings). */
-export function useUpdatePlatformSettings(token: string | null) {
+export function useUpdatePlatformSettings(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: UpdatePlatformSettingsPayload) =>

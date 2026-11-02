@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../session-query';
 import type { DeliveryPricingMode } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -104,7 +104,7 @@ export const pricingKeys = {
 export function usePublicPlatformSettings() {
   return useQuery({
     queryKey: pricingKeys.platformSettings,
-    queryFn: () => apiClient<PublicPlatformSettings>('/platform-settings'),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<PublicPlatformSettings>('/platform-settings', { signal }),
     // Le taux change rarement, mais `maintenanceMode` vit ici aussi : une
     // fenêtre de maintenance déclarée doit se voir au panier en une minute, pas
     // en cinq (MAINT-001). 60 s = le cache du serveur lui-même
@@ -162,14 +162,14 @@ export function useDeliveryFeeQuote(
   const sub = subTotal != null ? Math.max(0, Math.round(subTotal)) : null;
   return useQuery({
     queryKey: pricingKeys.deliveryQuote(restaurantId ?? '', quartierId ?? '', sub),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({
         restaurantId: restaurantId!,
         quartierId: quartierId!,
       });
       if (sub != null) params.set('subTotal', String(sub));
       return apiClient<DeliveryFeeQuote>(
-        `/quartiers/delivery-fee?${params.toString()}`,
+        `/quartiers/delivery-fee?${params.toString()}`, { signal },
       );
     },
     enabled: !!restaurantId && !!quartierId,

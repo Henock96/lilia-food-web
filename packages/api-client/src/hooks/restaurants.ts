@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type {
   Restaurant, Review, ReviewStats, VendorType,
   CreateReviewDto, UpdateReviewDto, CanReviewResult,
@@ -25,7 +26,7 @@ export const reviewKeys = {
 export function useRestaurants() {
   return useQuery({
     queryKey: restaurantKeys.list(),
-    queryFn: () => apiClient<Restaurant[]>('/restaurants'),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Restaurant[]>('/restaurants', { signal }),
     staleTime: 5 * 60 * 1000,
     retry: 3,
   });
@@ -34,7 +35,7 @@ export function useRestaurants() {
 export function useRestaurant(id: string) {
   return useQuery({
     queryKey: restaurantKeys.detail(id),
-    queryFn: () => apiClient<Restaurant>(`/restaurants/${id}`),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Restaurant>(`/restaurants/${id}`, { signal }),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
@@ -46,9 +47,9 @@ export function useRestaurantReviews(restaurantId: string) {
     // Backend : `{ message, data: reviews, stats }` → wrap global →
     // `{ data: { message, data: reviews, stats } }`. `apiClient` déballe un
     // niveau → on extrait encore `.data` pour le tableau d'avis.
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClient<Review[] | { data?: Review[] }>(
-        `/reviews/restaurant/${restaurantId}`,
+        `/reviews/restaurant/${restaurantId}`, { signal },
       );
       return Array.isArray(res) ? res : (res?.data ?? []);
     },
@@ -60,7 +61,7 @@ export function useRestaurantReviews(restaurantId: string) {
 export function useRestaurantReviewStats(restaurantId: string) {
   return useQuery({
     queryKey: restaurantKeys.reviewStats(restaurantId),
-    queryFn: () => apiClient<ReviewStats>(`/reviews/restaurant/${restaurantId}/stats`),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<ReviewStats>(`/reviews/restaurant/${restaurantId}/stats`, { signal }),
     enabled: !!restaurantId,
     staleTime: 10 * 60 * 1000,
   });
@@ -69,7 +70,7 @@ export function useRestaurantReviewStats(restaurantId: string) {
 export function usePopularRestaurants() {
   return useQuery({
     queryKey: [...restaurantKeys.all, 'popular'] as const,
-    queryFn: () => apiClient<Restaurant[]>('/restaurants/popular'),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Restaurant[]>('/restaurants/popular', { signal }),
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -85,11 +86,11 @@ export function usePopularRestaurants() {
 export function useVendors(vendorType: VendorType | null = null) {
   return useQuery({
     queryKey: restaurantKeys.vendors(vendorType),
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ limit: '50' });
       if (vendorType) params.set('vendorType', vendorType);
       const res = await apiClientRaw<{ data: Restaurant[] }>(
-        `/vendors?${params.toString()}`,
+        `/vendors?${params.toString()}`, { signal },
       );
       return res.data;
     },
@@ -105,7 +106,7 @@ export function useVendors(vendorType: VendorType | null = null) {
  * ne change en base. La route réelle n'est pas une bascule, elle prend l'état
  * voulu — d'où `isOpen` dans la signature.
  */
-export function useToggleRestaurantOpen(token: string | null) {
+export function useToggleRestaurantOpen(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ restaurantId, isOpen }: { restaurantId: string; isOpen: boolean }) =>
@@ -140,7 +141,7 @@ export interface OperatingHourInput {
 }
 
 /** PATCH /restaurants/:id — infos générales (nom, adresse, téléphone, image). */
-export function useUpdateRestaurant(token: string | null) {
+export function useUpdateRestaurant(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateRestaurantInput }) =>
@@ -166,7 +167,7 @@ export function useUpdateRestaurant(token: string | null) {
 // mène au mauvais endroit.
 
 /** PUT /restaurants/:id/operating-hours — horaires de la semaine (bulk upsert). */
-export function useSetOperatingHours(token: string | null) {
+export function useSetOperatingHours(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, hours }: { id: string; hours: OperatingHourInput[] }) =>
@@ -179,27 +180,27 @@ export function useSetOperatingHours(token: string | null) {
   });
 }
 
-export function useCanReview(restaurantId: string, token: string | null) {
+export function useCanReview(restaurantId: string, token: AuthCredential | null) {
   return useQuery({
     queryKey: reviewKeys.canReview(restaurantId),
-    queryFn: () =>
-      apiClient<CanReviewResult>(`/reviews/restaurant/${restaurantId}/can-review`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<CanReviewResult>(`/reviews/restaurant/${restaurantId}/can-review`, { signal, token }),
     enabled: !!token && !!restaurantId,
     staleTime: 60_000,
   });
 }
 
-export function useMyReview(restaurantId: string, token: string | null) {
+export function useMyReview(restaurantId: string, token: AuthCredential | null) {
   return useQuery({
     queryKey: reviewKeys.myReview(restaurantId),
-    queryFn: () =>
-      apiClient<Review | null>(`/reviews/restaurant/${restaurantId}/my-review`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<Review | null>(`/reviews/restaurant/${restaurantId}/my-review`, { signal, token }),
     enabled: !!token && !!restaurantId,
     staleTime: 60_000,
   });
 }
 
-export function useCreateReview(token: string | null) {
+export function useCreateReview(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateReviewDto) =>
@@ -217,7 +218,7 @@ export function useCreateReview(token: string | null) {
   });
 }
 
-export function useUpdateReview(token: string | null, restaurantId: string) {
+export function useUpdateReview(token: AuthCredential | null, restaurantId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...patch }: { id: string } & UpdateReviewDto) =>
@@ -234,7 +235,7 @@ export function useUpdateReview(token: string | null, restaurantId: string) {
   });
 }
 
-export function useDeleteReview(token: string | null, restaurantId: string) {
+export function useDeleteReview(token: AuthCredential | null, restaurantId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>

@@ -47,3 +47,8 @@ export * from './hooks/claims';
 export * from './hooks/approvals';
 export * from './hooks/vendor-reachability';
 export * from './hooks/reconciliation';
+
+export * from './auth-session';
+export { bindSessionQueryClient, type SessionQueryScope } from './session-query';
+export { sessionFetch } from './client';
+export { isVerifiedCheckoutQuote, type VerifiedCheckoutQuote } from './checkout-quote';

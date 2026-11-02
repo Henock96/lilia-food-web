@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession } from '@/lib/auth-session';
 import { useCartStore } from '@/store/cart';
 import { useCart, useUpdateCartItem, useRemoveCartItem } from '@lilia/api-client';
 import { formatCurrency } from '@lilia/utils';
@@ -15,7 +15,7 @@ import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
 export function CartDrawer() {
   const router = useRouter();
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
   const { isOpen, closeCart } = useCartStore();
   const { data: cart } = useCart(token);
   const updateItem = useUpdateCartItem(token);

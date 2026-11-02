@@ -1,5 +1,9 @@
 'use client';
 
+import { useSessionGuard } from '@/lib/auth-session';
+
+import type { AuthCredential } from '@lilia/api-client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, MessageSquareWarning, X } from 'lucide-react';
@@ -26,8 +30,9 @@ export function ClaimPanel({
 }: {
   orderId: string;
   items: OrderItem[];
-  token: string | null;
+  token: AuthCredential | null;
 }) {
+  const isCurrentSession = useSessionGuard();
   const router = useRouter();
   const openClaim = useOpenClaim(token, orderId);
   const [open, setOpen] = useState(false);
@@ -45,19 +50,23 @@ export function ClaimPanel({
     !!reason && (!needsItems || chosenItems.length > 0) && !uploading && !openClaim.isPending;
 
   async function addPhoto(file: File | undefined) {
+    if (!isCurrentSession()) return;
     if (!file || !token || photos.length >= MAX_PHOTOS) return;
     setUploading(true);
     try {
       const url = await uploadToCloudinary(file, token, 'claims');
+      if (!isCurrentSession()) return;
       setPhotos((p) => [...p, url]);
     } catch (e) {
+      if (!isCurrentSession()) return;
       toast.error(e instanceof Error ? e.message : 'Photo non envoyée.');
     } finally {
-      setUploading(false);
+      if (isCurrentSession()) setUploading(false);
     }
   }
 
   async function submit() {
+    if (!isCurrentSession()) return;
     if (!reason) return;
     try {
       const claim = await openClaim.mutateAsync({
@@ -66,9 +75,11 @@ export function ClaimPanel({
         ...(note.trim() ? { note: note.trim() } : {}),
         ...(photos.length ? { photoUrls: photos } : {}),
       });
+      if (!isCurrentSession()) return;
       toast.success('Demande envoyée. Le service client vous répond ici.');
       router.push(`/demandes/${claim.id}`);
     } catch (e) {
+      if (!isCurrentSession()) return;
       // Une demande est déjà ouverte : on y mène plutôt que d'en ouvrir une autre.
       const claimId = e instanceof ApiError ? e.details?.claimId : undefined;
       if (e instanceof ApiError && e.code === 'CLAIM_ALREADY_OPEN' && typeof claimId === 'string') {

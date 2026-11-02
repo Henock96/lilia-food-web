@@ -21,7 +21,7 @@ import {
   type ModifierSelection,
 } from '@lilia/utils';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { analytics } from '@/lib/analytics';
 import { computePurchaseState } from '@/lib/product-purchase-state';
 import { ImageCarousel } from '@/components/ui';
@@ -50,7 +50,8 @@ export function ProductPurchase({
   /** `null` sur une réponse antérieure au champ — la fiche reste utilisable. */
   vendor: ProductVendorRef | null;
 }) {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const router = useRouter();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
@@ -121,10 +122,11 @@ export function ProductPurchase({
   function confirmAdded() {
     trackAdded();
     setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    setTimeout(() => { if (isCurrentSession()) setAdded(false); }, 2000);
   }
 
   async function addNow() {
+    if (!isCurrentSession()) return;
     if (!selectedVariant) return;
     const options = toSelectedOptions(groups, selection);
     await addToCart.mutateAsync({
@@ -134,10 +136,12 @@ export function ProductPurchase({
       // Envoyé seulement s'il y a des options : corps inchangé sinon.
       ...(options.length > 0 && { options }),
     });
+    if (!isCurrentSession()) return;
     confirmAdded();
   }
 
   async function handleAdd() {
+    if (!isCurrentSession()) return;
     if (!token) {
       // Le bouton reste actif pour un visiteur non connecté : le griser lui
       // ferait croire que le produit est indisponible. On l'emmène se
@@ -150,6 +154,7 @@ export function ProductPurchase({
           // toute l'application — état React, cache de requêtes, bundle — pour
           // un simple changement de page interne.
           onClick: () => {
+            if (!isCurrentSession()) return;
             router.push(`/connexion?redirect=/produits/${product.id}`);
           },
         },
@@ -165,23 +170,29 @@ export function ProductPurchase({
 
     try {
       await addNow();
+      if (!isCurrentSession()) return;
       toast.success(
         quantity > 1
           ? `${quantity} × ${product.nom} ajoutés au panier`
           : `${product.nom} ajouté au panier`,
       );
     } catch (err: unknown) {
+      if (!isCurrentSession()) return;
       const msg = (err as { message?: string }).message ?? '';
       if (msg.toLowerCase().includes('restaurant') || msg.toLowerCase().includes('vider')) {
         toast.error('Votre panier contient des plats d’un autre vendeur.', {
           action: {
             label: 'Vider et ajouter',
             onClick: async () => {
+              if (!isCurrentSession()) return;
               try {
                 await clearCart.mutateAsync();
+                if (!isCurrentSession()) return;
                 await addNow();
+                if (!isCurrentSession()) return;
                 toast.success(`${product.nom} ajouté au panier`);
               } catch {
+                if (!isCurrentSession()) return;
                 toast.error('Erreur lors de l’ajout');
               }
             },
@@ -197,12 +208,16 @@ export function ProductPurchase({
   }
 
   async function handleConfirmConflict() {
+    if (!isCurrentSession()) return;
     setConflictOpen(false);
     try {
       await clearCart.mutateAsync();
+      if (!isCurrentSession()) return;
       await addNow();
+      if (!isCurrentSession()) return;
       toast.success(`Panier vidé. ${product.nom} ajouté.`);
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Erreur lors du remplacement du panier');
     }
   }

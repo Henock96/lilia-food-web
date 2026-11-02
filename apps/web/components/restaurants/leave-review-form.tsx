@@ -10,7 +10,7 @@ import {
   useUpdateReview,
   useDeleteReview,
 } from '@lilia/api-client';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 
 interface LeaveReviewFormProps {
   restaurantId: string;
@@ -19,7 +19,8 @@ interface LeaveReviewFormProps {
 const MAX_COMMENT = 1000;
 
 export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const canReviewQ = useCanReview(restaurantId, token);
   const myReviewQ = useMyReview(restaurantId, token);
   const createMut = useCreateReview(token);
@@ -53,6 +54,7 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
   }
 
   async function handleSubmit() {
+    if (!isCurrentSession()) return;
     if (rating < 1) {
       toast.error('Veuillez choisir au moins une étoile');
       return;
@@ -64,6 +66,7 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
           rating,
           comment: comment.trim() || undefined,
         });
+        if (!isCurrentSession()) return;
         toast.success('Avis mis à jour');
       } else {
         await createMut.mutateAsync({
@@ -71,9 +74,11 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
           rating,
           comment: comment.trim() || undefined,
         });
+        if (!isCurrentSession()) return;
         toast.success('Merci pour votre avis !');
       }
     } catch (err: unknown) {
+      if (!isCurrentSession()) return;
       const msg = (err as { message?: string; status?: number }).message;
       const status = (err as { status?: number }).status;
       if (status === 429) {
@@ -85,15 +90,18 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
   }
 
   async function handleDelete() {
+    if (!isCurrentSession()) return;
     if (!existingReviewId) return;
     const ok = window.confirm('Supprimer définitivement votre avis ?');
     if (!ok) return;
     try {
       await deleteMut.mutateAsync(existingReviewId);
+      if (!isCurrentSession()) return;
       setRating(0);
       setComment('');
       toast.success('Avis supprimé');
     } catch (err: unknown) {
+      if (!isCurrentSession()) return;
       const msg = (err as { message?: string }).message;
       toast.error(msg || 'Suppression impossible');
     }

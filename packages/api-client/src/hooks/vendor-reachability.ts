@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../session-query';
 import type { VendorReachabilityRow } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -16,11 +17,11 @@ export const vendorReachabilityKeys = {
  * ⚠️ « Appareil inscrit » ne veut pas dire « notification vue » : FCM ne dit
  * pas ce que le téléphone affiche. Seul le test sur le téléphone le prouve.
  */
-export function useVendorReachability(token: string | null) {
+export function useVendorReachability(token: AuthCredential | null) {
   return useQuery({
     queryKey: vendorReachabilityKeys.list,
-    queryFn: () =>
-      apiClient<VendorReachabilityRow[]>('/admin/vendors/reachability', {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<VendorReachabilityRow[]>('/admin/vendors/reachability', { signal,
         token,
       }),
     enabled: !!token,

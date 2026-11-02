@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   AvailableDeliverer,
   OrderDelivery,
@@ -82,9 +83,9 @@ export function assignSuccessMessage(res: AssignDelivererResponse): string {
 
 export interface OrderDeliveryQuery {
   orderId: string;
-  token: string | null;
+  token: AuthCredential | null;
   /** Point d'injection des tests : la requête doit être exécutable sans React. */
-  fetchDelivery?: (path: string) => Promise<OrderDelivery>;
+  fetchDelivery?: (path: string, signal?: AbortSignal) => Promise<OrderDelivery>;
 }
 
 /**
@@ -104,13 +105,13 @@ export interface OrderDeliveryQuery {
 export function orderDeliveryQueryOptions({
   orderId,
   token,
-  fetchDelivery = (path) => apiClient<OrderDelivery>(path, { token }),
+  fetchDelivery = (path, signal) => apiClient<OrderDelivery>(path, { token, signal }),
 }: OrderDeliveryQuery) {
   return {
     queryKey: deliveryKeys.byOrder(orderId),
-    queryFn: async (): Promise<OrderDelivery | null> => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<OrderDelivery | null> => {
       try {
-        return await fetchDelivery(`/deliveries/by-order/${orderId}`);
+        return await fetchDelivery(`/deliveries/by-order/${orderId}`, signal);
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) return null;
         throw error;
@@ -121,7 +122,7 @@ export function orderDeliveryQueryOptions({
   };
 }
 
-export function useOrderDelivery(orderId: string, token: string | null) {
+export function useOrderDelivery(orderId: string, token: AuthCredential | null) {
   return useQuery(orderDeliveryQueryOptions({ orderId, token }));
 }
 
@@ -134,11 +135,11 @@ export function useOrderDelivery(orderId: string, token: string | null) {
  * divergent, et l'interface finirait par proposer des livreurs que
  * l'assignation refuse, ou l'inverse, ce qui est pire.
  */
-export function useAvailableDeliverers(token: string | null) {
+export function useAvailableDeliverers(token: AuthCredential | null) {
   return useQuery({
     queryKey: deliveryKeys.deliverers(),
-    queryFn: () =>
-      apiClient<AvailableDeliverer[]>('/deliveries/deliverers', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<AvailableDeliverer[]>('/deliveries/deliverers', { signal, token }),
     enabled: !!token,
     staleTime: 30 * 1000,
   });
@@ -152,7 +153,7 @@ export function useAvailableDeliverers(token: string | null) {
  * raison (« X n'est pas en service », « compte BLOCKED ») : l'appelant doit les
  * afficher tels quels.
  */
-export function useAssignDeliverer(token: string | null) {
+export function useAssignDeliverer(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({

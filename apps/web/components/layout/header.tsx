@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X } from 'lucide-react';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession } from '@/lib/auth-session';
 import { useCartStore } from '@/store/cart';
 import { useCart } from '@lilia/api-client';
 import { cn } from '@lilia/utils';
@@ -20,7 +20,7 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname();
-  const { user, token, firebaseDisplayName, firebasePhotoUrl } = useAuthStore();
+  const { user, token, firebaseDisplayName, firebasePhotoUrl } = useAuthSession();
   const { itemCount, setItemCount, toggleCart } = useCartStore();
   const [mobileOpen, setMobileOpen] = useState(false);
 

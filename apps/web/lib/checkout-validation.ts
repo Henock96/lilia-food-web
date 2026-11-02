@@ -1,0 +1,38 @@
+import type { Adresse, Cart } from '@lilia/types';
+import { isVerifiedCheckoutQuote } from '@lilia/api-client';
+
+/** Cache identity includes every client-visible change that can affect a quote. */
+export function checkoutCartSignature(cart: Cart | undefined, address: Adresse | null): string {
+  if (!cart?.items.length) return '';
+  return JSON.stringify({
+    cartId: cart.id, updatedAt: cart.updatedAt, subTotal: cart.subTotalXaf,
+    address,
+    items: cart.items.map((line) => ({
+      id: line.id, productId: line.productId, variantId: line.variantId, menuId: line.menuId,
+      quantity: line.quantite, options: line.options, optionsSignature: line.optionsSignature,
+      unitPrice: line.unitPriceXaf, lineTotal: line.lineTotalXaf, issue: line.issue,
+      variantPrice: line.variant?.prix,
+    })),
+  });
+}
+
+export function checkoutQuoteReady(input: {
+  quote: unknown;
+  restaurantId: string;
+  hasInputs: boolean;
+  success: boolean;
+  fetching: boolean;
+  placeholder: boolean;
+  cartUpdating: boolean;
+}): boolean {
+  return input.hasInputs && input.success && !input.fetching && !input.placeholder && !input.cartUpdating &&
+    isVerifiedCheckoutQuote(input.quote) && input.quote.restaurantId === input.restaurantId;
+}
+
+/** Recheck live cache at click time, including invalidation before React rerenders. */
+export function checkoutCacheCurrent(state: {
+  data: unknown; status: string; fetchStatus: string; isInvalidated: boolean;
+} | undefined, renderedQuote: unknown): boolean {
+  return !!state && state.status === 'success' && state.fetchStatus === 'idle' &&
+    !state.isInvalidated && state.data === renderedQuote && isVerifiedCheckoutQuote(state.data);
+}

@@ -1,41 +1,11 @@
 'use client';
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { User } from '@lilia/types';
+import { INITIAL_SESSION, type SessionState } from '@/lib/auth-session-controller';
 
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  firebaseDisplayName: string | null;
-  firebasePhotoUrl: string | null;
-  setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
-  setLoading: (loading: boolean) => void;
-  setFirebaseProfile: (name: string | null, photoUrl: string | null) => void;
-  signOut: () => void;
+// Display-only projection. No token or persisted, unverified profile.
+export const useAuthStore = create<SessionState>()(() => ({ ...INITIAL_SESSION }));
+
+export function discardLegacyAuth(storage: Pick<Storage, 'removeItem'>): void {
+  try { storage.removeItem('lilia-auth'); } catch { /* Storage can be denied. */ }
 }
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isLoading: true,
-      firebaseDisplayName: null,
-      firebasePhotoUrl: null,
-      setUser: (user) => set({ user }),
-      setToken: (token) => set({ token }),
-      setLoading: (isLoading) => set({ isLoading }),
-      setFirebaseProfile: (firebaseDisplayName, firebasePhotoUrl) =>
-        set({ firebaseDisplayName, firebasePhotoUrl }),
-      signOut: () => set({ user: null, token: null, firebaseDisplayName: null, firebasePhotoUrl: null }),
-    }),
-    {
-      name: 'lilia-auth',
-      partialize: (state) => ({ user: state.user }),
-      skipHydration: true,
-    },
-  ),
-);

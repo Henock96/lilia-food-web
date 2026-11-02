@@ -4,15 +4,17 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, type UserCredential } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
-import { setSessionCookie } from '@/lib/session';
+import { getBrowserSession, useAuthenticationGuard, useSessionGuard } from '@/lib/auth-session';
 import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
 
 function ConnexionForm() {
+  const authenticationCurrent = useAuthenticationGuard();
+  const sessionCurrent = useSessionGuard();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = sanitizeRedirect(searchParams.get('redirect'));
@@ -30,12 +32,17 @@ function ConnexionForm() {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
+    let ticket: number | undefined;
     try {
+      ticket = await getBrowserSession().beginAuthentication();
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      await primeAuthCookie(cred);
+      if (!authenticationCurrent(ticket, cred.user)) return;
+      await getBrowserSession().completeAuthentication(ticket, cred.user);
+      if (!authenticationCurrent(ticket, cred.user)) return;
       toast.success('Connexion réussie !');
       router.push(redirectTo);
     } catch (err: unknown) {
+      if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const code = (err as { code?: string }).code;
       if (
         code === 'auth/user-not-found' ||
@@ -47,35 +54,30 @@ function ConnexionForm() {
         toast.error('Erreur de connexion. Réessayez.');
       }
     } finally {
-      setLoading(false);
+      if (ticket !== undefined) await getBrowserSession().cancelAuthentication(ticket);
+      if (ticket === undefined || authenticationCurrent(ticket)) setLoading(false);
     }
   }
 
   async function handleGoogle() {
     setGoogleLoading(true);
+    let ticket: number | undefined;
     try {
+      ticket = await getBrowserSession().beginAuthentication();
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
-      await primeAuthCookie(cred);
+      if (!authenticationCurrent(ticket, cred.user)) return;
+      await getBrowserSession().completeAuthentication(ticket, cred.user);
+      if (!authenticationCurrent(ticket, cred.user)) return;
       toast.success('Connexion réussie !');
       router.push(redirectTo);
     } catch {
+      if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       toast.error('Connexion Google échouée');
     } finally {
-      setGoogleLoading(false);
+      if (ticket !== undefined) await getBrowserSession().cancelAuthentication(ticket);
+      if (ticket === undefined || authenticationCurrent(ticket)) setGoogleLoading(false);
     }
-  }
-
-  /**
-   * Pose le cookie `firebase-token` AVANT le `router.push` pour éviter une
-   * race condition avec le middleware (`proxy.ts`).
-   * `onIdTokenChanged` dans `AuthProvider` fire de manière asynchrone et
-   * peut arriver après `router.push` — le middleware ne verrait pas le
-   * cookie et redirigerait vers /connexion (LIL-97).
-   */
-  async function primeAuthCookie(cred: UserCredential) {
-    const token = await cred.user.getIdToken();
-    await setSessionCookie(token);
   }
 
   async function handleResetPassword(e: React.FormEvent) {
@@ -84,10 +86,12 @@ function ConnexionForm() {
     setResetLoading(true);
     try {
       await sendPasswordResetEmail(auth, resetEmail);
+      if (!sessionCurrent()) return;
       toast.success('Email de réinitialisation envoyé !');
       setShowReset(false);
       setResetEmail('');
     } catch (err: unknown) {
+      if (!sessionCurrent()) return;
       const code = (err as { code?: string }).code;
       if (code === 'auth/user-not-found') {
         toast.error('Aucun compte associé à cet email');
@@ -95,7 +99,7 @@ function ConnexionForm() {
         toast.error('Erreur lors de l\'envoi. Réessayez.');
       }
     } finally {
-      setResetLoading(false);
+      if (sessionCurrent()) setResetLoading(false);
     }
   }
 
@@ -108,7 +112,7 @@ function ConnexionForm() {
 
       <button
         onClick={handleGoogle}
-        disabled={googleLoading}
+        disabled={googleLoading || loading}
         className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-cream-300 rounded-2xl text-sm font-medium text-ink-700 hover:bg-cream-100 hover:border-ink-300 transition-all mb-5 disabled:opacity-60"
       >
         <GoogleIcon />
@@ -170,7 +174,7 @@ function ConnexionForm() {
 
         <button
           type="submit"
-          disabled={loading || !email || !password}
+          disabled={loading || googleLoading || !email || !password}
           className="flex items-center justify-center gap-2 w-full py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
         >
           {loading ? (

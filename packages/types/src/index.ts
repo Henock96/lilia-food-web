@@ -1208,6 +1208,10 @@ export interface CartItem {
 
 export interface Order {
   id: string;
+  /** Verdict serveur ; absent sur une API ancienne, ne vaut jamais autorisation. */
+  paymentAllowed?: boolean;
+  orderFlow?: 'PAY_FIRST' | 'ACCEPT_FIRST';
+  paymentDueAt?: string | null;
   restaurantId: string;
   restaurant?: Restaurant;
   userId: string;
@@ -1650,6 +1654,8 @@ export interface Favorite {
 // --- DTOs ---
 export interface CreateOrderDto {
   paymentMethod: PaymentMethod;
+  /** Empreinte du devis affiché, recalculée et comparée par le serveur. */
+  quoteFingerprint?: string;
   adresseId?: string;
   isDelivery?: boolean;
   notes?: string;
@@ -1669,12 +1675,14 @@ export interface CreateOrderDto {
 /** F3-11 — entrées du devis : celles du checkout, sans ce qui ne chiffre rien. */
 export type QuoteOrderDto = Omit<
   CreateOrderDto,
-  'paymentMethod' | 'notes' | 'contactPhone' | 'vendorOfferId'
+  'paymentMethod' | 'notes' | 'contactPhone' | 'vendorOfferId' | 'quoteFingerprint'
 > & { quartierId?: string };
 
 /** F3-11 — `POST /orders/quote` : le calcul du checkout, sans écriture. */
 export interface CheckoutQuote {
   restaurantId: string;
+  /** Facultatif pour les anciens consommateurs ; requis pour soumettre sur le web. */
+  quoteFingerprint?: string;
   subTotal: number;
   /** Après un éventuel code « livraison offerte ». */
   deliveryFee: number;

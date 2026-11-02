@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { useClaim, usePostClaimMessage } from '@lilia/api-client';
 import { formatCurrency, formatDateTime } from '@lilia/utils';
 
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { claimReasonLabel, claimStatusLabel } from '@/lib/claims';
 
 /**
@@ -17,7 +17,8 @@ import { claimReasonLabel, claimStatusLabel } from '@/lib/claims';
  */
 export default function DemandePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const { data: claim, isLoading, error } = useClaim(token, id);
   const post = usePostClaimMessage(token, id);
   const [body, setBody] = useState('');
@@ -34,12 +35,15 @@ export default function DemandePage({ params }: { params: Promise<{ id: string }
   }
 
   async function send() {
+    if (!isCurrentSession()) return;
     const text = body.trim();
     if (!text) return;
     try {
       await post.mutateAsync({ body: text });
+      if (!isCurrentSession()) return;
       setBody('');
     } catch (e) {
+      if (!isCurrentSession()) return;
       toast.error(e instanceof Error ? e.message : 'Message non envoyé.');
     }
   }

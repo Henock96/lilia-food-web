@@ -1,10 +1,11 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   ReconciliationItem,
   ReconciliationItemsPage,
@@ -29,11 +30,11 @@ export const reconciliationKeys = {
  * de tout : type d'écart, gravité, blocage des versements. Cette surface
  * affiche ses verdicts et transmet les gestes humains (résoudre, noter).
  */
-export function useReconciliationSummary(token: string | null) {
+export function useReconciliationSummary(token: AuthCredential | null) {
   return useQuery({
     queryKey: reconciliationKeys.summary,
-    queryFn: () =>
-      apiClient<ReconciliationSummary>('/admin/reconciliation/summary', {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<ReconciliationSummary>('/admin/reconciliation/summary', { signal,
         token,
       }),
     enabled: !!token,
@@ -41,25 +42,25 @@ export function useReconciliationSummary(token: string | null) {
 }
 
 export function useReconciliationItems(
-  token: string | null,
+  token: AuthCredential | null,
   status: 'OPEN' | 'RESOLVED',
 ) {
   return useQuery({
     queryKey: reconciliationKeys.items(status),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClient<ReconciliationItemsPage>(
         `/admin/reconciliation/items?status=${status}&limit=100`,
-        { token },
+        { signal, token },
       ),
     enabled: !!token,
   });
 }
 
-export function useReconciliationItem(token: string | null, id: string | null) {
+export function useReconciliationItem(token: AuthCredential | null, id: string | null) {
   return useQuery({
     queryKey: reconciliationKeys.item(id ?? ''),
-    queryFn: () =>
-      apiClient<ReconciliationItem>(`/admin/reconciliation/items/${id}`, {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<ReconciliationItem>(`/admin/reconciliation/items/${id}`, { signal,
         token,
       }),
     enabled: !!token && !!id,
@@ -71,7 +72,7 @@ function useInvalidateAll() {
   return () => qc.invalidateQueries({ queryKey: reconciliationKeys.all });
 }
 
-export function useResolveReconciliationItem(token: string | null) {
+export function useResolveReconciliationItem(token: AuthCredential | null) {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: ({
@@ -91,7 +92,7 @@ export function useResolveReconciliationItem(token: string | null) {
   });
 }
 
-export function useAddReconciliationNote(token: string | null) {
+export function useAddReconciliationNote(token: AuthCredential | null) {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: ({ id, note }: { id: string; note: string }) =>
@@ -104,7 +105,7 @@ export function useAddReconciliationNote(token: string | null) {
   });
 }
 
-export function useRunReconciliationScan(token: string | null) {
+export function useRunReconciliationScan(token: AuthCredential | null) {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: () =>
@@ -116,7 +117,7 @@ export function useRunReconciliationScan(token: string | null) {
   });
 }
 
-export function useImportReconciliationExport(token: string | null) {
+export function useImportReconciliationExport(token: AuthCredential | null) {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: (input: {

@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   CurrentDeliveryTariff,
   DeliverySubsidySimulation,
@@ -34,20 +35,20 @@ export const deliveryTariffKeys = {
 };
 
 /** `GET /admin/delivery-tariffs` — toutes les versions, la plus récente d'abord. */
-export function useDeliveryTariffs(token: string | null) {
+export function useDeliveryTariffs(token: AuthCredential | null) {
   return useQuery({
     queryKey: deliveryTariffKeys.list,
-    queryFn: () => apiClient<DeliveryTariff[]>('/admin/delivery-tariffs', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<DeliveryTariff[]>('/admin/delivery-tariffs', { signal, token }),
     enabled: !!token,
   });
 }
 
 /** `GET /delivery-tariffs/current` — mode et grille en vigueur (vendeur, admin). */
-export function useCurrentDeliveryTariff(token: string | null) {
+export function useCurrentDeliveryTariff(token: AuthCredential | null) {
   return useQuery({
     queryKey: deliveryTariffKeys.current,
-    queryFn: () =>
-      apiClient<CurrentDeliveryTariff>('/delivery-tariffs/current', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<CurrentDeliveryTariff>('/delivery-tariffs/current', { signal, token }),
     enabled: !!token,
   });
 }
@@ -61,7 +62,7 @@ function invalidateTariffs(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: pricingKeys.platformSettings });
 }
 
-export function useCreateDeliveryTariff(token: string | null) {
+export function useCreateDeliveryTariff(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: DeliveryTariffDraftDto) =>
@@ -75,7 +76,7 @@ export function useCreateDeliveryTariff(token: string | null) {
 }
 
 /** Remplace un brouillon. 409 s'il a été publié entre-temps. */
-export function useUpdateDeliveryTariff(token: string | null) {
+export function useUpdateDeliveryTariff(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...dto }: DeliveryTariffDraftDto & { id: string }) =>
@@ -88,7 +89,7 @@ export function useUpdateDeliveryTariff(token: string | null) {
   });
 }
 
-export function useDeleteDeliveryTariff(token: string | null) {
+export function useDeleteDeliveryTariff(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -102,7 +103,7 @@ export function useDeleteDeliveryTariff(token: string | null) {
  * Elle s'applique aux **prochaines** commandes ; les commandes passées gardent
  * la version figée à leur création.
  */
-export function usePublishDeliveryTariff(token: string | null) {
+export function usePublishDeliveryTariff(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -119,17 +120,17 @@ export function usePublishDeliveryTariff(token: string | null) {
  * fixe, quartiers sans centroïde, vendeurs sans quartier. `id` nul : rien à
  * lire (brouillon pas encore enregistré). Invalidée avec les grilles.
  */
-export function useDeliveryTariffReadiness(id: string | null, token: string | null) {
+export function useDeliveryTariffReadiness(id: string | null, token: AuthCredential | null) {
   return useQuery({
     queryKey: deliveryTariffKeys.readiness(id ?? ''),
-    queryFn: () =>
-      apiClient<DeliveryTariffReadiness>(`/admin/delivery-tariffs/${id}/readiness`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<DeliveryTariffReadiness>(`/admin/delivery-tariffs/${id}/readiness`, { signal, token }),
     enabled: !!token && !!id,
   });
 }
 
 /** Lecture seule côté serveur, mais déclenchée à la demande : une mutation. */
-export function useSimulateDeliveryTariff(token: string | null) {
+export function useSimulateDeliveryTariff(token: AuthCredential | null) {
   return useMutation({
     mutationFn: (id: string) =>
       apiClient<DeliveryTariffSimulation>(`/admin/delivery-tariffs/${id}/simulate`, {
@@ -140,7 +141,7 @@ export function useSimulateDeliveryTariff(token: string | null) {
 }
 
 /** `PATCH /vendors/:id/delivery-subsidy` — propriétaire ou admin. */
-export function useUpdateDeliverySubsidy(token: string | null, vendorId: string) {
+export function useUpdateDeliverySubsidy(token: AuthCredential | null, vendorId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: UpdateDeliverySubsidyDto) =>
@@ -167,19 +168,19 @@ export function useUpdateDeliverySubsidy(token: string | null, vendorId: string)
  * Désactivé tant que le réglage n'est pas complet (montant ou seuil manquant).
  */
 export function useDeliverySubsidySimulation(
-  token: string | null,
+  token: AuthCredential | null,
   vendorId: string | null,
   dto: UpdateDeliverySubsidyDto | null,
 ) {
   return useQuery({
     queryKey: deliveryTariffKeys.subsidySimulation(vendorId ?? '', dto ?? { mode: 'NONE' }),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ mode: dto!.mode });
       if (dto!.amountXaf != null) params.set('amountXaf', String(dto!.amountXaf));
       if (dto!.thresholdXaf != null) params.set('thresholdXaf', String(dto!.thresholdXaf));
       return apiClient<DeliverySubsidySimulation>(
         `/vendors/${vendorId}/delivery-subsidy/simulate?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token && !!vendorId && !!dto,

@@ -15,6 +15,16 @@ export function makeQueryClient() {
 
 let browserQueryClient: QueryClient | undefined;
 
+/** Retired identity generations never reuse a cache, even for the same UID. */
+export function retireQueryClient() {
+  const retired = browserQueryClient;
+  browserQueryClient = undefined;
+  if (retired) {
+    void retired.cancelQueries();
+    retired.clear();
+  }
+}
+
 export function getQueryClient() {
   if (typeof window === 'undefined') {
     return makeQueryClient();

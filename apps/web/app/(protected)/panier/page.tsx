@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -10,13 +10,12 @@ import {
   MapPin, Phone, Check, Store, Bike, Plus as PlusIcon, Zap,
   Calendar as CalendarIcon, AlertTriangle,
 } from 'lucide-react';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import {
   useCart,
   useUpdateCartItem,
   useRemoveCartItem,
   useCreateOrder,
-  useCreatePayment,
   usePaymentProviders,
   useAdresses,
   useCreateAdresse,
@@ -25,8 +24,8 @@ import {
   useReferralStats,
   useRestaurant,
   usePublicPlatformSettings,
-  useDeliveryFeeQuote,
   useCheckoutQuote,
+  checkoutQuoteQueryOptions,
   apiClient,
   ApiError,
   pricingKeys,
@@ -44,12 +43,8 @@ import {
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
-import {
-  computeCheckoutEstimate,
-  resolveDeliveryFee,
-  minimumOrderError,
-  PRICING_SETTINGS_FALLBACK,
-} from '@/lib/checkout-estimate';
+import { minimumOrderError, PRICING_SETTINGS_FALLBACK } from '@/lib/checkout-estimate';
+import { checkoutCartSignature, checkoutQuoteReady, checkoutCacheCurrent } from '@/lib/checkout-validation';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { maintenanceNotice } from '@/lib/maintenance';
 import {
@@ -64,8 +59,9 @@ import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
 export default function PanierPage() {
   const router = useRouter();
-  const { token } = useAuthStore();
-  const { data: cart, isLoading } = useCart(token);
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
+  const { data: cart, isLoading, isFetching: cartFetching, isError: cartError, refetch: refetchCart } = useCart(token);
   const updateItem = useUpdateCartItem(token);
   const removeItem = useRemoveCartItem(token);
   // Clé d'idempotence générée une fois pour cette session de checkout.
@@ -73,7 +69,6 @@ export default function PanierPage() {
   // est renvoyée → le backend retourne la commande déjà créée (pas de doublon).
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const createOrder = useCreateOrder(token, idempotencyKey);
-  const createPayment = useCreatePayment(token);
   const { data: adresses = [] } = useAdresses(token);
   const createAdresse = useCreateAdresse(token);
   const { data: profile } = useProfile(token);
@@ -83,7 +78,6 @@ export default function PanierPage() {
   // serveur. Le repli laisse les deux opérateurs proposables : une panne de
   // cette route ne doit pas empêcher de commander.
   const { data: paymentProviders } = usePaymentProviders();
-  const isManualPaymentMode = paymentProviders?.mode === 'MANUAL';
   const paymentOperators = paymentProviders?.operators ?? [
     { code: 'MTN_MOMO' as const, label: 'MTN Mobile Money', available: true },
     { code: 'AIRTEL_MONEY' as const, label: 'Airtel Money', available: true },
@@ -92,6 +86,9 @@ export default function PanierPage() {
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoResult, setPromoResult] = useState<PromoValidationResult | null>(null);
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
+  const promoRequest = useRef(0);
+  const submitting = useRef(false);
   const [promoLoading, setPromoLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'MTN_MOMO' | 'AIRTEL_MONEY'>('MTN_MOMO');
   const [notes, setNotes] = useState('');
@@ -109,7 +106,7 @@ export default function PanierPage() {
 
   const cartIsPreorder = isPreorderCart(cart);
   const firstItemRestaurantId = cart?.items?.[0]?.product?.restaurantId ?? '';
-  const { data: vendorRestaurant, isPending: vendorPending } =
+  const { data: vendorRestaurant } =
     useRestaurant(firstItemRestaurantId);
   const leadHours = vendorRestaurant?.preorderLeadHours ?? 24;
   // Lot 1 — seuls les modes que le vendeur propose. Le choix du client est
@@ -128,64 +125,38 @@ export default function PanierPage() {
   // 800 XAF de frais sur une commande de 10 000 et payait 1 500.
   const { data: platformSettings } = usePublicPlatformSettings();
   const queryClient = useQueryClient();
-  // ⚠️ `settingsKnown` distingue « le serveur a répondu » de « on applique le
-  // repli ». Le repli reprend le `@default` du schéma (8 %) alors que la
-  // production facture 15 % : afficher son montant reviendrait à annoncer
-  // 800 XAF de frais sur un panier de 10 000 pour un débit réel de 1 500 —
-  // exactement le défaut que ce module a corrigé, rouvert sur le seul chemin
-  // où personne ne regarde.
-  const settingsKnown = platformSettings != null;
+  // These settings describe loyalty only. Displayed money comes from the quote.
   const pricingSettings = platformSettings ?? PRICING_SETTINGS_FALLBACK;
   // Fenêtre de maintenance déclarée par l'administrateur (MAINT-001) : on le
   // dit en haut du panier et on désactive « Commander », au lieu de laisser le
   // client remplir tout le checkout pour découvrir un 503 dans un toast.
   const maintenance = maintenanceNotice(platformSettings);
-  // `null` tant que l'adresse n'est pas choisie — le devis n'est alors pas
-  // demandé et on reste sur le tarif fixe du vendeur, comme le fait le serveur.
+  // Sans adresse, aucun devis livraison ni montant provisoire n'est affiché.
   const selectedAdresse = adresses.find((a) => a.id === selectedAdresseId) ?? null;
   const deliveryQuartierId = isDelivery ? (selectedAdresse?.quartierId ?? null) : null;
-  // F3-02 — en mode plateforme, le prix de la course vient de la grille :
-  // le devis est la seule source, quel que soit le mode du vendeur.
-  const platformPricing = platformSettings?.deliveryPricingMode === 'PLATFORM';
-  // Le sous-total accompagne le devis pour le seul seuil « livraison offerte
-  // dès X » du vendeur ; le checkout le recalcule sur le panier serveur.
-  // F3-09 — sous-total SERVEUR (options comprises, menu compté une fois).
-  const quoteSubTotal = cartSubtotal(cart);
-  const { data: deliveryQuote, isPending: quotePending } = useDeliveryFeeQuote(
-    firstItemRestaurantId || null,
-    deliveryQuartierId,
-    platformPricing ? quoteSubTotal : null,
-  );
-  // Tant que le tarif du vendeur (et, en zone ou en mode plateforme, son
-  // devis) n'est pas arrivé, on n'affiche pas de total : un montant provisoire
-  // affiché est un montant que le client croit être le sien.
-  const pricingPending =
-    vendorPending ||
-    (isDelivery &&
-      (platformPricing || vendorRestaurant?.deliveryPriceMode === 'ZONE_BASED') &&
-      !!deliveryQuartierId &&
-      quotePending);
-
   // ── F3-11 — devis serveur ────────────────────────────────────────────────
   //
   // Le calcul du checkout lui-même, exécuté sans écriture : offre boutique
   // (qui n'existe que côté serveur), code, points, frais. Il fait foi dès
-  // qu'il est là ; l'estimation locale ne couvre que son chargement. Pas de
+  // qu'il est là ; aucun montant provisoire n'autorise la soumission. Pas de
   // devis tant que l'adresse ou le créneau manque : le serveur le refuserait.
-  const cartSignature = (cart?.items ?? [])
-    .map((i) => `${i.id}:${i.quantite}`)
-    .join(',');
+  const cartSignature = checkoutCartSignature(cart, isDelivery ? selectedAdresse : null);
   const quoteDto =
     (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)
       ? null
       : {
           isDelivery,
           ...(isDelivery && selectedAdresseId ? { adresseId: selectedAdresseId } : {}),
-          ...(promoResult?.valid && promoCode ? { promoCode } : {}),
+          ...(appliedPromoCode ? { promoCode: appliedPromoCode } : {}),
           ...(useLoyaltyPoints ? { useLoyaltyPoints: true } : {}),
           ...(scheduledFor ? { scheduledFor: scheduledFor.toISOString() } : {}),
         };
-  const { data: checkoutQuote } = useCheckoutQuote(token, quoteDto, cartSignature);
+  const quoteQuery = useCheckoutQuote(token, quoteDto, cartSignature);
+  const quoteReady = checkoutQuoteReady({
+    quote: quoteQuery.data, restaurantId: firstItemRestaurantId, hasInputs: quoteDto !== null,
+    success: quoteQuery.isSuccess, fetching: quoteQuery.isFetching, placeholder: quoteQuery.isPlaceholderData,
+    cartUpdating: cartFetching || cartError || updateItem.isPending || removeItem.isPending || promoLoading,
+  });
 
   // Réinitialise le créneau si le panier n'est plus en pré-commande (reset pendant le render).
   if (!cartIsPreorder && scheduledFor) {
@@ -260,48 +231,11 @@ export default function PanierPage() {
   // F3-09 — le serveur chiffre le panier : `variant.prix × quantite`
   // ignorait les options et comptait un menu produit par produit.
   const subTotal = cartSubtotal(cart);
-  // Tarif du vendeur (FIXED), devis de zone (ZONE_BASED) ou, en mode
-  // plateforme, devis de la grille. `null` = prix encore inconnu.
-  const vendorDeliveryFee = resolveDeliveryFee({
-    fixedDeliveryFee: vendorRestaurant?.fixedDeliveryFee ?? 0,
-    deliveryPriceMode: vendorRestaurant?.deliveryPriceMode ?? 'FIXED',
-    quartierId: deliveryQuartierId,
-    quotedFee: deliveryQuote?.fee,
-    pricingMode: platformPricing ? 'PLATFORM' : 'VENDOR_LEGACY',
-  });
-  // Mode plateforme sans quartier (adresse ancienne) : le serveur chiffrera à
-  // la commande. On ne l'invente pas ici, on le dit.
-  const deliveryFeeKnown = !isDelivery || vendorDeliveryFee !== null;
-  // Part offerte par le vendeur et seuil de livraison offerte (F3-02) : le
-  // devis les porte, on les explique sans rien recalculer.
-  const vendorSubsidy = platformPricing ? (deliveryQuote?.vendorSubsidy ?? 0) : 0;
-  const freeDeliveryThreshold = platformPricing
-    ? (deliveryQuote?.freeDeliveryThreshold ?? null)
-    : null;
-
   const loyaltyPoints = referralStats?.loyaltyPoints ?? 0;
-  const estimate = computeCheckoutEstimate({
-    subTotal,
-    deliveryFee: vendorDeliveryFee ?? 0,
-    isDelivery,
-    settings: pricingSettings,
-    settingsKnown,
-    promoDiscount: promoResult?.valid ? (promoResult.discountAmount ?? 0) : 0,
-    promoDeliveryFee: promoResult?.valid ? promoResult.newDeliveryFee : undefined,
-    loyaltyPoints,
-    useLoyaltyPoints,
-    // D-4 — taux de la boutique annoncé par le serveur (épicerie : le sien).
-    serviceFeePercent: cart?.serviceFeePercent,
-  });
-  const { deliveryDiscount } = estimate;
-  const deliveryFee = estimate.baseDeliveryFee;
-  // F3-11 — le devis serveur remplace l'estimation dès qu'il est là.
-  const quote = checkoutQuote ?? null;
-  const serviceFee = quote ? quote.serviceFee : estimate.serviceFee;
-  const discount = quote ? (quote.promo?.discountXaf ?? 0) : estimate.promoDiscount;
-  const loyaltyDiscount = quote ? quote.loyalty.discountXaf : estimate.loyaltyDiscount;
-  const loyaltyPointsUsed = quote ? quote.loyalty.pointsUsed : estimate.loyaltyPointsUsed;
-  const total = quote ? quote.total : estimate.total;
+  const quote = quoteReady ? quoteQuery.data : undefined;
+  const discount = quote?.promo?.discountXaf ?? 0;
+  const loyaltyDiscount = quote?.loyalty.discountXaf ?? 0;
+  const loyaltyPointsUsed = quote?.loyalty.pointsUsed ?? 0;
   const vendorOffer = quote?.vendorOffer ?? null;
 
   // Le serveur refuse un panier sous le minimum du vendeur. Le lui laisser
@@ -312,7 +246,10 @@ export default function PanierPage() {
     : null;
 
   async function handleValidatePromo() {
-    if (!promoCode.trim() || !cart?.items[0]) return;
+    if (!isCurrentSession()) return;
+    if (!promoCode.trim() || !cart?.items[0] || !quote) return;
+    const request = ++promoRequest.current;
+    const code = promoCode.trim().toUpperCase();
     setPromoLoading(true);
     const restaurantId = cart.items[0].product?.restaurantId ?? '';
     try {
@@ -320,28 +257,32 @@ export default function PanierPage() {
         method: 'POST',
         token,
         body: JSON.stringify({
-          code: promoCode,
+          code,
           restaurantId,
-          subTotal,
-          deliveryFee,
+          subTotal: quote.subTotal,
+          deliveryFee: quote.deliveryFeeBeforePromo,
           // Chiffre un code « livraison offerte » sur le devis de ce quartier.
           ...(deliveryQuartierId ? { quartierId: deliveryQuartierId } : {}),
         } satisfies ValidatePromoDto),
       });
+      if (!isCurrentSession() || request !== promoRequest.current) return;
       setPromoResult(result);
+      setAppliedPromoCode(result.valid ? code : null);
       if (result.valid) {
-        toast.success(`Code appliqué ! -${formatCurrency(result.discountAmount ?? 0)}`);
+        toast.success('Code appliqué. Le devis actualisé confirmera la remise.');
       } else {
         toast.error(result.error ?? 'Code invalide');
       }
     } catch (err: unknown) {
+      if (!isCurrentSession() || request !== promoRequest.current) return;
       toast.error((err as { message?: string }).message || 'Code promo invalide');
     } finally {
-      setPromoLoading(false);
+      if (isCurrentSession() && request === promoRequest.current) setPromoLoading(false);
     }
   }
 
   async function handleSaveAddress() {
+    if (!isCurrentSession()) return;
     if (!newRue.trim()) return;
     // Le quartier n'est plus facultatif. Sans lui, une adresse web n'est
     // situable par rien : le navigateur ne propose pas de carte, et le repli
@@ -360,6 +301,7 @@ export default function PanierPage() {
         quartierId: newQuartierId,
         landmark: newLandmark.trim() || undefined,
       });
+      if (!isCurrentSession()) return;
       setSelectedAdresseId(adresse.id);
       setShowAddressForm(false);
       setNewRue('');
@@ -367,13 +309,21 @@ export default function PanierPage() {
       setNewLandmark('');
       toast.success('Adresse enregistrée');
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Impossible d\'enregistrer l\'adresse');
     } finally {
-      setSavingAddress(false);
+      if (isCurrentSession()) setSavingAddress(false);
     }
   }
 
   async function handleCheckout() {
+    if (!isCurrentSession()) return;
+    const state = queryClient.getQueryState(checkoutQuoteQueryOptions(token, quoteDto, cartSignature).queryKey);
+    if (submitting.current || !quoteReady || !quote || queryClient.isMutating() > 0 ||
+        !checkoutCacheCurrent(state, quote)) {
+      toast.error('Attendez la validation du devis avant de commander.');
+      return;
+    }
     if (maintenance) {
       toast.error(maintenance);
       return;
@@ -417,34 +367,21 @@ export default function PanierPage() {
     });
 
     setCheckoutLoading(true);
+    submitting.current = true;
     // La forme envoyée est celle que `isValidCongoPhone` a validée — la saisie
     // brute (`+242 06 …`) faisait refuser l'encaissement après la commande.
     const phoneToSend = normalizeCongoPhone(contactPhone);
     try {
       const result = await createOrder.mutateAsync({
         paymentMethod,
-        isDelivery,
-        adresseId: isDelivery ? (selectedAdresseId ?? undefined) : undefined,
+        ...quoteDto,
         notes: notes || undefined,
         contactPhone: phoneToSend,
-        promoCode: promoResult?.valid ? promoCode : undefined,
-        // Simple intention : le serveur recalcule seul le nombre de points et
-        // la remise. Le client n'envoie jamais de valeur financière.
-        useLoyaltyPoints:
-          useLoyaltyPoints && loyaltyPoints >= pricingSettings.loyaltyMinRedemption,
-        scheduledFor: scheduledFor ? scheduledFor.toISOString() : undefined,
-        // F3-11 — l'offre affichée par le devis ; sans devis, on n'affirme
-        // rien. Si le serveur n'applique plus la même : 409, rien d'encaissé.
-        ...(quote ? { vendorOfferId: quote.vendorOffer?.id ?? null } : {}),
+        quoteFingerprint: quote.quoteFingerprint,
+        vendorOfferId: quote.vendorOffer?.id ?? null,
       });
+      if (!isCurrentSession()) return;
 
-      // Ouverture de l'encaissement dans la foulée : la demande arrive sur le
-      // téléphone du client pendant qu'il regarde encore l'écran.
-      //
-      // Un échec ici n'est **pas** fatal : la commande existe et reste payable.
-      // On renvoie dans tous les cas vers son détail, où le panneau de paiement
-      // reprend la main — c'est ce qui rend la reprise possible sans qu'aucun
-      // état ne se perde entre les deux pages.
       // `order_created` — la commande **existe** côté serveur : `mutateAsync` a
       // rendu son identifiant. Ce n'est pas le clic sur « Commander » qui est
       // compté (il échoue régulièrement : panier sous le minimum, produit
@@ -458,44 +395,13 @@ export default function PanierPage() {
         item_count: items.length,
       });
 
-      try {
-        const intent = await createPayment.mutateAsync({
-          orderId: result.id,
-          phoneNumber: phoneToSend,
-          method: paymentMethod,
-          payerMessage: `Commande ${result.id.slice(-6).toUpperCase()}`,
-        });
-        // `payment_started` — une tentative d'encaissement existe côté serveur.
-        // Unique par `paymentId` : l'appel est sûr à rejouer et le serveur
-        // réutilise alors la tentative PENDING existante, avec le même
-        // identifiant. Sans cette clé, une reprise depuis le détail de la
-        // commande compterait un second paiement lancé pour un seul débit.
-        analytics.trackOnce(
-          onceKey.paymentStarted(intent.paymentId),
-          'payment_started',
-          {
-            order_id: result.id,
-            payment_method: paymentMethod,
-            amount: intent.amount,
-            currency: CURRENCY,
-          },
-        );
-        toast.success(
-          isManualPaymentMode
-            ? 'Commande enregistrée — finalisez le virement'
-            : 'Validez la demande reçue sur votre téléphone',
-        );
-      } catch (paymentErr: unknown) {
-        const msg = (paymentErr as { message?: string }).message;
-        toast.error(
-          msg
-            ? `Commande créée, paiement à relancer : ${msg}`
-            : 'Commande créée — relancez le paiement depuis son détail',
-        );
-      }
+      toast.success(result.orderFlow === 'ACCEPT_FIRST'
+        ? 'Commande envoyée — attendez la réponse du restaurant.'
+        : 'Commande enregistrée — consultez son détail.');
 
       router.push(`/commandes/${result.id}`);
     } catch (err: unknown) {
+      if (!isCurrentSession()) return;
       // 503 : une maintenance a commencé depuis notre dernière lecture des
       // réglages (jusqu'à 60 s). Les relire affiche le bandeau et désactive
       // le bouton, au lieu d'un refus inexpliqué au prochain clic.
@@ -504,7 +410,8 @@ export default function PanierPage() {
       }
       // F3-11 — l'offre a changé depuis le récapitulatif (terminée, budget
       // épuisé, mise en pause) : on re-chiffre, le client valide le nouveau total.
-      if (err instanceof ApiError && err.code === 'VENDOR_OFFER_CHANGED') {
+      if (err instanceof ApiError && ['VENDOR_OFFER_CHANGED', 'QUOTE_CHANGED'].includes(err.code ?? '')) {
+        void queryClient.invalidateQueries({ queryKey: ['cart'] });
         void queryClient.invalidateQueries({ queryKey: ['cart', 'quote'] });
       }
       // Lot 1 — le vendeur ne propose plus le mode choisi : relire sa
@@ -517,7 +424,8 @@ export default function PanierPage() {
       const msg = (err as { message?: string }).message;
       toast.error(msg ?? 'Impossible de passer la commande');
     } finally {
-      setCheckoutLoading(false);
+      submitting.current = false;
+      if (isCurrentSession()) setCheckoutLoading(false);
     }
   }
 
@@ -900,14 +808,20 @@ export default function PanierPage() {
                   <input
                     type="text"
                     value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      promoRequest.current++;
+                      setPromoCode(e.target.value.toUpperCase());
+                      setPromoResult(null);
+                      setAppliedPromoCode(null);
+                      setPromoLoading(false);
+                    }}
                     placeholder="BIENVENUE500"
                     className="w-full pl-8 pr-3 py-2.5 text-sm border border-cream-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
                   />
                 </div>
                 <button
                   onClick={handleValidatePromo}
-                  disabled={!promoCode || promoLoading}
+                  disabled={!promoCode || promoLoading || !quoteReady}
                   className="px-3 py-2.5 bg-tomato-600 text-white text-sm font-medium rounded-xl hover:bg-tomato-700 transition-colors disabled:opacity-60"
                 >
                   {promoLoading ? '...' : 'OK'}
@@ -961,9 +875,8 @@ export default function PanierPage() {
                   Comment se passe le paiement
                 </p>
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  {isManualPaymentMode
-                    ? 'Après validation, la page de votre commande affiche le numéro et la référence du virement à effectuer. Un agent Lilia Food confirme ensuite votre paiement.'
-                    : 'Après validation, une demande de paiement arrive sur votre téléphone : saisissez votre code secret pour confirmer. Votre commande est confirmée automatiquement.'}
+                  Votre commande est d’abord enregistrée. Son détail vous indique quand le paiement est autorisé.
+                  Pour une commande soumise à acceptation, attendez l’accord du restaurant avant de payer.
                 </p>
               </div>
             </div>
@@ -972,7 +885,7 @@ export default function PanierPage() {
             {/* Le seuil vient du serveur : il est passé de 100 à 1 point avec
                 le forfait par commande, et le coder en dur aurait rendu la
                 section invisible pour tout le monde. */}
-            {loyaltyPoints >= pricingSettings.loyaltyMinRedemption && (
+            {platformSettings && loyaltyPoints >= pricingSettings.loyaltyMinRedemption && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
@@ -1049,64 +962,17 @@ export default function PanierPage() {
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between text-ink-700">
                   <span>Sous-total</span>
-                  <span>{formatCurrency(subTotal)}</span>
+                  <span>{quote ? formatCurrency(quote.subTotal) : '…'}</span>
                 </div>
-                {isDelivery && !deliveryFeeKnown && (
+                {isDelivery && (
                   <div className="flex justify-between text-ink-700">
                     <span>Livraison</span>
-                    <span className="text-ink-500">
-                      {deliveryQuartierId ? '…' : 'selon votre quartier'}
-                    </span>
+                    <span>{quote ? formatCurrency(quote.deliveryFee) : '…'}</span>
                   </div>
                 )}
-                {isDelivery && deliveryFeeKnown && (
-                  <div className="flex justify-between text-ink-700">
-                    <span>Livraison</span>
-                    {deliveryDiscount > 0 ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="line-through text-ink-500">{formatCurrency(deliveryFee)}</span>
-                        <span className="text-emerald-600 font-medium">
-                          {estimate.deliveryFee === 0 ? 'Gratuit' : formatCurrency(estimate.deliveryFee)}
-                        </span>
-                      </span>
-                    ) : vendorSubsidy > 0 ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="line-through text-ink-500">
-                          {formatCurrency(deliveryQuote?.baseFee ?? estimate.deliveryFee)}
-                        </span>
-                        <span className="text-emerald-600 font-medium">
-                          {estimate.deliveryFee === 0 ? 'Offerte' : formatCurrency(estimate.deliveryFee)}
-                        </span>
-                      </span>
-                    ) : (
-                      <span>{formatCurrency(estimate.deliveryFee)}</span>
-                    )}
-                  </div>
-                )}
-                {isDelivery && vendorSubsidy > 0 && deliveryDiscount === 0 && (
-                  <p className="text-xs text-emerald-700">
-                    {vendorRestaurant?.nom ?? 'Le vendeur'} vous offre{' '}
-                    {formatCurrency(vendorSubsidy)} sur la livraison
-                  </p>
-                )}
-                {isDelivery &&
-                  freeDeliveryThreshold != null &&
-                  vendorSubsidy === 0 &&
-                  subTotal < freeDeliveryThreshold && (
-                    <p className="text-xs text-ink-500">
-                      Livraison offerte dès {formatCurrency(freeDeliveryThreshold)} (encore{' '}
-                      {formatCurrency(freeDeliveryThreshold - subTotal)})
-                    </p>
-                  )}
                 <div className="flex justify-between text-ink-700">
                   <span>Frais de service</span>
-                  {quote || estimate.settingsKnown ? (
-                    <span>{formatCurrency(serviceFee)}</span>
-                  ) : (
-                    // Le taux est inconnu : on le dit, plutôt que d'afficher un
-                    // montant que le paiement contredirait.
-                    <span className="text-ink-500">calculés au paiement</span>
-                  )}
+                  <span>{quote ? formatCurrency(quote.serviceFee) : '…'}</span>
                 </div>
                 {vendorOffer && vendorOffer.discountXaf > 0 && (
                   <div
@@ -1133,10 +999,23 @@ export default function PanierPage() {
                 )}
                 <div className="h-px bg-cream-200 my-1" />
                 <div className="flex justify-between font-bold text-ink-900 text-base">
-                  <span>{deliveryFeeKnown ? 'Total' : 'Total hors livraison'}</span>
-                  <span>{pricingPending ? '…' : formatCurrency(total)}</span>
+                  <span>Total</span>
+                  <span>{quote ? formatCurrency(quote.total) : '…'}</span>
                 </div>
               </div>
+
+              {!quoteReady && quoteDto !== null && (
+                <div role="status" className="mt-3 text-sm text-amber-800">
+                  <p>{cartError
+                    ? 'Impossible de vérifier votre panier. Rechargez-le avant de commander.'
+                    : quoteQuery.isError
+                      ? (quoteQuery.error instanceof Error ? quoteQuery.error.message : 'Le devis est indisponible.')
+                      : 'Vérification du montant de votre commande…'}</p>
+                  {cartError
+                    ? <button type="button" className="mt-2 underline" disabled={cartFetching} onClick={() => void refetchCart()}>Recharger le panier</button>
+                    : quoteQuery.isError && <button type="button" className="mt-2 underline" onClick={() => void quoteQuery.refetch()}>Réessayer le devis</button>}
+                </div>
+              )}
 
               {/* Validation hint */}
               {minimumError && (
@@ -1160,7 +1039,7 @@ export default function PanierPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={!!maintenance || vendorServesNobody || checkoutLoading || isEmpty || pricingPending || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
+                disabled={!!maintenance || vendorServesNobody || checkoutLoading || isEmpty || !quoteReady || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutLoading ? (

@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '../session-query';
 import type { AdminVendorOffer, VendorOfferStatus } from '@lilia/types';
 import { apiClient, apiClientRaw } from '../client';
 
@@ -21,16 +22,16 @@ export interface AdminVendorOffersPage {
 }
 
 export function useAdminVendorOffers(
-  token: string | null,
+  token: AuthCredential | null,
   status: VendorOfferStatus | null,
   page = 1,
 ) {
   return useQuery({
     queryKey: vendorOfferKeys.list(status, page),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (status) params.set('status', status);
-      return apiClientRaw<AdminVendorOffersPage>(`/admin/offers?${params.toString()}`, {
+      return apiClientRaw<AdminVendorOffersPage>(`/admin/offers?${params.toString()}`, { signal,
         token,
       });
     },
@@ -40,7 +41,7 @@ export function useAdminVendorOffers(
   });
 }
 
-export function useStopVendorOffer(token: string | null) {
+export function useStopVendorOffer(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>

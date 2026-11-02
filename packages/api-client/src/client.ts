@@ -1,3 +1,4 @@
+import { assertCurrentSession, sessionSignal, type AuthCredential } from './auth-session';
 import { installationHeaders } from './installation-id';
 import { resolveApiUrl, serverSideExplicit } from './api-url';
 
@@ -44,7 +45,7 @@ const PAYMENT_FLOW_CAPABILITY = 'provider';
 export const MAX_PAGE_SIZE = 100;
 
 type FetchOptions = RequestInit & {
-  token?: string | null;
+  token?: AuthCredential | null;
 };
 
 export class ApiError extends Error {
@@ -134,6 +135,7 @@ function orderFlowHeaders(): Record<string, string> {
 
 export async function apiClient<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, ...fetchOptions } = options;
+  assertCurrentSession(token);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -144,11 +146,12 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
     // comme absent. ⚠️ Tout en-tête ajouté ici doit l'être aussi dans
     // `lilia-backend/apps/lilia-app/src/common/http/cors-headers.ts`.
     ...installationHeaders(),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${typeof token === 'string' ? token : token.getToken()}` } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };
 
-  const response = await fetch(`${API_URL}${path}`, {
+  assertCurrentSession(token);
+  const response = await sessionFetch(`${API_URL}${path}`, token, {
     ...fetchOptions,
     headers,
   });
@@ -157,7 +160,7 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
     throw await toApiError(response);
   }
 
-  const json: unknown = await response.json();
+  const json: unknown = await sessionBody(response, token);
 
   if (json !== null && typeof json === 'object' && 'data' in json) {
     return (json as { data: T }).data;
@@ -184,6 +187,7 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
  */
 export async function apiClientRaw<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, ...fetchOptions } = options;
+  assertCurrentSession(token);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -194,11 +198,12 @@ export async function apiClientRaw<T>(path: string, options: FetchOptions = {}):
     // comme absent. ⚠️ Tout en-tête ajouté ici doit l'être aussi dans
     // `lilia-backend/apps/lilia-app/src/common/http/cors-headers.ts`.
     ...installationHeaders(),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${typeof token === 'string' ? token : token.getToken()}` } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };
 
-  const response = await fetch(`${API_URL}${path}`, {
+  assertCurrentSession(token);
+  const response = await sessionFetch(`${API_URL}${path}`, token, {
     ...fetchOptions,
     headers,
   });
@@ -207,5 +212,67 @@ export async function apiClientRaw<T>(path: string, options: FetchOptions = {}):
     throw await toApiError(response);
   }
 
-  return (await response.json()) as T;
+  const json = (await sessionBody(response, token)) as T;
+  return json;
+}
+
+/** Fetch with session fencing; only read requests may retry after token refresh. */
+export async function sessionFetch(url: string, token: AuthCredential | null | undefined, options: RequestInit = {}): Promise<Response> {
+  assertCurrentSession(token);
+  const credential = token && typeof token !== 'string' ? token : undefined;
+  const sentToken = credential?.getToken();
+  const signal = sessionSignal(token, options.signal);
+  const send = async (refreshed?: string) => {
+    assertCurrentSession(token);
+    const headers = new Headers(options.headers);
+    const needsAuthorization = Boolean(token) && !headers.has('Authorization');
+    if (credential) headers.set('Authorization', `Bearer ${credential.getToken()}`);
+    else if (typeof token === 'string' && needsAuthorization) headers.set('Authorization', `Bearer ${token}`);
+    if (refreshed) headers.set('Authorization', `Bearer ${refreshed}`);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal,
+        ...(refreshed || credential || needsAuthorization ? { headers } : {}),
+      });
+      assertCurrentSession(token);
+      return response;
+    } catch (error) {
+      assertCurrentSession(token);
+      throw error;
+    }
+  };
+  let response = await send();
+  if (!credential || response.ok) return response;
+  let error = await toApiError(response);
+  assertCurrentSession(token);
+  const authCode = error.code === 'ACCOUNT_REVOKED' || error.code === 'ACCOUNT_NOT_SYNCED';
+  const read = ['GET', 'HEAD'].includes((options.method ?? 'GET').toUpperCase());
+  if (error.status === 401 && !authCode && read) {
+    let refreshed: string;
+    try {
+      // A delayed 401 may belong to the token another request already replaced.
+      const currentToken = credential.getToken();
+      refreshed = currentToken !== sentToken ? currentToken : await credential.refresh();
+    } finally {
+      assertCurrentSession(token);
+    }
+    response = await send(refreshed);
+    if (response.ok) return response;
+    error = await toApiError(response);
+    assertCurrentSession(token);
+  }
+  if (error.status === 401 || error.code === 'ACCOUNT_REVOKED' || error.code === 'ACCOUNT_NOT_SYNCED') {
+    await credential.onAuthError(error);
+    assertCurrentSession(token);
+  }
+  throw error;
+}
+
+async function sessionBody(response: Response, token: AuthCredential | null | undefined): Promise<unknown> {
+  try {
+    return await response.json();
+  } finally {
+    assertCurrentSession(token);
+  }
 }

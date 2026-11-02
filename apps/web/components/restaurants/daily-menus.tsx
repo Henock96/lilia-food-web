@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import type { MenuDuJour } from '@lilia/types';
 import { coverImage, formatCurrency } from '@lilia/utils';
 import { useAddMenuToCart } from '@lilia/api-client';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { analytics } from '@/lib/analytics';
 
 /**
@@ -62,7 +62,8 @@ function MenuCard({
   menu: MenuDuJour;
   restaurantOpen: boolean;
 }) {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const addMenu = useAddMenuToCart(token);
   const [added, setAdded] = useState(false);
 
@@ -82,12 +83,14 @@ function MenuCard({
       : (menu.ingredients ?? null);
 
   async function handleAdd() {
+    if (!isCurrentSession()) return;
     if (!token) {
       toast.error('Connectez-vous pour ajouter au panier');
       return;
     }
     try {
       await addMenu.mutateAsync({ menuId: menu.id, quantite: 1 });
+      if (!isCurrentSession()) return;
       // `add_to_cart` émis **après** l'acceptation du serveur, comme sur les
       // produits : compter le clic ferait apparaître des ajouts qui n'ont pas
       // eu lieu, et le tunnel décrocherait sans raison visible.
@@ -99,9 +102,10 @@ function MenuCard({
         quantity: 1,
       });
       setAdded(true);
-      setTimeout(() => setAdded(false), 2000);
+      setTimeout(() => { if (isCurrentSession()) setAdded(false); }, 2000);
       toast.success(`${menu.nom} ajouté au panier`);
     } catch (err: unknown) {
+      if (!isCurrentSession()) return;
       // Le message du serveur dit ce qui ne va pas (« panier d'un autre
       // vendeur », « menu épuisé ») ; un libellé maison ne ferait que
       // constater l'échec.
