@@ -3,13 +3,13 @@
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession } from '@/lib/auth-session';
 import { useFavorites } from '@lilia/api-client';
 import { VendorCard } from '@/components/restaurants/vendor-card';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
 
 export default function FavorisPage() {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
   const { data: favorites, isLoading, isError } = useFavorites(token);
 
   return (

@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   AdminDriverDetail,
   AdminDriverListItem,
@@ -32,12 +33,12 @@ export const adminDriverKeys = {
 };
 
 export function useAdminDrivers(
-  token: string | null,
+  token: AuthCredential | null,
   filters: DriverFilters = {},
 ) {
   return useQuery({
     queryKey: adminDriverKeys.list(filters),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams();
       if (filters.search) params.set('search', filters.search);
       if (filters.isActive !== undefined)
@@ -48,7 +49,7 @@ export function useAdminDrivers(
       params.set('limit', String(filters.limit ?? 20));
       return apiClientRaw<Paginated<AdminDriverListItem>>(
         `/admin/drivers?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token,
@@ -57,10 +58,10 @@ export function useAdminDrivers(
   });
 }
 
-export function useAdminDriver(token: string | null, id: string | null) {
+export function useAdminDriver(token: AuthCredential | null, id: string | null) {
   return useQuery({
     queryKey: adminDriverKeys.detail(id ?? ''),
-    queryFn: () => apiClient<AdminDriverDetail>(`/admin/drivers/${id}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<AdminDriverDetail>(`/admin/drivers/${id}`, { signal, token }),
     enabled: !!token && !!id,
   });
 }
@@ -73,7 +74,7 @@ export function useAdminDriver(token: string | null, id: string | null) {
  * lui-même. C'est un repli assumé — l'alternative serait un livreur sans accès
  * et personne pour le débloquer.
  */
-export function useCreateDriver(token: string | null) {
+export function useCreateDriver(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateDriverDto) =>
@@ -88,7 +89,7 @@ export function useCreateDriver(token: string | null) {
   });
 }
 
-export function useUpdateDriver(token: string | null) {
+export function useUpdateDriver(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateDriverDto }) =>
@@ -105,7 +106,7 @@ export function useUpdateDriver(token: string | null) {
 }
 
 /** Met le livreur en service. Refusé par le serveur si son compte est suspendu. */
-export function useActivateDriver(token: string | null) {
+export function useActivateDriver(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -121,7 +122,7 @@ export function useActivateDriver(token: string | null) {
 }
 
 /** Retire le livreur de la file d'assignation. Refusé s'il a une course en cours. */
-export function useDeactivateDriver(token: string | null) {
+export function useDeactivateDriver(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
@@ -137,7 +138,7 @@ export function useDeactivateDriver(token: string | null) {
   });
 }
 
-export function useResendDriverInvitation(token: string | null) {
+export function useResendDriverInvitation(token: AuthCredential | null) {
   return useMutation({
     mutationFn: (id: string) =>
       apiClient<{ emailSent: boolean; activationLink?: string; detail: string }>(

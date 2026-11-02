@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type {
   CreateVendorOnboardingDto,
   CreateVendorResponse,
@@ -43,11 +44,11 @@ function invalidateVendor(
 }
 
 /** Checklist « prêt à vendre » — source de vérité du wizard. */
-export function useVendorOnboarding(token: string | null, vendorId: string | null) {
+export function useVendorOnboarding(token: AuthCredential | null, vendorId: string | null) {
   return useQuery({
     queryKey: onboardingKeys.state(vendorId ?? ''),
-    queryFn: () =>
-      apiClient<OnboardingReport>(`/vendors/${vendorId}/onboarding`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<OnboardingReport>(`/vendors/${vendorId}/onboarding`, { signal, token }),
     enabled: !!token && !!vendorId,
     // Pas de `staleTime` : la checklist doit refléter la dernière écriture, y
     // compris celles faites depuis un autre écran (catalogue, photos).
@@ -56,13 +57,13 @@ export function useVendorOnboarding(token: string | null, vendorId: string | nul
 }
 
 /** Aperçu de la boutique telle que le client la verra. */
-export function useVendorPreview(token: string | null, vendorId: string | null) {
+export function useVendorPreview(token: AuthCredential | null, vendorId: string | null) {
   return useQuery({
     queryKey: onboardingKeys.preview(vendorId ?? ''),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClient<{ vendor: Restaurant; readiness: OnboardingReport | null }>(
         `/vendors/${vendorId}/preview`,
-        { token },
+        { signal, token },
       ),
     enabled: !!token && !!vendorId,
     staleTime: 0,
@@ -83,9 +84,9 @@ export function createVendorRequest({
   idempotencyKey,
 }: {
   dto: CreateVendorOnboardingDto;
-  token: string | null;
+  token: AuthCredential | null;
   idempotencyKey: string;
-}): { path: string; init: RequestInit & { token: string | null } } {
+}): { path: string; init: RequestInit & { token: AuthCredential | null } } {
   if (!idempotencyKey.trim()) {
     // Fabriquer une clé ici rétablirait exactement le défaut d'origine, sans
     // que rien ne le signale. Mieux vaut échouer chez l'appelant.
@@ -121,7 +122,7 @@ export function createVendorRequest({
  * (`vendor-onboarding.controller.ts`) ; c'est le client qui désarmait la garde.
  */
 export function useCreateVendorOnboarding(
-  token: string | null,
+  token: AuthCredential | null,
   idempotencyKey: string,
 ) {
   const queryClient = useQueryClient();
@@ -140,7 +141,7 @@ export function useCreateVendorOnboarding(
 
 /** Fabrique les mutations de section — même forme pour les quatre. */
 function useSectionMutation<TDto>(
-  token: string | null,
+  token: AuthCredential | null,
   vendorId: string | null,
   path: string,
 ) {
@@ -178,7 +179,7 @@ export const useUpdateVendorHours = (t: string | null, id: string | null) =>
   useSectionMutation<VendorHoursInput>(t, id, 'hours');
 
 /** Étape 7 — commission et paramètres commerciaux. ADMIN uniquement. */
-export function useUpdateVendorCommerce(token: string | null, vendorId: string | null) {
+export function useUpdateVendorCommerce(token: AuthCredential | null, vendorId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: UpdateVendorCommerceDto) =>
@@ -200,7 +201,7 @@ export function useUpdateVendorCommerce(token: string | null, vendorId: string |
  * plutôt que d'envoyer d'emblée.
  */
 export function useActivateVendorOnboarding(
-  token: string | null,
+  token: AuthCredential | null,
   vendorId: string | null,
 ) {
   const queryClient = useQueryClient();
@@ -219,7 +220,7 @@ export function useActivateVendorOnboarding(
 }
 
 /** Renvoie l'invitation d'activation au propriétaire. */
-export function useResendVendorInvitation(token: string | null) {
+export function useResendVendorInvitation(token: AuthCredential | null) {
   return useMutation({
     mutationFn: (vendorId: string) =>
       apiClient<{ emailSent: boolean; activationLink?: string; detail: string }>(

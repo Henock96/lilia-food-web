@@ -5,12 +5,12 @@ import { ArrowLeft, ChevronRight, MessageSquare } from 'lucide-react';
 import { useClaims } from '@lilia/api-client';
 import { formatDateTime } from '@lilia/utils';
 
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession } from '@/lib/auth-session';
 import { claimReasonLabel, claimStatusLabel } from '@/lib/claims';
 
 /** « Mes demandes » (F3-06) : les réclamations du client et leur issue. */
 export default function DemandesPage() {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
   const { data, isLoading, error } = useClaims(token, { scope: 'mine' });
 
   return (

@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   AdminUserDetail,
   AdminUserFilters,
@@ -32,12 +33,12 @@ export const adminUserKeys = {
 };
 
 export function useAdminUsers(
-  token: string | null,
+  token: AuthCredential | null,
   filters: AdminUserFilters = {},
 ) {
   return useQuery({
     queryKey: adminUserKeys.list(filters),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams();
       if (filters.role) params.set('role', filters.role);
       if (filters.statusUser) params.set('statusUser', filters.statusUser);
@@ -48,7 +49,7 @@ export function useAdminUsers(
       // historique, non encore migrée vers `meta`. D'où `apiClientRaw`.
       return apiClientRaw<PaginatedResponse<AdminUserListItem>>(
         `/admin/users?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token,
@@ -57,10 +58,10 @@ export function useAdminUsers(
   });
 }
 
-export function useAdminUser(token: string | null, id: string | null) {
+export function useAdminUser(token: AuthCredential | null, id: string | null) {
   return useQuery({
     queryKey: adminUserKeys.detail(id ?? ''),
-    queryFn: () => apiClient<AdminUserDetail>(`/admin/users/${id}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<AdminUserDetail>(`/admin/users/${id}`, { signal, token }),
     enabled: !!token && !!id,
   });
 }
@@ -73,7 +74,7 @@ export function useAdminUser(token: string | null, id: string | null) {
  * prétendre avoir réussi. Les caches livreurs et vendeurs sont invalidés :
  * un changement de rôle déplace le compte d'une liste à l'autre.
  */
-export function useUpdateUserRole(token: string | null) {
+export function useUpdateUserRole(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, role }: { id: string; role: Role }) =>
@@ -96,7 +97,7 @@ export function useUpdateUserRole(token: string | null) {
  * tokens révoqués. Ce n'est **pas** une suppression — les commandes et
  * paiements du compte restent intacts.
  */
-export function useBanUser(token: string | null) {
+export function useBanUser(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
@@ -113,7 +114,7 @@ export function useBanUser(token: string | null) {
   });
 }
 
-export function useUnbanUser(token: string | null) {
+export function useUnbanUser(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>

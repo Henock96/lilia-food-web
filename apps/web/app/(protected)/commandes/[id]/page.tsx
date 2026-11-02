@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw, Download, ThumbsUp } from 'lucide-react';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia/api-client';
 import type { OrderStatus } from '@lilia/types';
 import { formatLineOptions, formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
@@ -35,7 +35,8 @@ const STEP_ICONS: Partial<Record<OrderStatus, React.ElementType>> = {
 
 function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const { data: order, isLoading } = useOrder(id, token);
   const cancelOrder = useCancelOrder(token);
   const reorder = useReorder(token);
@@ -43,29 +44,38 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
 
   async function handleCancel() {
+    if (!isCurrentSession()) return;
     if (!confirm('Annuler cette commande ?')) return;
     try {
       await cancelOrder.mutateAsync(id);
+      if (!isCurrentSession()) return;
       toast.success('Commande annulée');
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Impossible d\'annuler la commande');
     }
   }
 
   async function handleReorder() {
+    if (!isCurrentSession()) return;
     try {
       await reorder.mutateAsync(id);
+      if (!isCurrentSession()) return;
       toast.success('Articles ajoutés au panier !');
       router.push('/panier');
     } catch {
+      if (!isCurrentSession()) return;
       toast.error('Impossible de recommander cette commande');
     }
   }
 
   async function handleDownloadReceipt() {
+    if (!isCurrentSession()) return;
     try {
       await downloadReceipt.mutateAsync(id);
+      if (!isCurrentSession()) return;
     } catch (e) {
+      if (!isCurrentSession()) return;
       toast.error(e instanceof Error ? e.message : 'Impossible de générer le reçu');
     }
   }
@@ -200,12 +210,24 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
         </div>
       )}
 
+      {order.status === 'DEMANDE_ENVOYEE' && (
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm text-amber-800">
+          Votre demande a été envoyée au restaurant. Vous pourrez payer après son acceptation.
+        </div>
+      )}
+      {order.orderFlow === 'ACCEPT_FIRST' && order.status === 'EN_ATTENTE' && order.acceptedAt && (
+        <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 mb-4 text-sm text-emerald-800">
+          Le restaurant a accepté votre commande. Le paiement doit être confirmé avant sa préparation.
+        </div>
+      )}
+
       {/* Paiement — placé au-dessus du détail : sur une commande EN_ATTENTE,
           c'est la seule action qui compte et elle doit être visible sans
           défiler. Le panneau se retire de lui-même quand il n'a rien à dire. */}
       <PaymentPanel
         orderId={order.id}
         orderStatus={order.status}
+        paymentAllowed={order.paymentAllowed}
         orderTotal={order.total}
         orderMethod={order.paymentMethod}
         contactPhone={order.contactPhone}

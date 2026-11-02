@@ -1,23 +1,76 @@
-// Helpers de session : posent/suppriment le cookie HttpOnly `firebase-token`
-// via la route serveur /api/auth/session (le cookie n'est plus manipulé en
-// clair via document.cookie côté client — protection XSS).
+export type SessionCookieResult = 'applied' | 'obsolete';
 
-export async function setSessionCookie(token: string): Promise<void> {
-  try {
-    await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    });
-  } catch {
-    // best-effort : si la pose échoue, le proxy redirigera vers /connexion
-  }
+export interface SessionCookieIntent {
+  token: string | null;
+  /** Vérifie la génération ET auth.currentUser, aussi après attente du verrou. */
+  isCurrent: () => boolean;
 }
 
-export async function clearSessionCookie(): Promise<void> {
-  try {
-    await fetch('/api/auth/session', { method: 'DELETE' });
-  } catch {
-    // best-effort
-  }
+type CookieWork = () => Promise<SessionCookieResult>;
+
+interface CookieCoordinatorOptions {
+  fetch?: typeof fetch;
+  withLock?: (work: CookieWork) => Promise<SessionCookieResult>;
 }
+
+const COOKIE_LOCK = 'lilia-session-cookie';
+
+async function browserLock(work: CookieWork): Promise<SessionCookieResult> {
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return await navigator.locks.request(COOKIE_LOCK, work);
+  }
+  // Sans Web Locks, seule la file de cet onglet est garantie. Le cookie est
+  // un indicateur de navigation ; il n'autorise jamais l'accès aux données.
+  return work();
+}
+
+/**
+ * Writer unique du cookie de navigation. Chaque onglet sérialise ses intentions
+ * et Web Locks sérialise les requêtes entre onglets de même origine compatibles.
+ * Aucun token n'est transmis à un autre onglet.
+ *
+ * Ne pas interrompre une écriture envoyée pour lancer la suivante : ignorer une
+ * promesse n'annule pas un Set-Cookie. L'appelant doit soumettre la nouvelle
+ * intention même si l'ancienne est encore en cours. Une panne réseau laisse
+ * l'issue du cookie incertaine : la promesse rejette, sans annoncer de succès,
+ * et la prochaine intention peut réconcilier l'état. Ce protocole ne garantit
+ * pas l'ordre après crash d'un onglet ou en l'absence de Web Locks.
+ * Web Locks garantit l'exclusion, pas la dernière intention globale : si la
+ * propagation Firebase entre onglets est retardée, la cohérence est seulement
+ * convergente après réception des changements d'identité par tous les onglets.
+ */
+export function createSessionCookieCoordinator(options: CookieCoordinatorOptions = {}) {
+  const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const withLock = options.withLock ?? browserLock;
+  let queue: Promise<unknown> = Promise.resolve();
+
+  return {
+    reconcile(intent: SessionCookieIntent): Promise<SessionCookieResult> {
+      const operation = queue.then(() => {
+        if (!intent.isCurrent()) return 'obsolete' as const;
+        return withLock(async () => {
+          if (!intent.isCurrent()) return 'obsolete';
+          const response = await send('/api/auth/session', intent.token === null
+            ? { method: 'DELETE' }
+            : {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: intent.token }),
+              });
+          if (!response.ok) {
+            throw new Error(`Écriture du cookie de session refusée (${response.status})`);
+          }
+          // Set-Cookie peut déjà être appliqué. Cette valeur interdit seulement
+          // une navigation obsolète ; l'intention suivante corrige le cookie.
+          return intent.isCurrent() ? 'applied' : 'obsolete';
+        });
+      });
+      queue = operation.catch(() => undefined);
+      return operation;
+    },
+  };
+}
+
+const sessionCookies = createSessionCookieCoordinator();
+
+export const reconcileSessionCookie = sessionCookies.reconcile;

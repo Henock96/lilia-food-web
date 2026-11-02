@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../session-query';
 import type {
   DashboardOverview,
   DashboardOrderStats,
@@ -25,12 +26,12 @@ export const dashboardKeys = {
 };
 
 export interface RestaurantRankingQuery {
-  token: string | null;
+  token: AuthCredential | null;
   /** La route est `@Roles('ADMIN')` : un vendeur y recevrait un 403. */
   isAdmin: boolean;
   period?: 'today' | 'week' | 'month' | 'year';
   /** Point d'injection des tests : la requête doit être exécutable sans React. */
-  fetchRanking?: (path: string) => Promise<RestaurantRankingRow[] | undefined>;
+  fetchRanking?: (path: string, signal?: AbortSignal) => Promise<RestaurantRankingRow[] | undefined>;
 }
 
 /**
@@ -56,16 +57,16 @@ export function restaurantRankingQueryOptions({
   token,
   isAdmin,
   period,
-  fetchRanking = (path) =>
-    apiClient<RestaurantRankingRow[] | undefined>(path, { token }),
+  fetchRanking = (path, signal) =>
+    apiClient<RestaurantRankingRow[] | undefined>(path, { token, signal }),
 }: RestaurantRankingQuery) {
   return {
     queryKey: dashboardKeys.restaurantRanking(period),
-    queryFn: async (): Promise<RestaurantRankingRow[]> => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<RestaurantRankingRow[]> => {
       const query = period ? `?period=${period}` : '';
       // Le tableau de bord itère directement le résultat : un `undefined` y
       // produirait un écran blanc au lieu d'un « aucune vente ».
-      return (await fetchRanking(`/dashboard/restaurant-ranking${query}`)) ?? [];
+      return (await fetchRanking(`/dashboard/restaurant-ranking${query}`, signal)) ?? [];
     },
     enabled: !!token && isAdmin,
     staleTime: 60 * 1000,
@@ -73,28 +74,28 @@ export function restaurantRankingQueryOptions({
 }
 
 export function useRestaurantRanking(
-  token: string | null,
+  token: AuthCredential | null,
   isAdmin: boolean,
   period?: 'today' | 'week' | 'month' | 'year',
 ) {
   return useQuery(restaurantRankingQueryOptions({ token, isAdmin, period }));
 }
 
-export function useDashboardOverview(token: string | null) {
+export function useDashboardOverview(token: AuthCredential | null) {
   return useQuery({
     queryKey: dashboardKeys.overview(),
-    queryFn: () => apiClient<DashboardOverview>('/dashboard/overview', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<DashboardOverview>('/dashboard/overview', { signal, token }),
     enabled: !!token,
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });
 }
 
-export function useDashboardOrderStats(token: string | null) {
+export function useDashboardOrderStats(token: AuthCredential | null) {
   return useQuery({
     queryKey: dashboardKeys.orders(),
-    queryFn: async () => {
-      const res = await apiClient<DashboardOrderStats[] | { data: DashboardOrderStats[] }>('/dashboard/orders', { token });
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const res = await apiClient<DashboardOrderStats[] | { data: DashboardOrderStats[] }>('/dashboard/orders', { signal, token });
       return Array.isArray(res) ? res : (res as { data: DashboardOrderStats[] }).data ?? [];
     },
     enabled: !!token,
@@ -102,11 +103,11 @@ export function useDashboardOrderStats(token: string | null) {
   });
 }
 
-export function useTopProducts(token: string | null) {
+export function useTopProducts(token: AuthCredential | null) {
   return useQuery({
     queryKey: dashboardKeys.topProducts(),
-    queryFn: async () => {
-      const res = await apiClient<TopProduct[] | { data: TopProduct[] }>('/dashboard/top-products', { token });
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const res = await apiClient<TopProduct[] | { data: TopProduct[] }>('/dashboard/top-products', { signal, token });
       return Array.isArray(res) ? res : (res as { data: TopProduct[] }).data ?? [];
     },
     enabled: !!token,
@@ -121,39 +122,39 @@ export function useTopProducts(token: string | null) {
  * tableau de bord était vide en permanence, sans message d'erreur (React Query
  * garde l'état `error` sans que rien ne l'affiche).
  */
-export function useRevenueChart(token: string | null, days = 30) {
+export function useRevenueChart(token: AuthCredential | null, days = 30) {
   return useQuery({
     queryKey: [...dashboardKeys.revenue(), days] as const,
-    queryFn: () =>
-      apiClient<RevenueDataPoint[]>(`/dashboard/revenue-chart?days=${days}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<RevenueDataPoint[]>(`/dashboard/revenue-chart?days=${days}`, { signal, token }),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useClientStats(token: string | null) {
+export function useClientStats(token: AuthCredential | null) {
   return useQuery({
     queryKey: dashboardKeys.clients(),
-    queryFn: () => apiClient<ClientStats>('/dashboard/clients', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<ClientStats>('/dashboard/clients', { signal, token }),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useClientDetail(clientId: string | null, token: string | null) {
+export function useClientDetail(clientId: string | null, token: AuthCredential | null) {
   return useQuery({
     queryKey: [...dashboardKeys.clients(), clientId] as const,
-    queryFn: () => apiClient<unknown>(`/dashboard/clients/${clientId}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<unknown>(`/dashboard/clients/${clientId}`, { signal, token }),
     enabled: !!clientId && !!token,
     staleTime: 2 * 60 * 1000,
   });
 }
 
-export function usePeakHours(token: string | null) {
+export function usePeakHours(token: AuthCredential | null) {
   return useQuery({
     queryKey: dashboardKeys.peakHours(),
-    queryFn: async () => {
-      const res = await apiClient<PeakHourData[] | { data: PeakHourData[] }>('/dashboard/peak-hours', { token });
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
+      const res = await apiClient<PeakHourData[] | { data: PeakHourData[] }>('/dashboard/peak-hours', { signal, token });
       return Array.isArray(res) ? res : (res as { data: PeakHourData[] }).data ?? [];
     },
     enabled: !!token,

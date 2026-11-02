@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   AdminAccount,
   AdminCapability,
@@ -23,15 +24,15 @@ export const approvalKeys = {
  * minute : une demande non traitée expire au bout de 24 h.
  */
 export function useApprovals(
-  token: string | null,
+  token: AuthCredential | null,
   status: ApprovalStatus | 'ALL' = 'PENDING',
 ) {
   return useQuery({
     queryKey: approvalKeys.list(status),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClient<FinancialApproval[]>(
         status === 'ALL' ? '/admin/approvals' : `/admin/approvals?status=${status}`,
-        { token },
+        { signal, token },
       ),
     enabled: !!token,
     refetchInterval: 60_000,
@@ -39,7 +40,7 @@ export function useApprovals(
 }
 
 /** Approuver EXÉCUTE le geste (numéro appliqué, remboursement envoyé…). */
-export function useApproveApproval(token: string | null) {
+export function useApproveApproval(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -54,7 +55,7 @@ export function useApproveApproval(token: string | null) {
 }
 
 /** Refuser (autre admin) ou retirer sa propre demande. Motif obligatoire. */
-export function useRejectApproval(token: string | null) {
+export function useRejectApproval(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
@@ -69,17 +70,17 @@ export function useRejectApproval(token: string | null) {
   });
 }
 
-export function useAdminAccounts(token: string | null) {
+export function useAdminAccounts(token: AuthCredential | null) {
   return useQuery({
     queryKey: approvalKeys.admins,
-    queryFn: () => apiClient<AdminAccount[]>('/admin/admins', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<AdminAccount[]>('/admin/admins', { signal, token }),
     enabled: !!token,
     staleTime: 5 * 60_000,
   });
 }
 
 /** Demander un changement de capacités : rien ne change avant un second admin. */
-export function useRequestCapabilities(token: string | null) {
+export function useRequestCapabilities(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -105,7 +106,7 @@ export function useRequestCapabilities(token: string | null) {
  * commission par défaut, points, versements, tarification). Rien ne change
  * avant l'approbation d'un second administrateur.
  */
-export function useRequestFinancialSettingsChange(token: string | null) {
+export function useRequestFinancialSettingsChange(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: FinancialSettingsChangePayload) =>
@@ -121,7 +122,7 @@ export function useRequestFinancialSettingsChange(token: string | null) {
 }
 
 /** R-09 — demander une nouvelle commission pour un vendeur (`null` = taux plateforme). */
-export function useRequestVendorCommissionChange(token: string | null) {
+export function useRequestVendorCommissionChange(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({

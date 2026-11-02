@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   Incident,
   IncidentSeverity,
@@ -34,12 +35,12 @@ export interface IncidentsFilters {
  * `total` au déballage.
  */
 export function useIncidents(
-  token: string | null,
+  token: AuthCredential | null,
   filters: IncidentsFilters,
 ) {
   return useQuery({
     queryKey: incidentKeys.list(filters),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams();
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String((filters.page - 1) * PAGE_SIZE));
@@ -50,7 +51,7 @@ export function useIncidents(
       // (interceptor règle 3b). `apiClientRaw` préserve l'enveloppe.
       return apiClientRaw<PaginatedIncidents>(
         `/incidents?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token,
@@ -60,10 +61,10 @@ export function useIncidents(
 }
 
 /** Détail d'un incident (`GET /incidents/:id`). */
-export function useIncident(token: string | null, id: string) {
+export function useIncident(token: AuthCredential | null, id: string) {
   return useQuery({
     queryKey: incidentKeys.detail(id),
-    queryFn: () => apiClient<Incident>(`/incidents/${id}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Incident>(`/incidents/${id}`, { signal, token }),
     enabled: !!token && !!id,
   });
 }
@@ -78,7 +79,7 @@ export interface UpdateIncidentDto {
  * Le backend stamp `resolvedBy` et `resolvedAt` automatiquement quand le
  * status passe à RESOLVED ou CLOSED.
  */
-export function useUpdateIncident(token: string | null, id: string) {
+export function useUpdateIncident(token: AuthCredential | null, id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: UpdateIncidentDto) =>
@@ -125,7 +126,7 @@ export function reportOrderIssueRequest(
  * Le client signale un problème sur SA commande. Le serveur ouvre un incident
  * (un seul ouvert par commande) et prévient l'équipe.
  */
-export function useReportOrderIssue(token: string | null) {
+export function useReportOrderIssue(token: AuthCredential | null) {
   return useMutation({
     mutationFn: ({
       orderId,

@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { CartDrawer } from '@/components/layout/cart-drawer';
 import { SkipLink } from '@/components/ui/skip-link';
+import { SessionBoundary } from '@/components/session-boundary';
 
 // Espace personnel : panier, commandes, favoris, profil. Rien à indexer, et
 // `robots.txt` seul ne suffit pas — une page peut être indexée sans être
@@ -18,7 +19,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <Header />
       <CartDrawer />
       <main id="contenu" className="min-h-screen">
-        {children}
+        <SessionBoundary>{children}</SessionBoundary>
       </main>
       <Footer />
     </>

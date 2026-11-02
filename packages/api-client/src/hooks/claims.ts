@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   ClaimDetail,
   ClaimsPage,
@@ -58,7 +59,7 @@ export function claimsListPath(
 }
 
 export function useClaims(
-  token: string | null,
+  token: AuthCredential | null,
   {
     scope = 'all',
     page = 1,
@@ -67,8 +68,8 @@ export function useClaims(
 ) {
   return useQuery({
     queryKey: claimKeys.list(scope, page, state),
-    queryFn: () =>
-      apiClientRaw<ClaimsPage>(claimsListPath(scope, page, state), { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClientRaw<ClaimsPage>(claimsListPath(scope, page, state), { signal, token }),
     enabled: !!token,
     staleTime: 15 * 1000,
     placeholderData: keepPreviousData,
@@ -76,13 +77,13 @@ export function useClaims(
 }
 
 /** Réclamations ouvertes — badge de navigation (lit `meta.total`). */
-export function useOpenClaimsCount(token: string | null) {
+export function useOpenClaimsCount(token: AuthCredential | null) {
   return useQuery({
     queryKey: claimKeys.openCount(),
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClientRaw<Partial<ClaimsPage>>(
         '/claims?page=1&limit=1&state=open',
-        { token },
+        { signal, token },
       );
       return res.meta?.total ?? 0;
     },
@@ -92,17 +93,17 @@ export function useOpenClaimsCount(token: string | null) {
 }
 
 /** Fil d'une réclamation, rafraîchi toutes les 30 s tant qu'elle est ouverte. */
-export function useClaim(token: string | null, id: string) {
+export function useClaim(token: AuthCredential | null, id: string) {
   return useQuery({
     queryKey: claimKeys.detail(id),
-    queryFn: () => apiClient<ClaimDetail>(`/claims/${id}`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<ClaimDetail>(`/claims/${id}`, { signal, token }),
     enabled: !!token && !!id,
     refetchInterval: (query) =>
       query.state.data?.status === 'CLOSED' ? false : CLAIM_THREAD_POLL_MS,
   });
 }
 
-export function useOpenClaim(token: string | null, orderId: string) {
+export function useOpenClaim(token: AuthCredential | null, orderId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateClaimInput) =>
@@ -117,7 +118,7 @@ export function useOpenClaim(token: string | null, orderId: string) {
   });
 }
 
-export function usePostClaimMessage(token: string | null, claimId: string) {
+export function usePostClaimMessage(token: AuthCredential | null, claimId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: {
@@ -136,7 +137,7 @@ export function usePostClaimMessage(token: string | null, claimId: string) {
   });
 }
 
-export function useIssueVoucher(token: string | null, claimId: string) {
+export function useIssueVoucher(token: AuthCredential | null, claimId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { amountXaf: number; expiresInDays?: number }) =>
@@ -150,7 +151,7 @@ export function useIssueVoucher(token: string | null, claimId: string) {
   });
 }
 
-export function useRejectClaim(token: string | null, claimId: string) {
+export function useRejectClaim(token: AuthCredential | null, claimId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (reason: string) =>
@@ -171,7 +172,7 @@ export function useRejectClaim(token: string | null, claimId: string) {
  * Aperçu serveur. C'est une mutation (POST, rien d'écrit) déclenchée à chaque
  * changement de sélection : le total affiché est toujours celui du serveur.
  */
-export function useRefundQuote(token: string | null, orderId: string) {
+export function useRefundQuote(token: AuthCredential | null, orderId: string) {
   return useMutation({
     mutationFn: (input: Partial<ComposeRefundInput>) =>
       apiClient<RefundQuote>(`/admin/orders/${orderId}/refunds/quote`, {
@@ -182,7 +183,7 @@ export function useRefundQuote(token: string | null, orderId: string) {
   });
 }
 
-export function useComposeRefund(token: string | null, orderId: string) {
+export function useComposeRefund(token: AuthCredential | null, orderId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: ComposeRefundInput) =>

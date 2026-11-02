@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { MenuDuJour } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -11,8 +12,8 @@ export const menuKeys = {
 };
 
 /** Déballe une réponse tableau tolérante (`T[]` ou `{ data: T[] }`). */
-async function fetchList(path: string, token?: string | null): Promise<MenuDuJour[]> {
-  const res = await apiClient<MenuDuJour[] | { data: MenuDuJour[] }>(path, { token });
+async function fetchList(path: string, token?: AuthCredential | null, signal?: AbortSignal): Promise<MenuDuJour[]> {
+  const res = await apiClient<MenuDuJour[] | { data: MenuDuJour[] }>(path, { token, signal });
   return Array.isArray(res) ? res : (res?.data ?? []);
 }
 
@@ -24,26 +25,26 @@ async function fetchList(path: string, token?: string | null): Promise<MenuDuJou
  * que les commerces déjà publiés, c'est-à-dire l'exact complément de ceux dont
  * l'admin doit remplir le catalogue. La route dédiée, elle, voit les `DRAFT`.
  */
-export function useMenus(restaurantId: string | undefined, token: string | null) {
+export function useMenus(restaurantId: string | undefined, token: AuthCredential | null) {
   return useQuery({
     queryKey: menuKeys.list(restaurantId),
-    queryFn: () => fetchList(`/menus/admin/by-restaurant/${restaurantId}`, token),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => fetchList(`/menus/admin/by-restaurant/${restaurantId}`, token, signal),
     enabled: !!restaurantId && !!token,
     staleTime: 60 * 1000,
   });
 }
 
 /** Menus du restaurateur connecté (GET /menus/restaurant/mine). */
-export function useMyMenus(token: string | null) {
+export function useMyMenus(token: AuthCredential | null) {
   return useQuery({
     queryKey: menuKeys.mine(),
-    queryFn: () => fetchList('/menus/restaurant/mine', token),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => fetchList('/menus/restaurant/mine', token, signal),
     enabled: !!token,
     staleTime: 60 * 1000,
   });
 }
 
-export function useCreateMenu(token: string | null) {
+export function useCreateMenu(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     // `restaurantId` n'est joint que pour un ADMIN (cf. produits et sections) :
@@ -54,7 +55,7 @@ export function useCreateMenu(token: string | null) {
   });
 }
 
-export function useUpdateMenu(token: string | null) {
+export function useUpdateMenu(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
@@ -64,7 +65,7 @@ export function useUpdateMenu(token: string | null) {
 }
 
 /** Bascule isActive (PATCH /menus/:id/toggle). */
-export function useToggleMenu(token: string | null) {
+export function useToggleMenu(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -73,7 +74,7 @@ export function useToggleMenu(token: string | null) {
   });
 }
 
-export function useDeleteMenu(token: string | null) {
+export function useDeleteMenu(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>

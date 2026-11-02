@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type { Category } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -30,13 +31,13 @@ export const categoryKeys = {
  * fraîchement créée disparaissait au rafraîchissement suivant et ne pouvait
  * plus jamais être remplie.
  */
-export function useCategories(restaurantId: string | undefined, token: string | null) {
+export function useCategories(restaurantId: string | undefined, token: AuthCredential | null) {
   return useQuery({
     queryKey: categoryKeys.list(restaurantId),
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClient<Category[] | { data: Category[] }>(
         `/categories${restaurantId ? `?restaurantId=${restaurantId}` : ''}`,
-        { token },
+        { signal, token },
       );
       return Array.isArray(res) ? res : ((res as { data: Category[] }).data ?? []);
     },
@@ -52,7 +53,7 @@ function invalidateCatalog(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ['products'] });
 }
 
-export function useCreateCategory(token: string | null) {
+export function useCreateCategory(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { nom: string; restaurantId?: string }) =>
@@ -65,7 +66,7 @@ export function useCreateCategory(token: string | null) {
   });
 }
 
-export function useUpdateCategory(token: string | null) {
+export function useUpdateCategory(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -93,7 +94,7 @@ export function useUpdateCategory(token: string | null) {
  * Un couple `(id, position)` suffirait pour un seul appelant ; à deux, chacun
  * partant d'un ordre différent, le résultat ne serait celui d'aucun des deux.
  */
-export function useReorderCategories(token: string | null) {
+export function useReorderCategories(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { categoryIds: string[]; restaurantId?: string }) =>
@@ -111,7 +112,7 @@ export function useReorderCategories(token: string | null) {
  * en vente. Ouvert au propriétaire — ce n'est plus une action réservée à
  * l'ADMIN, puisqu'il n'y a plus de vocabulaire partagé à protéger.
  */
-export function useDeleteCategory(token: string | null) {
+export function useDeleteCategory(token: AuthCredential | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>

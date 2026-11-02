@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   CreateVendorClosureDto,
   PauseVendorDto,
@@ -22,11 +23,11 @@ export const vendorOpeningKeys = {
   holidays: ['public-holidays'] as const,
 };
 
-export function useVendorOpening(token: string | null, vendorId: string | null) {
+export function useVendorOpening(token: AuthCredential | null, vendorId: string | null) {
   return useQuery({
     queryKey: vendorOpeningKeys.state(vendorId ?? ''),
-    queryFn: () =>
-      apiClient<VendorOpeningState>(`/vendors/${vendorId}/opening`, { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<VendorOpeningState>(`/vendors/${vendorId}/opening`, { signal, token }),
     enabled: !!token && !!vendorId,
     // Une pause se termine seule : relire régulièrement suffit à voir la
     // boutique rouvrir sans recharger la page.
@@ -35,7 +36,7 @@ export function useVendorOpening(token: string | null, vendorId: string | null) 
 }
 
 function useOpeningMutation<TInput, TOutput>(
-  token: string | null,
+  token: AuthCredential | null,
   vendorId: string,
   request: (input: TInput) => { path: string; method: string; body?: unknown },
 ) {
@@ -63,7 +64,7 @@ export interface ClosureWriteResult {
   inFlightOrders?: number;
 }
 
-export function usePauseVendor(token: string | null, vendorId: string) {
+export function usePauseVendor(token: AuthCredential | null, vendorId: string) {
   return useOpeningMutation<PauseVendorDto, ClosureWriteResult>(token, vendorId, (dto) => ({
     path: `/vendors/${vendorId}/pause`,
     method: 'POST',
@@ -71,14 +72,14 @@ export function usePauseVendor(token: string | null, vendorId: string) {
   }));
 }
 
-export function useResumeVendor(token: string | null, vendorId: string) {
+export function useResumeVendor(token: AuthCredential | null, vendorId: string) {
   return useOpeningMutation<void, ClosureWriteResult>(token, vendorId, () => ({
     path: `/vendors/${vendorId}/pause`,
     method: 'DELETE',
   }));
 }
 
-export function useCreateVendorClosure(token: string | null, vendorId: string) {
+export function useCreateVendorClosure(token: AuthCredential | null, vendorId: string) {
   return useOpeningMutation<CreateVendorClosureDto, ClosureWriteResult>(
     token,
     vendorId,
@@ -86,14 +87,14 @@ export function useCreateVendorClosure(token: string | null, vendorId: string) {
   );
 }
 
-export function useDeleteVendorClosure(token: string | null, vendorId: string) {
+export function useDeleteVendorClosure(token: AuthCredential | null, vendorId: string) {
   return useOpeningMutation<string, ClosureWriteResult>(token, vendorId, (closureId) => ({
     path: `/vendors/${vendorId}/closures/${closureId}`,
     method: 'DELETE',
   }));
 }
 
-export function useSetClosedOnHolidays(token: string | null, vendorId: string) {
+export function useSetClosedOnHolidays(token: AuthCredential | null, vendorId: string) {
   return useOpeningMutation<boolean, ClosureWriteResult>(token, vendorId, (closedOnHolidays) => ({
     path: `/vendors/${vendorId}/closed-on-holidays`,
     method: 'PATCH',
@@ -103,15 +104,15 @@ export function useSetClosedOnHolidays(token: string | null, vendorId: string) {
 
 // ─── Jours fériés (ADMIN) ────────────────────────────────────────────────────
 
-export function usePublicHolidays(token: string | null) {
+export function usePublicHolidays(token: AuthCredential | null) {
   return useQuery({
     queryKey: vendorOpeningKeys.holidays,
-    queryFn: () => apiClient<PublicHoliday[]>('/admin/public-holidays', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<PublicHoliday[]>('/admin/public-holidays', { signal, token }),
     enabled: !!token,
   });
 }
 
-export function useCreatePublicHoliday(token: string | null) {
+export function useCreatePublicHoliday(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: { date: string; label: string }) =>
@@ -127,7 +128,7 @@ export function useCreatePublicHoliday(token: string | null) {
   });
 }
 
-export function useDeletePublicHoliday(token: string | null) {
+export function useDeletePublicHoliday(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (date: string) =>

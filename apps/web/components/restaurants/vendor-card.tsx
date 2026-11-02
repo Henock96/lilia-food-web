@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import type { Restaurant } from '@lilia/types';
 import { formatDeliveryTime, cn, coverImage } from '@lilia/utils';
 import { useFavorites, useToggleFavorite } from '@lilia/api-client';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { coverFit, type CoverFit } from '@/lib/cover-fit';
 import { openingLabel } from '@/lib/opening-label';
 import { VENDOR_TYPE_LABELS } from './vendor-type-badge';
@@ -196,12 +196,14 @@ export function VendorCard({ restaurant }: VendorCardProps) {
  * pas, sans `preventDefault`.
  */
 function FavoriteButton({ restaurant }: { restaurant: Restaurant }) {
-  const { token } = useAuthStore();
+  const { token } = useAuthSession();
+  const isCurrentSession = useSessionGuard();
   const { data: favorites } = useFavorites(token);
   const toggleFavorite = useToggleFavorite(token);
   const isFavorite = favorites?.some((f) => f.id === restaurant.id) ?? false;
 
   function handleClick() {
+    if (!isCurrentSession()) return;
     if (!token) {
       toast.error('Connecte-toi pour garder tes vendeurs favoris.');
       return;
@@ -209,9 +211,14 @@ function FavoriteButton({ restaurant }: { restaurant: Restaurant }) {
     toggleFavorite.mutate(
       { restaurantId: restaurant.id, isFavorite, restaurant },
       {
-        onSuccess: () =>
-          toast.success(isFavorite ? 'Retiré de tes favoris' : 'Ajouté à tes favoris'),
-        onError: () => toast.error('Impossible de modifier tes favoris. Réessaie.'),
+        onSuccess: () => {
+          if (!isCurrentSession()) return;
+          toast.success(isFavorite ? 'Retiré de tes favoris' : 'Ajouté à tes favoris');
+        },
+        onError: () => {
+          if (!isCurrentSession()) return;
+          toast.error('Impossible de modifier tes favoris. Réessaie.');
+        },
       },
     );
   }

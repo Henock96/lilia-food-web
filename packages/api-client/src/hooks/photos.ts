@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type { EntityType, Photo } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -76,13 +77,13 @@ export function listPath(
 export function usePhotos(
   entity: EntityType,
   parentId: string,
-  token: string | null,
+  token: AuthCredential | null,
   scope: PhotoScope = 'public',
 ) {
   return useQuery({
     queryKey: photoKeys.list(entity, parentId, scope),
-    queryFn: () =>
-      apiClient<Photo[]>(listPath(entity, parentId, scope), { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<Photo[]>(listPath(entity, parentId, scope), { signal, token }),
     // Sans le token, `/mine` répond 401 : attendre l'hydratation du store
     // d'authentification plutôt que d'afficher une erreur de chargement au
     // premier rendu.
@@ -106,7 +107,7 @@ type UploadPayload = {
 export function createPhoto(
   entity: EntityType,
   parentId: string,
-  token: string | null,
+  token: AuthCredential | null,
   payload: UploadPayload,
 ): Promise<Photo> {
   return apiClient<Photo>(endpoints[entity], {
@@ -129,7 +130,7 @@ export function createPhoto(
 export function useUploadPhoto(
   entity: EntityType,
   parentId: string,
-  token: string | null,
+  token: AuthCredential | null,
 ) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -157,7 +158,7 @@ type UpdatePayload = {
 export function useUpdatePhoto(
   entity: EntityType,
   parentId: string,
-  token: string | null,
+  token: AuthCredential | null,
   scope: PhotoScope = 'public',
 ) {
   const queryClient = useQueryClient();
@@ -206,7 +207,7 @@ export function useUpdatePhoto(
 export function useDeletePhoto(
   entity: EntityType,
   parentId: string,
-  token: string | null,
+  token: AuthCredential | null,
   scope: PhotoScope = 'public',
 ) {
   const queryClient = useQueryClient();
@@ -243,7 +244,7 @@ export function useDeletePhoto(
 export function useReorderPhotos(
   entity: EntityType,
   parentId: string,
-  token: string | null,
+  token: AuthCredential | null,
   scope: PhotoScope = 'public',
 ) {
   const queryClient = useQueryClient();

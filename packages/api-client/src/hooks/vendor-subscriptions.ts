@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   SubscriptionPaymentMethod,
   VendorSubscription,
@@ -15,13 +16,13 @@ export const vendorSubscriptionKeys = {
 };
 
 /** Historique, statut Premium et prix courant d'un vendeur (ADMIN). */
-export function useVendorSubscriptions(vendorId: string, token: string | null) {
+export function useVendorSubscriptions(vendorId: string, token: AuthCredential | null) {
   return useQuery({
     queryKey: vendorSubscriptionKeys.vendor(vendorId),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClient<VendorSubscriptionsOverview>(
         `/admin/vendors/${vendorId}/subscriptions`,
-        { token },
+        { signal, token },
       ),
     enabled: Boolean(vendorId && token),
   });
@@ -37,7 +38,7 @@ export function useVendorSubscriptions(vendorId: string, token: string | null) {
  */
 export function useGrantVendorSubscription(
   vendorId: string,
-  token: string | null,
+  token: AuthCredential | null,
 ) {
   const qc = useQueryClient();
   return useMutation({
@@ -74,7 +75,7 @@ export function useGrantVendorSubscription(
 /** Révoque une période en cours ou à venir — motif obligatoire. */
 export function useRevokeVendorSubscription(
   vendorId: string,
-  token: string | null,
+  token: AuthCredential | null,
 ) {
   const qc = useQueryClient();
   return useMutation({

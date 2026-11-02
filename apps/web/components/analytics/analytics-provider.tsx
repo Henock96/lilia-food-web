@@ -11,7 +11,7 @@ import {
   GA_MEASUREMENT_ID,
   type AnalyticsEvent,
 } from '@/lib/analytics';
-import { useAuthStore } from '@/store/auth';
+import { useAuthSession } from '@/lib/auth-session';
 
 /**
  * Charge les outils de mesure et alimente les événements transverses.
@@ -38,7 +38,7 @@ import { useAuthStore } from '@/store/auth';
  */
 export function AnalyticsProvider() {
   const pathname = usePathname();
-  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const userId = useAuthSession().user?.id ?? null;
 
   // ── page_view ──────────────────────────────────────────────────────────────
   //

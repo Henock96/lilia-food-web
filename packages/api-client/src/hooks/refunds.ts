@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   ApprovalRequested,
   Refund,
@@ -136,11 +137,11 @@ export function missingClosureProof(
 }
 
 export interface RefundsQuery {
-  token: string | null;
+  token: AuthCredential | null;
   page: number;
   status?: RefundStatusFilter;
   /** Point d'injection des tests : la requête doit être exécutable sans React. */
-  fetchPage?: (path: string) => Promise<Partial<RefundsPage>>;
+  fetchPage?: (path: string, signal?: AbortSignal) => Promise<Partial<RefundsPage>>;
 }
 
 /**
@@ -158,18 +159,18 @@ export function refundsQueryOptions({
   token,
   page,
   status = 'ALL',
-  fetchPage = (path) => apiClientRaw<Partial<RefundsPage>>(path, { token }),
+  fetchPage = (path, signal) => apiClientRaw<Partial<RefundsPage>>(path, { token, signal }),
 }: RefundsQuery) {
   return {
     queryKey: refundKeys.list(page, status),
-    queryFn: async (): Promise<RefundsPage> => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<RefundsPage> => {
       const params = new URLSearchParams({
         page: String(page),
         limit: String(PAGE_SIZE),
       });
       if (status !== 'ALL') params.set('status', status);
 
-      const res = await fetchPage(`/refunds?${params.toString()}`);
+      const res = await fetchPage(`/refunds?${params.toString()}`, signal);
       const data = res.data ?? [];
       const total = res.meta?.total ?? data.length;
       const limit = res.meta?.limit ?? PAGE_SIZE;
@@ -192,7 +193,7 @@ export function refundsQueryOptions({
 }
 
 export function useRefunds(
-  token: string | null,
+  token: AuthCredential | null,
   page: number,
   status: RefundStatusFilter = 'ALL',
 ) {
@@ -208,13 +209,13 @@ export function useRefunds(
  * `data.length` — c'est ce qui faisait afficher « 20 » au badge Flutter quand
  * cinquante clients attendaient.
  */
-export function usePendingRefundsCount(token: string | null) {
+export function usePendingRefundsCount(token: AuthCredential | null) {
   return useQuery({
     queryKey: refundKeys.pendingCount(),
-    queryFn: async () => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClientRaw<Partial<RefundsPage>>(
         '/refunds?page=1&limit=1&status=PENDING',
-        { token },
+        { signal, token },
       );
       return res.meta?.total ?? 0;
     },
@@ -230,7 +231,7 @@ export function usePendingRefundsCount(token: string | null) {
  * serveur rend `{ approvalRequired: true, approval }` (2xx). L'appelant doit
  * distinguer cette réponse d'un succès.
  */
-export function useUpdateRefundStatus(token: string | null) {
+export function useUpdateRefundStatus(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -263,7 +264,7 @@ export function useUpdateRefundStatus(token: string | null) {
 }
 
 /** R-01 — « Virer au client » : la voie canonique d'exécution financière. */
-export function useExecuteRefund(token: string | null) {
+export function useExecuteRefund(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (refundId: string) => {

@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { PromoCode } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -10,13 +11,13 @@ export const promoKeys = {
   stats: (id: string)           => [...promoKeys.all, 'stats', id] as const,
 };
 
-export function usePromos(token: string | null, activeOnly = false) {
+export function usePromos(token: AuthCredential | null, activeOnly = false) {
   return useQuery({
     queryKey: promoKeys.list(activeOnly),
-    queryFn:  async () => {
+    queryFn:  async ({ signal }: { signal?: AbortSignal } = {}) => {
       const res = await apiClient<PromoCode[] | { data: PromoCode[] }>(
         `/promo${activeOnly ? '?activeOnly=true' : ''}`,
-        { token },
+        { signal, token },
       );
       return Array.isArray(res) ? res : (res as { data: PromoCode[] }).data ?? [];
     },
@@ -25,16 +26,16 @@ export function usePromos(token: string | null, activeOnly = false) {
   });
 }
 
-export function usePromoStats(promoId: string | null, token: string | null) {
+export function usePromoStats(promoId: string | null, token: AuthCredential | null) {
   return useQuery({
     queryKey: promoKeys.stats(promoId ?? ''),
-    queryFn:  () => apiClient<unknown>(`/promo/${promoId}/stats`, { token }),
+    queryFn:  ({ signal }: { signal?: AbortSignal } = {}) => apiClient<unknown>(`/promo/${promoId}/stats`, { signal, token }),
     enabled:  !!promoId && !!token,
     staleTime: 60 * 1000,
   });
 }
 
-export function useCreatePromo(token: string | null) {
+export function useCreatePromo(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -43,7 +44,7 @@ export function useCreatePromo(token: string | null) {
   });
 }
 
-export function useTogglePromo(token: string | null) {
+export function useTogglePromo(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
@@ -52,7 +53,7 @@ export function useTogglePromo(token: string | null) {
   });
 }
 
-export function useDeletePromo(token: string | null) {
+export function useDeletePromo(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>

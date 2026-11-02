@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   ModifierLibrary,
   ModifierLibraryGroup,
@@ -38,13 +39,13 @@ export const modifierPaths = {
     `/products/manage/${encodeURIComponent(productId)}/modifier-groups`,
 };
 
-export function useModifierLibrary(restaurantId: string | undefined, token: string | null) {
+export function useModifierLibrary(restaurantId: string | undefined, token: AuthCredential | null) {
   return useQuery({
     queryKey: modifierKeys.library(restaurantId),
-    queryFn: async (): Promise<ModifierLibrary> => {
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<ModifierLibrary> => {
       const res = await apiClientRaw<{ data: ModifierLibraryGroup[]; meta: ModifierLibrary['meta'] }>(
         modifierPaths.library(restaurantId),
-        { token },
+        { signal, token },
       );
       return { groups: res.data ?? [], meta: res.meta };
     },
@@ -72,7 +73,7 @@ export interface ModifierGroupInput {
   options: ModifierOptionInput[];
 }
 
-export function useCreateModifierGroup(token: string | null) {
+export function useCreateModifierGroup(token: AuthCredential | null) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (body: ModifierGroupInput) =>
@@ -86,7 +87,7 @@ export function useCreateModifierGroup(token: string | null) {
 }
 
 /** `options` = liste COMPLÈTE voulue : `id` connu = modifiée, absente = retirée. */
-export function useUpdateModifierGroup(token: string | null) {
+export function useUpdateModifierGroup(token: AuthCredential | null) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ id, ...body }: Partial<ModifierGroupInput> & { id: string }) =>
@@ -99,7 +100,7 @@ export function useUpdateModifierGroup(token: string | null) {
   });
 }
 
-export function useDeleteModifierGroup(token: string | null) {
+export function useDeleteModifierGroup(token: AuthCredential | null) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ id, restaurantId }: { id: string; restaurantId?: string }) =>
@@ -112,7 +113,7 @@ export function useDeleteModifierGroup(token: string | null) {
 }
 
 /** Rupture en un geste (« plus d'alloco ce soir ») ; ne touche aucun panier. */
-export function useSetModifierOptionAvailability(token: string | null) {
+export function useSetModifierOptionAvailability(token: AuthCredential | null) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ optionId, ...body }: { optionId: string; isAvailable: boolean; restaurantId?: string }) =>
@@ -126,7 +127,7 @@ export function useSetModifierOptionAvailability(token: string | null) {
 }
 
 /** Groupes d'un produit, ordonnés — remplacement complet et idempotent. */
-export function useSetProductModifierGroups(token: string | null) {
+export function useSetProductModifierGroups(token: AuthCredential | null) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ productId, ...body }: { productId: string; groupIds: string[]; restaurantId?: string }) =>
@@ -139,7 +140,7 @@ export function useSetProductModifierGroups(token: string | null) {
   });
 }
 
-export function useReorderModifierGroups(token: string | null) {
+export function useReorderModifierGroups(token: AuthCredential | null) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (body: { groupIds: string[]; restaurantId?: string }) =>

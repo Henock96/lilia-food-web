@@ -1,11 +1,12 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
 import {
   useQuery,
   useMutation,
   useQueryClient,
   keepPreviousData,
-} from '@tanstack/react-query';
+} from '../session-query';
 import type {
   AdminVendor,
   AdminVendorFilters,
@@ -32,12 +33,12 @@ export const adminVendorKeys = {
  * Backend renvoie `{ data, meta }` — on garde l'enveloppe via apiClientRaw.
  */
 export function useAdminVendors(
-  token: string | null,
+  token: AuthCredential | null,
   filters: AdminVendorFilters = {},
 ) {
   return useQuery({
     queryKey: adminVendorKeys.list(filters),
-    queryFn: () => {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
       const params = new URLSearchParams();
       if (filters.vendorType) params.set('vendorType', filters.vendorType);
       if (filters.adminApproved !== undefined)
@@ -48,7 +49,7 @@ export function useAdminVendors(
       params.set('limit', String(filters.limit ?? 20));
       return apiClientRaw<AdminVendorsPage>(
         `/admin/vendors?${params.toString()}`,
-        { token },
+        { signal, token },
       );
     },
     enabled: !!token,
@@ -63,13 +64,13 @@ export function useAdminVendors(
  * `{ data, meta: { total } }` (interceptor règle 3b). `apiClientRaw` préserve
  * l'enveloppe.
  */
-export function useAdminPendingVendors(token: string | null) {
+export function useAdminPendingVendors(token: AuthCredential | null) {
   return useQuery({
     queryKey: adminVendorKeys.pending(),
-    queryFn: () =>
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       apiClientRaw<{ data: AdminVendor[]; meta: { total: number } }>(
         '/admin/vendors/pending',
-        { token },
+        { signal, token },
       ),
     enabled: !!token,
     staleTime: 30 * 1000,
@@ -77,7 +78,7 @@ export function useAdminPendingVendors(token: string | null) {
 }
 
 /** Approuve un vendeur en attente (PATCH /admin/vendors/:id/approve). */
-export function useApproveVendor(token: string | null) {
+export function useApproveVendor(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (vendorId: string) =>
@@ -96,7 +97,7 @@ export function useApproveVendor(token: string | null) {
  * Suspend un vendeur (PATCH /admin/vendors/:id/suspend).
  * `reason` requis côté backend (min 5 chars).
  */
-export function useSuspendVendor(token: string | null) {
+export function useSuspendVendor(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ vendorId, reason }: { vendorId: string; reason: string }) =>
@@ -124,7 +125,7 @@ export function useSuspendVendor(token: string | null) {
  * sanction et mettre en ligne sont deux gestes distincts, ils ne pouvaient pas
  * garder le même nom.
  */
-export function useUnsuspendVendor(token: string | null) {
+export function useUnsuspendVendor(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (vendorId: string) =>
@@ -144,7 +145,7 @@ export function useUnsuspendVendor(token: string | null) {
  * (POST /admin/restaurants). Avec vendorType non-RESTAURANT le vendeur
  * est créé adminApproved=false, à valider via useApproveVendor.
  */
-export function useCreateRestaurantWithOwner(token: string | null) {
+export function useCreateRestaurantWithOwner(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateRestaurantWithOwnerDto) =>
@@ -162,10 +163,10 @@ export function useCreateRestaurantWithOwner(token: string | null) {
 }
 
 /** Stats marketplace pour l'admin dashboard (GET /dashboard/vendors). */
-export function useVendorStats(token: string | null) {
+export function useVendorStats(token: AuthCredential | null) {
   return useQuery({
     queryKey: adminVendorKeys.stats(),
-    queryFn: () => apiClient<VendorStats>('/dashboard/vendors', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<VendorStats>('/dashboard/vendors', { signal, token }),
     enabled: !!token,
     staleTime: 60 * 1000,
   });
@@ -181,7 +182,7 @@ export function useVendorStats(token: string | null) {
 // `useApproveVendor` + l'activation d'onboarding.
 
 /** Range le vendeur dans les listes publiques (1 = premier). */
-export function useSetVendorDisplayOrder(token: string | null) {
+export function useSetVendorDisplayOrder(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, displayOrder }: { id: string; displayOrder: number }) =>
@@ -199,7 +200,7 @@ export function useSetVendorDisplayOrder(token: string | null) {
 }
 
 /** Met le vendeur en avant, ou l'en retire. */
-export function useSetVendorFeatured(token: string | null) {
+export function useSetVendorFeatured(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, isFeatured }: { id: string; isFeatured: boolean }) =>

@@ -1,6 +1,7 @@
 'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   CreateDeliveryZoneDto,
   DeliveryZone,
@@ -35,13 +36,13 @@ export const deliveryZoneKeys = {
 };
 
 export function useVendorDeliveryZones(
-  token: string | null,
+  token: AuthCredential | null,
   vendorId: string | null,
 ) {
   return useQuery({
     queryKey: deliveryZoneKeys.vendor(vendorId ?? ''),
-    queryFn: () =>
-      apiClient<VendorDeliveryZones>(`/vendors/${vendorId}/delivery-zones`, {
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<VendorDeliveryZones>(`/vendors/${vendorId}/delivery-zones`, { signal,
         token,
       }),
     enabled: !!token && !!vendorId,
@@ -80,7 +81,7 @@ function invalidateDelivery(
  * d'écriture jumelles sous `/vendors` ferait deux portes sur la même chose —
  * exactement le défaut relevé pour `delivery-settings`.
  */
-export function useCreateDeliveryZone(token: string | null, vendorId: string) {
+export function useCreateDeliveryZone(token: AuthCredential | null, vendorId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateDeliveryZoneDto) =>
@@ -94,7 +95,7 @@ export function useCreateDeliveryZone(token: string | null, vendorId: string) {
 }
 
 /** `PATCH /quartiers/zones/:zoneId`. */
-export function useUpdateDeliveryZone(token: string | null, vendorId: string) {
+export function useUpdateDeliveryZone(token: AuthCredential | null, vendorId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -118,7 +119,7 @@ export function useUpdateDeliveryZone(token: string | null, vendorId: string) {
  * silence sur le tarif de repli. Le message porte la sortie possible (repasser
  * en tarif fixe) — il faut l'afficher tel quel, pas le remplacer.
  */
-export function useDeleteDeliveryZone(token: string | null, vendorId: string) {
+export function useDeleteDeliveryZone(token: AuthCredential | null, vendorId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (zoneId: string) =>

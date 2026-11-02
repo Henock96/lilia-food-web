@@ -1,6 +1,7 @@
 ﻿'use client';
+import type { AuthCredential } from '../auth-session';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { Restaurant } from '@lilia/types';
 import { apiClient } from '../client';
 
@@ -9,16 +10,16 @@ export const favoriteKeys = {
   check: (restaurantId: string) => ['favorites', 'check', restaurantId] as const,
 };
 
-export function useFavorites(token: string | null) {
+export function useFavorites(token: AuthCredential | null) {
   return useQuery({
     queryKey: favoriteKeys.all,
-    queryFn: () => apiClient<Restaurant[]>('/favorites', { token }),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Restaurant[]>('/favorites', { signal, token }),
     enabled: !!token,
     staleTime: 60 * 1000,
   });
 }
 
-export function useToggleFavorite(token: string | null) {
+export function useToggleFavorite(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
