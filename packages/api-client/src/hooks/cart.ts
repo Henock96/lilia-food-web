@@ -3,23 +3,30 @@ import type { AuthCredential } from '../auth-session';
 
 import { useQuery, useMutation, useQueryClient } from '../session-query';
 import type { Cart, AddToCartDto } from '@lilia/types';
-import { apiClient } from '../client';
+import { apiClient, ApiError } from '../client';
 
 export const cartKeys = {
   all: ['cart'] as const,
   detail: () => [...cartKeys.all, 'detail'] as const,
 };
 
-export function useCart(token: AuthCredential | null) {
-  return useQuery({
+export function cartQueryOptions(token: AuthCredential | null) {
+  return {
     queryKey: cartKeys.detail(),
     queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
       const cart = await apiClient<Cart>('/cart', { signal, token });
-      return { ...cart, items: Array.isArray(cart.items) ? cart.items : [] };
+      if (!cart || !Array.isArray(cart.items)) {
+        throw new ApiError(502, 'Le panier reçu est incomplet. Réessayez.', 'INVALID_CART');
+      }
+      return cart;
     },
     enabled: !!token,
     staleTime: 30 * 1000,
-  });
+  };
+}
+
+export function useCart(token: AuthCredential | null) {
+  return useQuery(cartQueryOptions(token));
 }
 
 export function useAddToCart(token: AuthCredential | null) {

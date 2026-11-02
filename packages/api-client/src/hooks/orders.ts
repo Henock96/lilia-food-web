@@ -1,5 +1,5 @@
 'use client';
-import { assertCurrentSession, type AuthCredential } from '../auth-session';
+import { assertCurrentSession, SessionObsoleteError, type AuthCredential } from '../auth-session';
 
 import {
   keepPreviousData,
@@ -13,6 +13,7 @@ import type {
   CheckoutQuote,
   CreateOrderDto,
   Order,
+  Paginated,
   QuoteOrderDto,
   OrderStatus,
   StuckOrders,
@@ -21,6 +22,8 @@ import type {
 } from '@lilia/types';
 import { apiClient, apiClientRaw, API_URL, ApiError, sessionFetch } from '../client';
 import { isVerifiedCheckoutQuote } from '../checkout-quote';
+import { parseReorderResult } from '../reorder-result';
+export type { ReorderResult } from '../reorder-result';
 
 /**
  * Taille de page de l'écran Commandes.
@@ -40,6 +43,7 @@ export type OrderStatusFilter = OrderStatus | 'ALL';
 export const orderKeys = {
   all: ['orders'] as const,
   mine: () => [...orderKeys.all, 'mine'] as const,
+  minePage: (page: number) => [...orderKeys.mine(), 'page', page] as const,
   detail: (id: string) => [...orderKeys.all, 'detail', id] as const,
   admin: (
     role: string,
@@ -49,6 +53,7 @@ export const orderKeys = {
   ) => [...orderKeys.all, 'admin', role, page, status, search] as const,
 };
 
+/** Legacy first-page array; screens with totals or navigation use useMyOrdersPage. */
 export function useMyOrders(token: AuthCredential | null) {
   return useQuery({
     queryKey: orderKeys.mine(),
@@ -62,18 +67,60 @@ export function useMyOrders(token: AuthCredential | null) {
   });
 }
 
-export function useOrder(id: string, token: AuthCredential | null) {
-  return useQuery({
+export function myOrdersPageQueryOptions(token: AuthCredential | null, page = 1) {
+  return {
+    queryKey: orderKeys.minePage(page),
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<Paginated<Order>> => {
+      const res = await apiClientRaw<Paginated<Order>>(`/orders/my?page=${page}&limit=${PAGE_SIZE}`, { signal, token });
+      const meta = res?.meta;
+      if (!Array.isArray(res?.data) || !meta ||
+          !Number.isSafeInteger(meta.total) || meta.total < 0 ||
+          !Number.isSafeInteger(meta.page) || meta.page !== page ||
+          !Number.isSafeInteger(meta.limit) || meta.limit < 1 ||
+          !Number.isSafeInteger(meta.totalPages) || meta.totalPages < 1) {
+        throw new ApiError(502, 'L’historique reçu est incomplet. Réessayez.', 'INVALID_ORDER_HISTORY');
+      }
+      return res;
+    },
+    enabled: !!token,
+    staleTime: 30 * 1000,
+  };
+}
+
+export function useMyOrdersPage(token: AuthCredential | null, page = 1) {
+  return useQuery(myOrdersPageQueryOptions(token, page));
+}
+
+/** Reading cadence only: no transition or payment permission is inferred here. */
+export function orderPollInterval(order: Pick<Order, 'status'> | undefined, error: unknown): number | false {
+  if (error instanceof SessionObsoleteError ||
+      (error instanceof ApiError && [401, 403, 404].includes(error.status))) return false;
+  // Only the three terminal statuses in the server contract stop tracking.
+  // Missing data after a network failure, or a future status, must remain recoverable.
+  return order && ['LIVRER', 'ANNULER', 'ECHEC_LIVRAISON'].includes(order.status) ? false : 15000;
+}
+
+export function orderQueryOptions(id: string, token: AuthCredential | null) {
+  return {
     queryKey: orderKeys.detail(id),
     queryFn: ({ signal }: { signal?: AbortSignal } = {}) => apiClient<Order>(`/orders/${id}`, { signal, token }),
     enabled: !!id && !!token,
-    refetchInterval: (query) => {
-      const data = query.state.data as Order | undefined;
-      const activeStatuses = ['DEMANDE_ENVOYEE', 'EN_ATTENTE', 'PAYER', 'EN_PREPARATION', 'PRET', 'EN_ROUTE'];
-      if (data && activeStatuses.includes(data.status)) return 15 * 1000;
-      return false;
-    },
-  });
+    staleTime: 0,
+    refetchOnMount: 'always' as const,
+    refetchOnWindowFocus: 'always' as const,
+    refetchOnReconnect: 'always' as const,
+    refetchIntervalInBackground: false,
+    retry: (count: number, error: unknown) => count < 1 &&
+      !(error instanceof SessionObsoleteError) &&
+      !(error instanceof ApiError && error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status)),
+    retryDelay: 1000,
+    refetchInterval: (query: { state: { data?: Order; error: unknown } }) =>
+      orderPollInterval(query.state.data, query.state.error),
+  };
+}
+
+export function useOrder(id: string, token: AuthCredential | null) {
+  return useQuery(orderQueryOptions(id, token));
 }
 
 /**
@@ -418,12 +465,14 @@ export function useRestaurantOrders(token: AuthCredential | null) {
 export function useReorder(token: AuthCredential | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (orderId: string) =>
-      apiClient<unknown>(`/orders/${orderId}/reorder`, {
+    mutationFn: async (orderId: string) =>
+      parseReorderResult(await apiClient<unknown>(`/orders/${orderId}/reorder`, {
         method: 'POST',
         token,
-      }),
-    onSuccess: () => {
+      })),
+    retry: false,
+    // A failed response can follow a partial write: re-read before another attempt.
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
   });

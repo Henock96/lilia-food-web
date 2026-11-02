@@ -1,11 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Package, ChevronRight, RotateCcw, Wallet } from 'lucide-react';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
-import { useMyOrders, useReorder } from '@lilia/api-client';
+import { ApiError, useMyOrdersPage, useReorder, type ReorderResult } from '@lilia/api-client';
+import { ReorderNotice } from '@/components/orders/reorder-notice';
+import { reorderFeedback } from '@/lib/reorder-feedback';
 import { toast } from 'sonner';
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
@@ -14,21 +17,32 @@ import { OrderCardSkeleton } from '@/components/ui/skeleton';
 export default function CommandesPage() {
   const { token } = useAuthSession();
   const isCurrentSession = useSessionGuard();
-  const { data: orders, isLoading, isError } = useMyOrders(token);
+  const [page, setPage] = useState(1);
+  const [reorderResult, setReorderResult] = useState<ReorderResult | null>(null);
+  const { data: history, isLoading, isError, isFetching, isPaused, error, refetch } = useMyOrdersPage(token, page);
+  const inaccessible = error instanceof ApiError && [401, 403, 404].includes(error.status);
+  const orders = inaccessible ? undefined : history?.data;
   const reorder = useReorder(token);
   const router = useRouter();
 
   async function handleReorder(e: React.MouseEvent, orderId: string) {
-    if (!isCurrentSession()) return;
     e.preventDefault();
+    if (!isCurrentSession() || reorder.isPending) return;
+    setReorderResult(null);
     try {
-      await reorder.mutateAsync(orderId);
+      const result = await reorder.mutateAsync(orderId);
       if (!isCurrentSession()) return;
-      toast.success('Articles ajoutés au panier !');
-      router.push('/panier');
-    } catch {
+      setReorderResult(result);
+      const feedback = reorderFeedback(result);
+      if (feedback.navigate) {
+        toast.success(feedback.message);
+        router.push('/panier');
+      } else {
+        toast.warning(feedback.message);
+      }
+    } catch (error) {
       if (!isCurrentSession()) return;
-      toast.error('Impossible de recommander cette commande');
+      toast.error(error instanceof ApiError ? error.message : 'Le résultat du réachat n’a pas pu être confirmé. Vérifiez votre panier avant de réessayer.');
     }
   }
 
@@ -43,20 +57,23 @@ export default function CommandesPage() {
         Mes commandes
       </h1>
 
+      {reorderResult && !inaccessible && <ReorderNotice result={reorderResult} />}
+
       {isLoading && (
         <div className="flex flex-col gap-3">
           {[1, 2, 3].map((i) => <OrderCardSkeleton key={i} />)}
         </div>
       )}
 
-      {isError && (
-        <div className="text-center py-16 text-ink-500">
-          <p className="font-medium">Impossible de charger vos commandes</p>
-          <p className="text-sm mt-1">Vérifiez votre connexion et réessayez</p>
+      {(isError || isPaused) && (
+        <div role="status" className="text-center py-6 text-ink-500">
+          <p className="font-medium">{isPaused ? 'Connexion interrompue' : 'Impossible de charger vos commandes'}</p>
+          <p className="text-sm mt-1">{orders ? 'Le dernier historique connu est affiché.' : 'Vérifiez votre connexion et réessayez.'}</p>
+          <button onClick={() => void refetch()} disabled={isFetching} className="min-h-11 mt-2 underline">Réessayer</button>
         </div>
       )}
 
-      {!isLoading && !isError && orders?.length === 0 && (
+      {!isLoading && !isError && !isPaused && orders?.length === 0 && history?.meta.total === 0 && (
         <div className="text-center py-24 flex flex-col items-center gap-4">
           <div className="w-20 h-20 bg-cream-200 rounded-3xl flex items-center justify-center">
             <Package className="w-10 h-10 text-ink-500" />
@@ -72,6 +89,10 @@ export default function CommandesPage() {
             Explorer les restaurants
           </Link>
         </div>
+      )}
+
+      {!isLoading && !isError && !isPaused && orders?.length === 0 && (history?.meta.total ?? 0) > 0 && (
+        <p role="status" className="py-6 text-ink-500">Cette page ne contient plus de commandes. Revenez à la page précédente.</p>
       )}
 
       {orders && orders.length > 0 && (
@@ -115,7 +136,7 @@ export default function CommandesPage() {
                   {(order.status === 'LIVRER' || order.status === 'ANNULER') && (
                     <button
                       onClick={(e) => handleReorder(e, order.id)}
-                      disabled={reorder.isPending}
+                      disabled={reorder.isPending || isError || isPaused}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-tomato-100 text-tomato-700 hover:bg-cream-200 rounded-xl text-xs font-medium transition-colors shrink-0"
                     >
                       <RotateCcw className="w-3 h-3" />
@@ -127,6 +148,16 @@ export default function CommandesPage() {
             </motion.div>
           ))}
         </motion.div>
+      )}
+
+      {!inaccessible && (
+        <nav aria-label="Pages de l’historique" className="mt-6 flex items-center justify-between gap-3 text-sm">
+          <button type="button" disabled={page <= 1 || isFetching} onClick={() => setPage(p => Math.max(1, p - 1))}
+            className="min-h-11 px-4 rounded-xl border border-cream-300 disabled:opacity-50">Précédent</button>
+          <p aria-live="polite">Page {page}{history ? ` sur ${history.meta.totalPages} · ${history.meta.total} commande${history.meta.total > 1 ? 's' : ''}` : ''}</p>
+          <button type="button" disabled={!history || page >= history.meta.totalPages || isFetching || isError || isPaused} onClick={() => setPage(p => p + 1)}
+            className="min-h-11 px-4 rounded-xl border border-cream-300 disabled:opacity-50">Suivant</button>
+        </nav>
       )}
     </motion.div>
   );

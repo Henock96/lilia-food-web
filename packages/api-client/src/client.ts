@@ -161,6 +161,7 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
   }
 
   const json: unknown = await sessionBody(response, token);
+  if (response.status === 204) return undefined as T;
 
   if (json !== null && typeof json === 'object' && 'data' in json) {
     return (json as { data: T }).data;
@@ -271,6 +272,8 @@ export async function sessionFetch(url: string, token: AuthCredential | null | u
 
 async function sessionBody(response: Response, token: AuthCredential | null | undefined): Promise<unknown> {
   try {
+    // A successful deletion may intentionally have no representation.
+    if (response.status === 204) return undefined;
     return await response.json();
   } finally {
     assertCurrentSession(token);

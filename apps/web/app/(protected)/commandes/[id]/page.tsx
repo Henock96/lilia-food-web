@@ -1,18 +1,21 @@
 'use client';
 
-import { use, Suspense } from 'react';
+import { use, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Package, CheckCircle, Clock, Truck, Home, XCircle, ChefHat, RotateCcw, Download, ThumbsUp } from 'lucide-react';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
-import { useOrder, useCancelOrder, useReorder, useDownloadReceipt } from '@lilia/api-client';
+import { ApiError, useOrder, useCancelOrder, useReorder, useDownloadReceipt, type ReorderResult } from '@lilia/api-client';
+import { ReorderNotice } from '@/components/orders/reorder-notice';
+import { reorderFeedback } from '@/lib/reorder-feedback';
 import type { OrderStatus } from '@lilia/types';
 import { formatLineOptions, formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, cn } from '@lilia/utils';
 import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
 import { ClaimPanel } from '@/components/orders/claim-panel';
+import { OrderSyncNotice } from '@/components/orders/order-sync-notice';
 import { PickupPanel } from '@/components/orders/pickup-panel';
 import { pickupStatusLabel, timelineSteps } from '@/lib/pickup-view';
 import { toast } from 'sonner';
@@ -24,6 +27,7 @@ import {
 } from '@/lib/order-status-view';
 
 const STEP_ICONS: Partial<Record<OrderStatus, React.ElementType>> = {
+  DEMANDE_ENVOYEE: Clock,
   EN_ATTENTE: Clock,
   PAYER: CheckCircle,
   ACCEPTEE: ThumbsUp,
@@ -37,11 +41,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { token } = useAuthSession();
   const isCurrentSession = useSessionGuard();
-  const { data: order, isLoading } = useOrder(id, token);
+  const { data: order, isLoading, isError, error, isPaused, isFetching, refetch } = useOrder(id, token);
   const cancelOrder = useCancelOrder(token);
   const reorder = useReorder(token);
   const downloadReceipt = useDownloadReceipt(token);
   const router = useRouter();
+  const [reorderResult, setReorderResult] = useState<ReorderResult | null>(null);
 
   async function handleCancel() {
     if (!isCurrentSession()) return;
@@ -57,15 +62,22 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   }
 
   async function handleReorder() {
-    if (!isCurrentSession()) return;
+    if (!isCurrentSession() || reorder.isPending) return;
+    setReorderResult(null);
     try {
-      await reorder.mutateAsync(id);
+      const result = await reorder.mutateAsync(id);
       if (!isCurrentSession()) return;
-      toast.success('Articles ajoutés au panier !');
-      router.push('/panier');
-    } catch {
+      setReorderResult(result);
+      const feedback = reorderFeedback(result);
+      if (feedback.navigate) {
+        toast.success(feedback.message);
+        router.push('/panier');
+      } else {
+        toast.warning(feedback.message);
+      }
+    } catch (error) {
       if (!isCurrentSession()) return;
-      toast.error('Impossible de recommander cette commande');
+      toast.error(error instanceof ApiError ? error.message : 'Le résultat du réachat n’a pas pu être confirmé. Vérifiez votre panier avant de réessayer.');
     }
   }
 
@@ -90,10 +102,10 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  if (!order) {
+  if (!order || (error instanceof ApiError && [401, 403, 404].includes(error.status))) {
     return (
       <div className="max-w-lg mx-auto px-4 py-10 text-center">
-        <p className="text-ink-500">Commande introuvable</p>
+        <OrderSyncNotice hasOrder={false} error={error} paused={isPaused} fetching={isFetching} onRetry={() => void refetch()} />
         <Link href="/commandes" className="text-tomato-700 text-sm mt-2 inline-block">
           ← Retour aux commandes
         </Link>
@@ -101,20 +113,21 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  const currentStepIndex = timelinePosition(order.status);
   const isCancelled = order.status === 'ANNULER';
   // Le serveur publie les gestes permis (F3-01, règle R1).
-  const canCancel = canClientCancel(order);
+  const canCancel = !isError && !isPaused && canClientCancel(order);
   // Reçu disponible une fois la commande payée (PAYER et au-delà, hors annulée).
   const isPaid =
-    currentStepIndex >= timelinePosition('PAYER') || order.status === 'ECHEC_LIVRAISON';
+    timelinePosition(order.status) >= timelinePosition('PAYER') || order.status === 'ECHEC_LIVRAISON';
   const cancelled = isCancelled ? cancellationNotice(order) : null;
   const readyAt = readyAtLabel(order.estimatedReadyAt);
   // F3-07 — un retrait ne passe pas « en route », et ne se dit pas « livré ».
-  const statusSteps = timelineSteps(order.isDelivery).map((step) => ({
+  const statusSteps = timelineSteps(order.isDelivery, order.orderFlow).map((step) => ({
     ...step,
     icon: STEP_ICONS[step.status] ?? Package,
   }));
+
+  const currentStepIndex = statusSteps.findIndex((step) => step.status === order.status);
 
   return (
     <motion.div
@@ -133,9 +146,12 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <p className="text-xs text-ink-500 mt-0.5">{formatDateTime(order.createdAt)}</p>
         </div>
         <span className={`ml-auto px-3 py-1.5 text-xs font-semibold rounded-full border ${getOrderStatusColor(order.status)}`}>
-          {pickupStatusLabel(order) ?? formatOrderStatus(order.status)}
+          {pickupStatusLabel(order) ?? (order.orderFlow === 'ACCEPT_FIRST' && order.status === 'EN_ATTENTE' && order.acceptedAt ? 'Acceptée — à payer' : formatOrderStatus(order.status))}
         </span>
       </div>
+
+      {(isError || isPaused) && <OrderSyncNotice hasOrder error={error} paused={isPaused} fetching={isFetching} onRetry={() => void refetch()} />}
+      {reorderResult && <ReorderNotice result={reorderResult} />}
 
       {/* F3-07 : retrait au comptoir — code, puis « J'ai récupéré ma commande » */}
       <PickupPanel order={order} token={token} />
@@ -151,7 +167,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <h3 className="font-semibold text-ink-900 text-sm mb-5">Suivi de commande</h3>
           <div className="flex flex-col gap-0">
             {statusSteps.map((step, index) => {
-              const isCompleted = timelinePosition(step.status) <= currentStepIndex;
+              const isCompleted = index <= currentStepIndex;
               const isCurrent = step.status === order.status;
               const isLast = index === statusSteps.length - 1;
               return (
@@ -190,7 +206,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     <p className={cn('text-sm font-medium', isCompleted ? 'text-ink-900' : 'text-ink-500')}>
                       {step.label}
                     </p>
-                    {step.status === 'ACCEPTEE' && isCompleted && readyAt && (
+                    {(step.status === 'ACCEPTEE' || (order.orderFlow === 'ACCEPT_FIRST' && step.status === 'EN_ATTENTE')) && isCompleted && readyAt && (
                       <p className="text-xs text-ink-700 mt-0.5">{readyAt}</p>
                     )}
                     {isCurrent && (
@@ -227,12 +243,18 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       <PaymentPanel
         orderId={order.id}
         orderStatus={order.status}
-        paymentAllowed={order.paymentAllowed}
+        paymentAllowed={!isError && !isPaused && order.paymentAllowed}
         orderTotal={order.total}
         orderMethod={order.paymentMethod}
         contactPhone={order.contactPhone}
         token={token}
       />
+
+      {order.status === 'ECHEC_LIVRAISON' && (
+        <div role="status" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 mb-4 text-sm text-rose-800">
+          La livraison n’a pas pu être effectuée. Consultez le détail de votre commande ou contactez le support.
+        </div>
+      )}
 
       {cancelled && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 mb-4">
@@ -336,7 +358,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       {(order.status === 'LIVRER' || order.status === 'ANNULER') && (
         <button
           onClick={handleReorder}
-          disabled={reorder.isPending}
+          disabled={reorder.isPending || isError || isPaused}
           className="w-full py-3 bg-tomato-600 hover:bg-tomato-700 text-white font-medium text-sm rounded-2xl transition-colors flex items-center justify-center gap-2 mb-3"
         >
           <RotateCcw className="w-4 h-4" />

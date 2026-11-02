@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Lock, Plus, ShoppingBag } from 'lucide-react';
-import type { Product, ProductVariant, ProductVendorRef } from '@lilia/types';
+import type { Product, ProductVendorRef } from '@lilia/types';
 import { useAddToCart, useCart, useClearCart } from '@lilia/api-client';
 import {
   cn,
@@ -59,9 +59,11 @@ export function ProductPurchase({
 
   // F3-10 — premier format encore vendable (le moins cher sinon) : ouvrir la
   // fiche sur un carton épuisé ferait croire le produit indisponible.
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(
-    product.variants.find((v) => v.stockStatus !== 'OUT_OF_STOCK') ?? product.variants[0],
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
+    (product.variants.find((v) => v.stockStatus !== 'OUT_OF_STOCK') ?? product.variants[0])?.id,
   );
+  // Relire le verdict courant après une actualisation du produit.
+  const selectedVariant = product.variants.find((v) => v.id === selectedVariantId);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -246,7 +248,7 @@ export function ProductPurchase({
               <button
                 key={v.id}
                 type="button"
-                onClick={() => setSelectedVariant(v)}
+                onClick={() => setSelectedVariantId(v.id)}
                 aria-pressed={selectedVariant?.id === v.id}
                 className={cn(
                   'rounded-xl border px-4 py-2.5 text-sm transition-all',
@@ -296,7 +298,7 @@ export function ProductPurchase({
 
       <button
         onClick={handleAdd}
-        disabled={!state.canAdd || !!optionsBlocker || addToCart.isPending}
+        disabled={!selectedVariant || !state.canAdd || !!optionsBlocker || addToCart.isPending}
         className={cn(
           'flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold transition-all',
           state.canAdd && !optionsBlocker

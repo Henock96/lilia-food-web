@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check } from 'lucide-react';
-import type { Restaurant, Product, ProductVariant } from '@lilia/types';
+import type { Restaurant, Product } from '@lilia/types';
 import {
   formatCurrency,
   priceLabel,
@@ -21,6 +21,7 @@ import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
 import { analytics } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
+import { computePurchaseState } from '@/lib/product-purchase-state';
 import { buildMenuModel, menuItemState, UNCATEGORIZED_LABEL } from '@/lib/menu-model';
 
 interface RestaurantMenuProps {
@@ -133,18 +134,20 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
    * Un produit à format unique reste sélectionné d'office : il n'y a rien à
    * choisir, et imposer un clic serait une friction sans contrepartie.
    */
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    product.variants.length === 1 ? product.variants[0]! : null,
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    product.variants.length === 1 ? product.variants[0]!.id : null,
   );
+  const selectedVariant = product.variants.find((v) => v.id === selectedVariantId);
   const [added, setAdded] = useState(false);
 
   // État d'achat calculé au même endroit que le reste de la carte, et sans
   // recalculer une règle du serveur : `availableNow` est son verdict horaire,
   // `stockRestant` sa convention (`null` = illimité, `0` = épuisé).
   const { orderable, badge } = menuItemState(product, restaurantOpen);
-  const isOutOfStock = badge === 'rupture';
+  const purchaseState = computePurchaseState(product, { isOpen: restaurantOpen }, selectedVariant);
+  const isOutOfStock = badge === 'rupture' || (!withOptions && purchaseState.blocker === 'out_of_stock');
   // Produit à options : le bouton ouvre la fiche — le format s'y choisit aussi.
-  const canAdd = orderable && (withOptions || !!selectedVariant);
+  const canAdd = orderable && (withOptions || (!!selectedVariant && purchaseState.canAdd));
   const cover = coverImage(product);
 
   /**
@@ -185,7 +188,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       toast.error('Connectez-vous pour ajouter au panier');
       return;
     }
-    if (!selectedVariant) return;
+    if (!selectedVariant || !purchaseState.canAdd) return;
 
     if (hasPreorderConflict(cart, product)) {
       setConflictOpen(true);
@@ -233,7 +236,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   async function handleConfirmConflict() {
     if (!isCurrentSession()) return;
     setConflictOpen(false);
-    if (!selectedVariant) return;
+    if (!selectedVariant || !purchaseState.canAdd) return;
     try {
       await clearCart.mutateAsync();
       if (!isCurrentSession()) return;
@@ -311,7 +314,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
             {product.variants.map((v) => (
               <button
                 key={v.id}
-                onClick={() => setSelectedVariant(v)}
+                onClick={() => setSelectedVariantId(v.id)}
                 aria-pressed={selectedVariant?.id === v.id}
                 className={cn(
                   'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
@@ -321,9 +324,14 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
                 )}
               >
                 {v.label ?? 'Standard'} — {formatCurrency(v.prix)}
+                {v.stockStatus === 'OUT_OF_STOCK' && ' · Épuisé'}
               </button>
             ))}
           </div>
+        )}
+
+        {!withOptions && selectedVariant && purchaseState.blocker === 'out_of_stock' && (
+          <p className="mt-2 text-xs text-ink-700">{purchaseState.message}</p>
         )}
 
         {/* Prix + Add

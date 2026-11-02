@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,7 +13,7 @@ import Image from 'next/image';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import {
   useProfile, useUpdateProfile,
-  useMyOrders,
+  useMyOrdersPage,
   useAdresses, useCreateAdresse, useSetDefaultAdresse, useDeleteAdresse,
   useQuartiers,
   useReferralStats, useLoyaltyTransactions,
@@ -23,6 +23,7 @@ import {
 import { formatCurrency, formatDateTime, formatOrderStatus, getOrderStatusColor, getInitials, cn } from '@lilia/utils';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
+import { runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
 
 export default function ProfilPage() {
@@ -32,11 +33,22 @@ export default function ProfilPage() {
 
   const { data: profile } = useProfile(token);
   const updateProfile = useUpdateProfile(token);
-  const { data: orders = [] } = useMyOrders(token);
-  const { data: adresses = [], isLoading: adressesLoading } = useAdresses(token);
+  const { data: ordersPage, isLoading: ordersLoading, isError: ordersError } = useMyOrdersPage(token);
+  const orders = ordersPage?.data ?? [];
+  const { data: adresses = [], isLoading: adressesLoading, isError: adressesError, isFetching: adressesFetching, refetch: refetchAdresses } = useAdresses(token);
   const createAdresse = useCreateAdresse(token);
   const setDefault = useSetDefaultAdresse(token);
   const deleteAdresse = useDeleteAdresse(token);
+  const addressGate = useRef(false);
+  const clipboardGate = useRef(false);
+  const addressBusy = setDefault.isPending || deleteAdresse.isPending || setDefault.isPaused || deleteAdresse.isPaused || adressesFetching;
+  function changeAddress(id: string, remove: boolean) {
+    if (addressBusy) return;
+    void runVisibleMutation({ gate: addressGate, isCurrent: isCurrentSession,
+      run: () => remove ? deleteAdresse.mutateAsync(id) : setDefault.mutateAsync(id),
+      onError: (error) => toast.error(mutationErrorMessage(error, remove ? "Impossible de supprimer l’adresse." : "Impossible de définir l’adresse par défaut.")),
+    });
+  }
   const { data: quartiers = [] } = useQuartiers();
   const { data: referralStats } = useReferralStats(token);
   // Le barème vient du serveur. Aucune conversion points → FCFA n'est écrite
@@ -73,8 +85,12 @@ export default function ProfilPage() {
 
   function copyReferralCode() {
     if (!referralStats?.referralCode) return;
-    navigator.clipboard.writeText(referralStats.referralCode);
-    toast.success('Code copié !');
+    const code = referralStats.referralCode;
+    void runVisibleMutation({ gate: clipboardGate, isCurrent: isCurrentSession,
+      run: () => navigator.clipboard.writeText(code),
+      onSuccess: () => toast.success('Code copié !'),
+      onError: () => toast.error('Impossible de copier le code. Copiez-le manuellement.'),
+    });
   }
 
   function openEdit() {
@@ -84,7 +100,7 @@ export default function ProfilPage() {
   }
 
   async function handleSaveProfile() {
-    if (!isCurrentSession()) return;
+    if (!isCurrentSession() || updateProfile.isPending) return;
     try {
       const res = await updateProfile.mutateAsync({
         nom: editNom.trim() || undefined,
@@ -101,7 +117,7 @@ export default function ProfilPage() {
   }
 
   async function handleSaveAddress() {
-    if (!isCurrentSession()) return;
+    if (!isCurrentSession() || savingAddress || createAdresse.isPending) return;
     if (!newRue.trim()) return;
     setSavingAddress(true);
     try {
@@ -162,7 +178,7 @@ export default function ProfilPage() {
   }
 
   // Stats from orders
-  const totalOrders = orders.length;
+  const totalOrders = ordersLoading ? '…' : ordersError || !ordersPage ? 'Indisponible' : ordersPage.meta.total;
   const totalSpent = orders.reduce((s, o) => s + o.total, 0);
   const completedOrders = orders.filter((o) => o.status === 'LIVRER').length;
   const recentOrders = orders.slice(0, 3);
@@ -232,8 +248,8 @@ export default function ProfilPage() {
         <div className="relative grid grid-cols-3 gap-3 mt-5">
           {[
             { label: 'Commandes', value: totalOrders, icon: ShoppingBag },
-            { label: 'Livrées', value: completedOrders, icon: Check },
-            { label: 'Dépensé', value: formatCurrency(totalSpent), icon: Star },
+            { label: 'Livrées (page récente)', value: ordersLoading ? '…' : ordersError || !ordersPage ? '—' : completedOrders, icon: Check },
+            { label: 'Montant (page récente)', value: ordersLoading ? '…' : ordersError || !ordersPage ? '—' : formatCurrency(totalSpent), icon: Star },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="bg-white/15 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20">
               <Icon className="w-4 h-4 text-white mx-auto mb-1" />
@@ -407,7 +423,13 @@ export default function ProfilPage() {
           </div>
         )}
 
-        {!adressesLoading && adresses.length === 0 && (
+        {adressesError && <div role="alert" className="px-4 py-4 text-sm text-rose-700">
+          <p>Impossible de charger vos adresses.</p>
+          <button type="button" disabled={adressesFetching} onClick={() => void refetchAdresses()}
+            className="mt-2 underline disabled:opacity-50">Réessayer</button>
+        </div>}
+
+        {!adressesLoading && !adressesError && adresses.length === 0 && (
           <div className="px-4 py-6 text-center">
             <MapPin className="w-8 h-8 text-ink-300 mx-auto mb-2" />
             <p className="text-sm text-ink-500">Aucune adresse enregistrée</p>
@@ -443,7 +465,8 @@ export default function ProfilPage() {
             <div className="flex items-center gap-1 flex-shrink-0">
               {!adresse.isDefault && (
                 <button
-                  onClick={() => setDefault.mutate(adresse.id)}
+                  disabled={addressBusy || adressesError}
+                  onClick={() => changeAddress(adresse.id, false)}
                   className="p-1.5 hover:bg-tomato-100 text-ink-500 hover:text-tomato-700 rounded-lg transition-colors"
                   title="Définir par défaut"
                 >
@@ -451,7 +474,8 @@ export default function ProfilPage() {
                 </button>
               )}
               <button
-                onClick={() => deleteAdresse.mutate(adresse.id)}
+                disabled={addressBusy || adressesError}
+                onClick={() => changeAddress(adresse.id, true)}
                 className="p-1.5 hover:bg-rose-50 text-ink-500 hover:text-rose-500 rounded-lg transition-colors"
                 title="Supprimer"
               >
