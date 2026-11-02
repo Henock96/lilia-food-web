@@ -51,7 +51,7 @@ export function pickupStatusLabel(
  * Étapes de la chronologie. Un retrait ne passe jamais « en route » : l'étape
  * est retirée, et la dernière se dit « Récupérée ».
  */
-export function timelineSteps(isDelivery: boolean): {
+export function timelineSteps(isDelivery: boolean, orderFlow?: Order['orderFlow']): {
   status: OrderStatus;
   label: string;
 }[] {
@@ -64,5 +64,12 @@ export function timelineSteps(isDelivery: boolean): {
     { status: 'EN_ROUTE', label: 'En route' },
     { status: 'LIVRER', label: isDelivery ? 'Livré' : 'Récupérée' },
   ];
-  return isDelivery ? steps : steps.filter((s) => s.status !== 'EN_ROUTE');
+  const flowSteps = orderFlow === 'ACCEPT_FIRST'
+    ? [
+        { status: 'DEMANDE_ENVOYEE' as const, label: 'Demande envoyée' },
+        { status: 'EN_ATTENTE' as const, label: 'Acceptée — paiement attendu' },
+        ...steps.filter((s) => !['EN_ATTENTE', 'ACCEPTEE'].includes(s.status)),
+      ]
+    : steps;
+  return isDelivery ? flowSteps : flowSteps.filter((s) => s.status !== 'EN_ROUTE');
 }

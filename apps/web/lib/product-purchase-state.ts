@@ -114,7 +114,7 @@ export function computePurchaseState(
   if (product.stockRestant === 0) {
     return blocked('out_of_stock', 'Épuisé pour aujourd’hui');
   }
-  if (available === 0) {
+  if (variant?.stockStatus === 'OUT_OF_STOCK' || available === 0) {
     return blocked('out_of_stock', 'Ce format est épuisé — choisissez-en un autre');
   }
   if (product.variants.length === 0) {

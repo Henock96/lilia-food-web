@@ -46,3 +46,24 @@ describe('computePurchaseState — formats multi-unités', () => {
     expect(availableForVariant(4, undefined)).toBe(4);
   });
 });
+
+
+describe('LF12 — verdict serveur et absence de stock', () => {
+  const product = { variants: [{ id: 'format' }], stockRestant: 18 } as never;
+  it('respecte OUT_OF_STOCK même si la quantité est absente', () => {
+    expect(computePurchaseState(product, null, { stockStatus: 'OUT_OF_STOCK' }).canAdd).toBe(false);
+  });
+  it('le plafond utilise la quantité publiée, pas le stock brut', () => {
+    expect(computePurchaseState(product, null, { availableQuantity: 2, stockConsumption: 6 }).maxQuantity).toBe(2);
+  });
+  it.each([null, undefined])('stock absent %s : reste disponible avec plafond UI 99', (stockRestant) => {
+    const state = computePurchaseState({ ...(product as object), stockRestant } as never, null);
+    expect(state.canAdd).toBe(true);
+    expect(state.maxQuantity).toBe(99);
+  });
+  it('quantité explicitement illimitée publiée prioritaire sur ancien stock brut', () => {
+    const state = computePurchaseState(product, null, { availableQuantity: null, stockStatus: 'UNLIMITED' });
+    expect(state.canAdd).toBe(true);
+    expect(state.maxQuantity).toBe(99);
+  });
+});

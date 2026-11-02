@@ -54,6 +54,7 @@ import {
   serviceModesOf,
 } from '@/lib/service-modes';
 import { toast } from 'sonner';
+import { collectionReadState, runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { CartLineDetails } from '@/components/cart/cart-line-details';
 import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
@@ -61,9 +62,18 @@ export default function PanierPage() {
   const router = useRouter();
   const { token } = useAuthSession();
   const isCurrentSession = useSessionGuard();
-  const { data: cart, isLoading, isFetching: cartFetching, isError: cartError, refetch: refetchCart } = useCart(token);
+  const { data: cart, isLoading, isFetching: cartFetching, isError: cartError, isPaused: cartPaused, refetch: refetchCart } = useCart(token);
   const updateItem = useUpdateCartItem(token);
   const removeItem = useRemoveCartItem(token);
+  const cartMutationGate = useRef(false);
+  const cartBusy = updateItem.isPending || removeItem.isPending || updateItem.isPaused || removeItem.isPaused || cartFetching || cartPaused;
+  function changeQuantity(itemId: string, quantite: number) {
+    if (cartBusy) return;
+    void runVisibleMutation({ gate: cartMutationGate, isCurrent: isCurrentSession,
+      run: () => quantite === 0 ? removeItem.mutateAsync(itemId) : updateItem.mutateAsync({ itemId, quantite }),
+      onError: (error) => toast.error(mutationErrorMessage(error, 'Impossible de modifier le panier. Vérifiez votre connexion puis réessayez.')),
+    });
+  }
   // Clé d'idempotence générée une fois pour cette session de checkout.
   // Si le réseau coupe et que l'utilisateur relance la commande, la même clé
   // est renvoyée → le backend retourne la commande déjà créée (pas de doublon).
@@ -155,7 +165,7 @@ export default function PanierPage() {
   const quoteReady = checkoutQuoteReady({
     quote: quoteQuery.data, restaurantId: firstItemRestaurantId, hasInputs: quoteDto !== null,
     success: quoteQuery.isSuccess, fetching: quoteQuery.isFetching, placeholder: quoteQuery.isPlaceholderData,
-    cartUpdating: cartFetching || cartError || updateItem.isPending || removeItem.isPending || promoLoading,
+    cartUpdating: cartFetching || cartError || cartPaused || updateItem.isPending || removeItem.isPending || promoLoading,
   });
 
   // Réinitialise le créneau si le panier n'est plus en pré-commande (reset pendant le render).
@@ -225,6 +235,14 @@ export default function PanierPage() {
     );
   }
 
+  if (collectionReadState(cart, isLoading, cartError || cartPaused) === 'error') {
+    return <div role="alert" className="max-w-4xl mx-auto px-4 py-10">
+      <p>Impossible de charger votre panier. Son contenu ne peut pas être confirmé.</p>
+      <button type="button" disabled={cartFetching} onClick={() => void refetchCart()}
+        className="mt-3 text-tomato-700 underline disabled:opacity-50">Réessayer</button>
+    </div>;
+  }
+
   const items = cart?.items ?? [];
   const isEmpty = items.length === 0;
 
@@ -282,7 +300,7 @@ export default function PanierPage() {
   }
 
   async function handleSaveAddress() {
-    if (!isCurrentSession()) return;
+    if (!isCurrentSession() || savingAddress || createAdresse.isPending) return;
     if (!newRue.trim()) return;
     // Le quartier n'est plus facultatif. Sans lui, une adresse web n'est
     // situable par rien : le navigateur ne propose pas de carte, et le repli
@@ -509,12 +527,10 @@ export default function PanierPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
+                        disabled={cartBusy}
+                        aria-label="Diminuer la quantité"
                         onClick={() => {
-                          if (item.quantite === 1) {
-                            removeItem.mutate(item.id);
-                          } else {
-                            updateItem.mutate({ itemId: item.id, quantite: item.quantite - 1 });
-                          }
+                          changeQuantity(item.id, item.quantite - 1);
                         }}
                         className="w-7 h-7 bg-cream-200 hover:bg-cream-300 rounded-full flex items-center justify-center transition-colors"
                       >
@@ -552,9 +568,9 @@ export default function PanierPage() {
                         return (
                           <button
                             onClick={() =>
-                              updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })
+                              changeQuantity(item.id, item.quantite + 1)
                             }
-                            disabled={atMax}
+                            disabled={atMax || cartBusy}
                             title={
                               atMax
                                 ? 'Plus assez de stock pour en ajouter un de ce format'

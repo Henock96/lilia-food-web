@@ -1,25 +1,38 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
-import { useAuthSession } from '@/lib/auth-session';
+import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { useCartStore } from '@/store/cart';
 import { useCart, useUpdateCartItem, useRemoveCartItem } from '@lilia/api-client';
 import { formatCurrency } from '@lilia/utils';
+import { toast } from 'sonner';
+import { collectionReadState, runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { analytics } from '@/lib/analytics';
 import { CartLineDetails } from '@/components/cart/cart-line-details';
 import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
 export function CartDrawer() {
   const router = useRouter();
-  const { token } = useAuthSession();
+  const { token, isLoading: sessionLoading } = useAuthSession();
   const { isOpen, closeCart } = useCartStore();
-  const { data: cart } = useCart(token);
+  const isCurrentSession = useSessionGuard();
+  const { data: cart, isLoading, isError, isFetching, isPaused, refetch } = useCart(token);
   const updateItem = useUpdateCartItem(token);
   const removeItem = useRemoveCartItem(token);
+  const gate = useRef(false);
+  const busy = updateItem.isPending || removeItem.isPending || updateItem.isPaused || removeItem.isPaused || isFetching || isPaused;
+  const readState = sessionLoading ? 'loading' : !token ? 'anonymous' : collectionReadState(cart, isLoading, isError || isPaused);
+  function changeQuantity(itemId: string, quantite: number) {
+    if (busy) return;
+    void runVisibleMutation({ gate, isCurrent: isCurrentSession,
+      run: () => quantite === 0 ? removeItem.mutateAsync(itemId) : updateItem.mutateAsync({ itemId, quantite }),
+      onError: (error) => toast.error(mutationErrorMessage(error, 'Impossible de modifier le panier. Réessayez après vérification de votre connexion.')),
+    });
+  }
 
   const items = cart?.items ?? [];
   // F3-09 — sous-total serveur : options comprises, menu compté une fois.
@@ -76,7 +89,7 @@ export function CartDrawer() {
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-tomato-700" />
                 <h2 className="font-bold text-ink-900 text-lg">Mon panier</h2>
-                {items.length > 0 && (
+                {readState === 'ready' && items.length > 0 && (
                   <span className="text-xs font-semibold bg-tomato-100 text-tomato-700 px-2 py-0.5 rounded-full">
                     {items.length}
                   </span>
@@ -93,7 +106,21 @@ export function CartDrawer() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
-              {items.length === 0 ? (
+              {readState === 'loading' ? (
+                <p role="status">Chargement du panier…</p>
+              ) : readState === 'anonymous' ? (
+                <div>
+                  <p>Connectez-vous pour consulter votre panier.</p>
+                  <button type="button" onClick={() => { closeCart(); router.push('/connexion?redirect=/panier'); }}
+                    className="mt-3 text-tomato-700 underline">Se connecter</button>
+                </div>
+              ) : readState === 'error' ? (
+                <div role="alert">
+                  <p>Impossible de charger votre panier. Son contenu ne peut pas être confirmé.</p>
+                  <button type="button" disabled={isFetching} onClick={() => void refetch()}
+                    className="mt-3 text-tomato-700 underline disabled:opacity-50">Réessayer</button>
+                </div>
+              ) : items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
                   {/* Empty state illustration */}
                   <div className="w-20 h-20 bg-cream-200 rounded-3xl flex items-center justify-center">
@@ -142,7 +169,8 @@ export function CartDrawer() {
                         <div className="flex items-center gap-1.5">
                           <button
                             aria-label="Diminuer la quantité"
-                            onClick={() => item.quantite === 1 ? removeItem.mutate(item.id) : updateItem.mutate({ itemId: item.id, quantite: item.quantite - 1 })}
+                            disabled={busy}
+                            onClick={() => changeQuantity(item.id, item.quantite - 1)}
                             className="w-6 h-6 bg-white border border-cream-300 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
                             {item.quantite === 1 ? <Trash2 className="w-3 h-3 text-rose-500" /> : <Minus className="w-3 h-3 text-ink-700" />}
@@ -150,7 +178,8 @@ export function CartDrawer() {
                           <span className="w-5 text-center text-sm font-bold text-ink-900">{item.quantite}</span>
                           <button
                             aria-label="Augmenter la quantité"
-                            onClick={() => updateItem.mutate({ itemId: item.id, quantite: item.quantite + 1 })}
+                            disabled={busy}
+                            onClick={() => changeQuantity(item.id, item.quantite + 1)}
                             className="w-6 h-6 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
                             <Plus className="w-3 h-3 text-tomato-700" />
@@ -164,7 +193,7 @@ export function CartDrawer() {
             </div>
 
             {/* Footer */}
-            {items.length > 0 && (
+            {readState === 'ready' && items.length > 0 && (
               <div className="px-5 py-4 border-t border-cream-200 bg-white">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-sm text-ink-500">Sous-total</span>
