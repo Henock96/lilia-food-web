@@ -10,24 +10,40 @@
  * - ne pas être de la forme "http(s):..." (URL absolue).
  *
  * Tout le reste retombe sur le fallback `/restaurants`.
+ *
+ * ⚠️ Contrôler la chaîne ne suffit pas : l'analyseur d'URL du navigateur la
+ * réécrit avant de résoudre. Il supprime tabulations et sauts de ligne —
+ * `/\t/evil.com` (`?redirect=/%09/evil.com`, que `searchParams.get` décode)
+ * devient `//evil.com` — et changeait déjà l'antislash en slash. Chaque forme
+ * passait les contrôles de préfixe un par un. On résout donc l'URL comme le
+ * fera le navigateur et on exige qu'elle reste sur le site ; on ne renvoie que
+ * le chemin résolu, jamais la saisie.
  */
+const RESOLUTION_ORIGIN = 'https://redirect.invalid';
+
 export function sanitizeRedirect(value: string | null | undefined): string {
   const fallback = '/restaurants';
   if (!value) return fallback;
 
+  // Caractères de contrôle : l'analyseur en retire certains en silence. Aucun
+  // chemin légitime n'en contient.
+  if (/[\u0000-\u001F\u007F]/.test(value)) return fallback;
+
   // Les navigateurs normalisent l'antislash en slash dans une URL : `/\evil.com`
-  // et `/\/evil.com` sont donc résolus comme `//evil.com`, c'est-à-dire une
-  // redirection externe. Ces formes passaient les trois contrôles ci-dessous
-  // (ne commencent ni par `//` ni par `http:`, commencent bien par `/`). On
-  // normalise donc AVANT de contrôler, plutôt que de tester la chaîne brute.
+  // et `/\/evil.com` sont donc résolus comme `//evil.com`.
   const normalized = value.replace(/\\/g, '/');
 
-  // Refuse tout schéma d'URL (http:, https:, mais aussi javascript:, data:).
-  if (/^[a-z][a-z0-9+.-]*:/i.test(normalized)) return fallback;
-  // Refuse les URLs protocol-relative (//evil.com).
-  if (normalized.startsWith('//')) return fallback;
-  // Doit commencer par "/" pour être un chemin interne.
-  if (!normalized.startsWith('/')) return fallback;
+  // Doit commencer par "/" (chemin absolu interne) mais pas par "//"
+  // (protocol-relative). Exclut aussi tout schéma (https:, javascript:, data:).
+  if (!normalized.startsWith('/') || normalized.startsWith('//')) return fallback;
 
-  return normalized;
+  let resolved: URL;
+  try {
+    resolved = new URL(normalized, RESOLUTION_ORIGIN);
+  } catch {
+    return fallback;
+  }
+  if (resolved.origin !== RESOLUTION_ORIGIN) return fallback;
+
+  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
 }
