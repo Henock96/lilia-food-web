@@ -1,7 +1,7 @@
 # Politique de Confidentialité — Lilia Food
 
-> Document légal · Version 1.1 · Entrée en vigueur : 2026-05-19
-> Dernière mise à jour : 2026-08-27
+> Document légal · Version 1.2 · Entrée en vigueur : 2026-11-05
+> Dernière mise à jour : 2026-11-05
 > Société : **Lilia Food** (en cours d'immatriculation au RCCM Brazzaville)
 > Contact données personnelles : `contact@liliafood.com` · Support : `contact@liliafood.com`
 >
@@ -142,7 +142,7 @@ Vous disposez à tout moment, et sans frais, des droits suivants :
 | **Opposition** — refuser un traitement (notamment marketing) | Désinscription dans chaque email + paramètres app |
 | **Portabilité** — récupérer vos données dans un format lisible | Email, fournit JSON/CSV sous 30 jours |
 | **Retrait du consentement** — pour les traitements basés sur consentement | À tout moment, sans rétroactivité |
-| **Réclamation** — saisir l'autorité compétente | Autorité de contrôle désignée en vertu de la Loi n° 29-2019 du 10 octobre 2019. Sa dénomination et ses coordonnées seront précisées ici dès confirmation de son caractère opérationnel (à valider avec un avocat congolais). |
+| **Réclamation** — saisir l'autorité compétente | Autorité de contrôle désignée en vertu de la Loi n° 29-2019 du 10 octobre 2019. Sa dénomination et ses coordonnées seront précisées ici dès confirmation de son caractère opérationnel. |
 
 **Délai de réponse Lilia** : 1 mois maximum (prolongeable à 2 mois pour demandes complexes).
 
@@ -217,7 +217,4 @@ Adresse postale (à publier au siège social définitif) : Lilia Food, Brazzavil
 |---|---|---|
 | 1.0 | 2026-05-19 | Version initiale (partie d'un document combiné avec les CGU) |
 | 1.1 | 2026-08-27 | Séparée des CGU en document autonome. Ajout de la référence légale à la Loi n° 29-2019 du 10 octobre 2019 (protection des données à caractère personnel, Congo) aux sections 1 et 7. |
-
----
-
-*Document généré à partir des Lilia Food Docs (architecture, business flows, paiements) et vérifié par recherche web pour la référence légale congolaise (Loi n° 29-2019). À faire valider par un avocat congolais avant publication officielle — en particulier pour confirmer l'autorité de contrôle compétente et compléter la raison sociale, le RCCM et le représentant légal une fois l'immatriculation finalisée.*
+| 1.2 | 2026-11-05 | Retrait des notes de travail internes publiées avec le document. |

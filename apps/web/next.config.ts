@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 import path from 'path';
 import { apiConnectSources, cspReporting } from './lib/csp-report';
+import { legalRedirects } from './lib/legal-redirects';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -53,6 +54,9 @@ const nextConfig: NextConfig = {
    * violations rapportées, puis on bascule cet en-tête sur
    * `Content-Security-Policy` une fois la politique stabilisée.
    */
+  async redirects() {
+    return legalRedirects();
+  },
   async headers() {
     // Rapports envoyés à Sentry (L0-10) : sans destination, le mode
     // Report-Only n'observait rien. Absent en local, faute de DSN.
