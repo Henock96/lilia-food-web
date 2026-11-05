@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart, Trash2, Plus, Minus, ArrowRight, Tag,
-  MapPin, Phone, Check, Store, Bike, Plus as PlusIcon, Zap,
+  MapPin, Phone, Check, Store, Bike, Plus as PlusIcon,
   Calendar as CalendarIcon, AlertTriangle,
 } from 'lucide-react';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
@@ -41,6 +41,7 @@ import {
   normalizeCongoPhone,
 } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
+import { LoyaltyToggle } from '@/components/checkout/loyalty-toggle';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
 import { minimumOrderError, PRICING_SETTINGS_FALLBACK } from '@/lib/checkout-estimate';
@@ -106,6 +107,7 @@ export default function PanierPage() {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const phoneIsValid = isValidCongoPhone(contactPhone);
   const phoneError = phoneTouched && !phoneIsValid;
+  const fieldId = useId();
   // Choix du client. Le mode effectif (`isDelivery`) en est dérivé plus bas,
   // contre les modes que le vendeur propose.
   const [chosenIsDelivery, setIsDelivery] = useState(true);
@@ -528,7 +530,11 @@ export default function PanierPage() {
                     <div className="flex items-center gap-2">
                       <button
                         disabled={cartBusy}
-                        aria-label="Diminuer la quantité"
+                        aria-label={
+                          item.quantite === 1
+                            ? `Retirer ${item.product?.nom ?? 'cet article'} du panier`
+                            : `Diminuer la quantité de ${item.product?.nom ?? 'cet article'}`
+                        }
                         onClick={() => {
                           changeQuantity(item.id, item.quantite - 1);
                         }}
@@ -567,6 +573,7 @@ export default function PanierPage() {
                           engaged + weight(item) > stock;
                         return (
                           <button
+                            aria-label={`Augmenter la quantité de ${item.product?.nom ?? 'cet article'}`}
                             onClick={() =>
                               changeQuantity(item.id, item.quantite + 1)
                             }
@@ -607,6 +614,7 @@ export default function PanierPage() {
                   >
                     {serviceModes?.delivery !== false && (
                       <button
+                        aria-pressed={isDelivery}
                         onClick={() => setIsDelivery(true)}
                         className={cn(
                           'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
@@ -621,6 +629,7 @@ export default function PanierPage() {
                     )}
                     {serviceModes?.pickup !== false && (
                       <button
+                        aria-pressed={!isDelivery}
                         onClick={() => setIsDelivery(false)}
                         className={cn(
                           'flex flex-col items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all',
@@ -671,6 +680,7 @@ export default function PanierPage() {
                       {adresses.map((adresse) => (
                         <button
                           key={adresse.id}
+                          aria-pressed={selectedAdresseId === adresse.id}
                           onClick={() => setSelectedAdresseId(adresse.id)}
                           className={cn(
                             'flex items-start gap-3 p-3 rounded-xl border text-left transition-all',
@@ -717,30 +727,41 @@ export default function PanierPage() {
                         exit={{ opacity: 0, height: 0 }}
                         className="flex flex-col gap-2 pt-3 border-t border-cream-200 overflow-hidden"
                       >
-                        <select
-                          value={newQuartierId}
-                          onChange={(e) => setNewQuartierId(e.target.value)}
-                          className="w-full text-sm border border-cream-300 bg-white text-ink-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
-                        >
-                          <option value="">Quartier (obligatoire)</option>
-                          {quartiers.map((q) => (
-                            <option key={q.id} value={q.id}>{q.nom}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          value={newRue}
-                          onChange={(e) => setNewRue(e.target.value)}
-                          placeholder="Rue / Précision (ex: Rue Mfilou, face pharmacie)"
-                          className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
-                        />
-                        <input
-                          type="text"
-                          value={newLandmark}
-                          onChange={(e) => setNewLandmark(e.target.value)}
-                          placeholder="Point de repère pour le livreur (ex: portail bleu face à la pharmacie)"
-                          className="w-full text-sm border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
-                        />
+                        <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+                          Quartier
+                          <select
+                            required
+                            value={newQuartierId}
+                            onChange={(e) => setNewQuartierId(e.target.value)}
+                            className="w-full text-sm font-normal border border-cream-300 bg-white text-ink-900 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                          >
+                            <option value="">Quartier (obligatoire)</option>
+                            {quartiers.map((q) => (
+                              <option key={q.id} value={q.id}>{q.nom}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+                          Rue ou précision
+                          <input
+                            type="text"
+                            required
+                            value={newRue}
+                            onChange={(e) => setNewRue(e.target.value)}
+                            placeholder="Ex : Rue Mfilou, face pharmacie"
+                            className="w-full text-sm font-normal border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+                          Point de repère pour le livreur
+                          <input
+                            type="text"
+                            value={newLandmark}
+                            onChange={(e) => setNewLandmark(e.target.value)}
+                            placeholder="Ex : portail bleu face à la pharmacie"
+                            className="w-full text-sm font-normal border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                          />
+                        </label>
                         <div className="flex gap-2">
                           <button
                             onClick={() => { setShowAddressForm(false); setNewRue(''); setNewQuartierId(''); setNewLandmark(''); }}
@@ -769,19 +790,22 @@ export default function PanierPage() {
 
             {/* Contact phone — obligatoire pour le paiement manuel MTN/Airtel */}
             <div className="bg-white rounded-2xl border border-cream-200 p-4">
-              <label className="block text-sm font-medium text-ink-700 mb-2">
+              <label htmlFor={`${fieldId}-phone`} className="block text-sm font-medium text-ink-700 mb-2">
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
                   Numéro de contact <span className="text-danger">*</span>
                 </span>
               </label>
               <input
+                id={`${fieldId}-phone`}
                 type="tel"
+                required
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
                 onBlur={() => setPhoneTouched(true)}
                 placeholder="+242 06 XXX XX XX"
                 aria-invalid={phoneError}
+                aria-describedby={`${fieldId}-phone-hint`}
                 className={cn(
                   'w-full text-sm border bg-white text-ink-900 placeholder:text-ink-500 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 transition-all',
                   phoneError
@@ -790,11 +814,11 @@ export default function PanierPage() {
                 )}
               />
               {phoneError ? (
-                <p className="text-xs text-rose-600 mt-1.5">
+                <p id={`${fieldId}-phone-hint`} className="text-xs text-rose-600 mt-1.5">
                   Format invalide — utilisez +242 06 XX XX XX XX (MTN/Airtel Congo)
                 </p>
               ) : (
-                <p className="text-xs text-ink-500 mt-1.5">
+                <p id={`${fieldId}-phone-hint`} className="text-xs text-ink-500 mt-1.5">
                   Le livreur et l&apos;agent paiement vous joindront sur ce numéro
                 </p>
               )}
@@ -802,8 +826,9 @@ export default function PanierPage() {
 
             {/* Notes */}
             <div className="bg-white rounded-2xl border border-cream-200 p-4">
-              <label className="block text-sm font-medium text-ink-700 mb-2">Note pour le restaurant</label>
+              <label htmlFor={`${fieldId}-notes`} className="block text-sm font-medium text-ink-700 mb-2">Note pour le restaurant</label>
               <textarea
+                id={`${fieldId}-notes`}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ex: sans piment, sans oignon..."
@@ -817,11 +842,12 @@ export default function PanierPage() {
           <div className="flex flex-col gap-4">
             {/* Promo code */}
             <div className="bg-white rounded-2xl border border-cream-200 p-4">
-              <label className="block text-sm font-medium text-ink-700 mb-2">Code promo</label>
+              <label htmlFor={`${fieldId}-promo`} className="block text-sm font-medium text-ink-700 mb-2">Code promo</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-500" />
                   <input
+                    id={`${fieldId}-promo`}
                     type="text"
                     value={promoCode}
                     onChange={(e) => {
@@ -857,6 +883,7 @@ export default function PanierPage() {
                 {paymentOperators.map(({ code, label, available }) => (
                   <button
                     key={code}
+                    aria-pressed={paymentMethod === code}
                     onClick={() => available && setPaymentMethod(code)}
                     disabled={!available}
                     className={cn(
@@ -902,27 +929,14 @@ export default function PanierPage() {
                 le forfait par commande, et le coder en dur aurait rendu la
                 section invisible pour tout le monde. */}
             {platformSettings && loyaltyPoints >= pricingSettings.loyaltyMinRedemption && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
-                    <Zap className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-amber-800">
-                      {loyaltyPoints} points disponibles
-                    </p>
-                    <p className="text-xs text-warning">
-                      = {formatCurrency(loyaltyPoints * pricingSettings.loyaltyPointValueXaf)} de réduction sur le panier
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setUseLoyaltyPoints((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${useLoyaltyPoints ? 'bg-amber-500' : 'bg-cream-300'}`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${useLoyaltyPoints ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
+              <LoyaltyToggle
+                points={loyaltyPoints}
+                pointValueXaf={pricingSettings.loyaltyPointValueXaf}
+                active={useLoyaltyPoints}
+                discountXaf={quote ? loyaltyDiscount : null}
+                pointsUsed={quote ? loyaltyPointsUsed : null}
+                onToggle={() => setUseLoyaltyPoints((v) => !v)}
+              />
             )}
 
             {/* Section preorder */}

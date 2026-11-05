@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useDialogFocus } from '@/lib/dialog-focus';
 
 interface CartModeConflictDialogProps {
   open: boolean;
@@ -23,20 +23,13 @@ export function CartModeConflictDialog({
   onConfirm,
   onCancel,
 }: CartModeConflictDialogProps) {
-  // ESC key handler to close modal
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open, onCancel);
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={dialogRef}
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
