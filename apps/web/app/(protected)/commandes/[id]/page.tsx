@@ -17,6 +17,7 @@ import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handove
 import { ClaimPanel } from '@/components/orders/claim-panel';
 import { OrderSyncNotice } from '@/components/orders/order-sync-notice';
 import { PickupPanel } from '@/components/orders/pickup-panel';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { pickupStatusLabel, timelineSteps } from '@/lib/pickup-view';
 import { toast } from 'sonner';
 import {
@@ -47,17 +48,21 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const downloadReceipt = useDownloadReceipt(token);
   const router = useRouter();
   const [reorderResult, setReorderResult] = useState<ReorderResult | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   async function handleCancel() {
     if (!isCurrentSession()) return;
-    if (!confirm('Annuler cette commande ?')) return;
     try {
       await cancelOrder.mutateAsync(id);
       if (!isCurrentSession()) return;
+      setConfirmingCancel(false);
       toast.success('Commande annulée');
-    } catch {
+    } catch (error) {
       if (!isCurrentSession()) return;
-      toast.error('Impossible d\'annuler la commande');
+      setConfirmingCancel(false);
+      // Le serveur dit pourquoi : une commande payée entre-temps n'est plus
+      // annulable par le client, et ce message est le seul à le lui apprendre.
+      toast.error(error instanceof ApiError ? error.message : 'Impossible d\'annuler la commande');
     }
   }
 
@@ -369,13 +374,22 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       {/* Cancel */}
       {canCancel && (
         <button
-          onClick={handleCancel}
+          onClick={() => setConfirmingCancel(true)}
           disabled={cancelOrder.isPending}
           className="w-full py-3 border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm rounded-2xl transition-colors"
         >
           {cancelOrder.isPending ? 'Annulation...' : 'Annuler la commande'}
         </button>
       )}
+      <ConfirmDialog
+        open={confirmingCancel}
+        title="Annuler cette commande ?"
+        confirmLabel="Annuler la commande"
+        cancelLabel="Garder ma commande"
+        pending={cancelOrder.isPending}
+        onConfirm={() => void handleCancel()}
+        onCancel={() => setConfirmingCancel(false)}
+      />
     </motion.div>
   );
 }
