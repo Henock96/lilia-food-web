@@ -38,12 +38,21 @@ import { readResultFromError, type ReadResult } from './read-result';
  * du réveil du service Render, qui s'endort. La bonne réponse est de **borner**
  * la fraîcheur, pas de la supprimer.
  */
-async function fetchVendorMenu(id: string): Promise<Restaurant> {
+async function fetchVendorMenu(id: string): Promise<Restaurant | null> {
   'use cache';
   cacheTag('vendors');
   cacheTag(`vendor-${id}`);
   cacheLife('minutes');
-  return apiClient<Restaurant>(`/vendors/${id}`);
+  try {
+    return await apiClient<Restaurant>(`/vendors/${id}`);
+  } catch (error) {
+    // ⚠️ Une erreur ressort de `'use cache'` sans son statut : relue dehors, un
+    // 404 ressemblerait à une panne, et tout vendeur retiré afficherait
+    // « Réessayer ». Il franchit donc la frontière comme une valeur. Le mémoriser
+    // est sans risque : ce n'est pas une panne, et `vendor-${id}` l'invalide.
+    if (readResultFromError(error).kind === 'missing') return null;
+    throw error;
+  }
 }
 
 /**
@@ -101,12 +110,13 @@ async function fetchRemainingProducts(
  * jusqu'à expiration.
  */
 export async function getVendorMenu(id: string): Promise<ReadResult<Restaurant>> {
-  let vendor: Restaurant;
+  let vendor: Restaurant | null;
   try {
     vendor = await fetchVendorMenu(id);
-  } catch (error) {
-    return readResultFromError(error);
+  } catch {
+    return { kind: 'unavailable' };
   }
+  if (!vendor) return { kind: 'missing' };
 
   const loaded = vendor.products?.length ?? 0;
   const total = vendor.totalProducts ?? loaded;

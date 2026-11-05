@@ -7,10 +7,6 @@ describe('readResultFromError', () => {
     expect(readResultFromError(new ApiError(404, 'Vendeur introuvable.'))).toEqual({ kind: 'missing' });
   });
 
-  it('reconnaît le 404 sans la classe : l’erreur a pu traverser `use cache`', () => {
-    expect(readResultFromError({ status: 404, message: 'Introuvable' })).toEqual({ kind: 'missing' });
-  });
-
   it.each([
     ['500', new ApiError(500, 'Erreur interne')],
     ['503', new ApiError(503, 'Maintenance')],

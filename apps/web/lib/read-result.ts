@@ -12,8 +12,9 @@ export type ReadResult<T> =
   | { kind: 'unavailable' };
 
 /**
- * ⚠️ On lit `status` plutôt que `instanceof ApiError` : l'erreur de la carte
- * vendeur traverse la frontière `'use cache'`, et sa classe n'y est pas garantie.
+ * ⚠️ À appeler **avant** toute frontière `'use cache'` : l'erreur en ressort sans
+ * son statut, et un 404 y deviendrait une panne (vu sur le build, pas sous
+ * vitest, où la directive n'a pas d'effet). Cf. `fetchVendorMenu`.
  */
 export function readResultFromError(error: unknown): { kind: 'missing' } | { kind: 'unavailable' } {
   const status = (error as { status?: unknown } | null | undefined)?.status;
