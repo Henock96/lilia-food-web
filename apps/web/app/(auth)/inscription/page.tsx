@@ -380,7 +380,7 @@ export default function InscriptionPage() {
               />
             </div>
             {referralCode && (
-              <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+              <p className="text-xs text-success mt-1 flex items-center gap-1">
                 <Gift className="w-3 h-3" /> +200 points offerts à l&apos;activation
               </p>
             )}

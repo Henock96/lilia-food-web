@@ -12,6 +12,7 @@ import { formatCurrency } from '@lilia/utils';
 import { toast } from 'sonner';
 import { collectionReadState, runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { analytics } from '@/lib/analytics';
+import { useDialogFocus } from '@/lib/dialog-focus';
 import { CartLineDetails } from '@/components/cart/cart-line-details';
 import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
@@ -19,6 +20,7 @@ export function CartDrawer() {
   const router = useRouter();
   const { token, isLoading: sessionLoading } = useAuthSession();
   const { isOpen, closeCart } = useCartStore();
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen, closeCart);
   const isCurrentSession = useSessionGuard();
   const { data: cart, isLoading, isError, isFetching, isPaused, refetch } = useCart(token);
   const updateItem = useUpdateCartItem(token);
@@ -75,6 +77,7 @@ export function CartDrawer() {
           {/* Drawer */}
           <motion.div
             key="drawer"
+            ref={dialogRef}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}

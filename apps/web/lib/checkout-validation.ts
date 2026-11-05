@@ -29,6 +29,34 @@ export function checkoutQuoteReady(input: {
     isVerifiedCheckoutQuote(input.quote) && input.quote.restaurantId === input.restaurantId;
 }
 
+/**
+ * Premier motif qui empêche de commander, ou `null`.
+ *
+ * Une seule écriture de la condition du bouton : sur mobile, le bouton vit dans
+ * une barre fixe, loin du récapitulatif qui explique pourquoi il est grisé. Le
+ * devis vient en dernier : il dépend de ce que le client doit d'abord compléter.
+ */
+export function checkoutBlocker(input: {
+  maintenance: string | null;
+  vendorServesNobody: boolean;
+  isEmpty: boolean;
+  minimumError: string | null;
+  needsAddress: boolean;
+  needsSlot: boolean;
+  phoneValid: boolean;
+  quoteReady: boolean;
+}): string | null {
+  if (input.maintenance) return input.maintenance;
+  if (input.vendorServesNobody) return 'Ce vendeur ne prend pas de commande pour le moment.';
+  if (input.isEmpty) return 'Votre panier est vide.';
+  if (input.minimumError) return input.minimumError;
+  if (input.needsAddress) return 'Sélectionnez une adresse de livraison.';
+  if (input.needsSlot) return 'Choisissez un créneau de retrait.';
+  if (!input.phoneValid) return 'Renseignez un numéro de contact valide.';
+  if (!input.quoteReady) return 'Vérification du montant de votre commande…';
+  return null;
+}
+
 /** Recheck live cache at click time, including invalidation before React rerenders. */
 export function checkoutCacheCurrent(state: {
   data: unknown; status: string; fetchStatus: string; isInvalidated: boolean;

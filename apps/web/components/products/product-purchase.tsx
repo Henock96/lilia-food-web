@@ -285,7 +285,7 @@ export function ProductPurchase({
       )}
 
       {state.canAdd && state.lowQuantity !== null && (
-        <p className="text-xs text-amber-600">
+        <p className="text-xs text-warning">
           Plus que {state.lowQuantity} en stock
         </p>
       )}

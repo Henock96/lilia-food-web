@@ -10,6 +10,8 @@ import { ProductPurchase } from '@/components/products/product-purchase';
 import { ProductFacts } from '@/components/products/product-facts';
 import { TrackProductView } from '@/components/analytics/track-product-view';
 import { BreadcrumbJsonLd, ProductJsonLd } from '@/components/seo/json-ld';
+import { PageLoadError } from '@/components/ui/page-load-error';
+import { readResultFromError, type ReadResult } from '@/lib/read-result';
 import { SITE_URL } from '@/lib/site';
 
 interface PageProps {
@@ -38,11 +40,11 @@ interface PageProps {
  * appels d'un même rendu. C'est exactement ce qu'il faut ici, où
  * `generateMetadata` et la page demandent le même produit.
  */
-const getProduct = cache(async (id: string): Promise<Product | null> => {
+const getProduct = cache(async (id: string): Promise<ReadResult<Product>> => {
   try {
-    return await apiClient<Product>(`/products/${id}`);
-  } catch {
-    return null;
+    return { kind: 'found', value: await apiClient<Product>(`/products/${id}`) };
+  } catch (error) {
+    return readResultFromError(error);
   }
 });
 
@@ -53,13 +55,18 @@ const getProduct = cache(async (id: string): Promise<Product | null> => {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const product = await getProduct(id);
+  const result = await getProduct(id);
   // Une fiche introuvable ne doit surtout pas être indexée : sans `noindex`, un
   // produit retiré du catalogue laisse une page vide dans l'index. Même règle
   // que la page vendeur.
-  if (!product) {
+  if (result.kind === 'missing') {
     return { title: 'Produit introuvable', robots: { index: false, follow: false } };
   }
+  // Une panne ne dit rien du produit : pas de `noindex`.
+  if (result.kind === 'unavailable') {
+    return { title: 'Produit', alternates: { canonical: `/produits/${id}` } };
+  }
+  const product = result.value;
 
   const vendorName = product.restaurant?.nom;
   const description =
@@ -88,9 +95,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProduitPage({ params }: PageProps) {
   const { id } = await params;
-  const product = await getProduct(id);
+  const result = await getProduct(id);
 
-  if (!product) notFound();
+  if (result.kind === 'missing') notFound();
+  if (result.kind === 'unavailable') {
+    return <PageLoadError title="Impossible de charger ce produit." />;
+  }
+  const product = result.value;
 
   const vendor = product.restaurant ?? null;
   const vendorName = vendor?.nom ?? null;

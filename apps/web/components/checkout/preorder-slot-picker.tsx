@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, X } from 'lucide-react';
+import { useDialogFocus } from '@/lib/dialog-focus';
 
 interface PreorderSlotPickerProps {
   open: boolean;
@@ -53,15 +54,7 @@ export function PreorderSlotPicker({
     }
   }
 
-  // ESC key handler to close modal
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open, onCancel);
 
   const handleConfirm = () => {
     if (!dateStr || !timeStr) {
@@ -91,6 +84,7 @@ export function PreorderSlotPicker({
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={dialogRef}
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

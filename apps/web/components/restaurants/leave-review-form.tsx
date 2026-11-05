@@ -10,6 +10,7 @@ import {
   useUpdateReview,
   useDeleteReview,
 } from '@lilia/api-client';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 
 interface LeaveReviewFormProps {
@@ -27,6 +28,7 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
   const updateMut = useUpdateReview(token, restaurantId);
   const deleteMut = useDeleteReview(token, restaurantId);
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -92,16 +94,16 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
   async function handleDelete() {
     if (!isCurrentSession()) return;
     if (!existingReviewId) return;
-    const ok = window.confirm('Supprimer définitivement votre avis ?');
-    if (!ok) return;
     try {
       await deleteMut.mutateAsync(existingReviewId);
       if (!isCurrentSession()) return;
+      setConfirmingDelete(false);
       setRating(0);
       setComment('');
       toast.success('Avis supprimé');
     } catch (err: unknown) {
       if (!isCurrentSession()) return;
+      setConfirmingDelete(false);
       const msg = (err as { message?: string }).message;
       toast.error(msg || 'Suppression impossible');
     }
@@ -130,6 +132,15 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
 
   return (
     <div className="bg-white border border-cream-300 rounded-2xl p-4 mb-5">
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Supprimer définitivement votre avis ?"
+        confirmLabel="Supprimer"
+        cancelLabel="Garder mon avis"
+        pending={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setConfirmingDelete(false)}
+      />
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-ink-900">
           {isEditing ? 'Votre avis' : 'Laisser un avis'}
@@ -137,7 +148,7 @@ export function LeaveReviewForm({ restaurantId }: LeaveReviewFormProps) {
         {isEditing && (
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={() => setConfirmingDelete(true)}
             disabled={deleting}
             className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
           >
