@@ -25,6 +25,7 @@ import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
 import { runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
+import { DeleteAccount } from '@/components/profile/delete-account';
 
 export default function ProfilPage() {
   const router = useRouter();
@@ -689,6 +690,7 @@ export default function ProfilPage() {
         )}
         Se déconnecter
       </button>
+      <DeleteAccount />
     </motion.div>
   );
 }

@@ -13,6 +13,7 @@ import { useDialogFocus } from '@/lib/dialog-focus';
 export function ConfirmDialog({
   open,
   title,
+  description,
   confirmLabel,
   cancelLabel,
   pending = false,
@@ -21,6 +22,7 @@ export function ConfirmDialog({
 }: {
   open: boolean;
   title: string;
+  description?: string;
   confirmLabel: string;
   cancelLabel: string;
   pending?: boolean;
@@ -28,7 +30,13 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   const titleId = useId();
-  const dialogRef = useDialogFocus<HTMLDivElement>(open, onCancel);
+  const descriptionId = useId();
+  // Pendant l'envoi, fermer la fenêtre laisserait croire au geste annulé alors
+  // que la requête est partie.
+  const dismiss = () => {
+    if (!pending) onCancel();
+  };
+  const dialogRef = useDialogFocus<HTMLDivElement>(open, dismiss);
 
   return (
     <AnimatePresence>
@@ -39,10 +47,11 @@ export function ConfirmDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onCancel}
+          onClick={dismiss}
           role="alertdialog"
           aria-modal="true"
           aria-labelledby={titleId}
+          aria-describedby={description ? descriptionId : undefined}
         >
           <motion.div
             className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl"
@@ -54,6 +63,11 @@ export function ConfirmDialog({
             <h2 id={titleId} className="font-bold text-lg text-ink-900">
               {title}
             </h2>
+            {description && (
+              <p id={descriptionId} className="mt-2 text-sm text-ink-700 leading-relaxed">
+                {description}
+              </p>
+            )}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"

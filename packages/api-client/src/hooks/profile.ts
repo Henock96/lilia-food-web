@@ -58,3 +58,19 @@ export function useUpdateProfile(token: AuthCredential | null) {
     },
   });
 }
+
+/**
+ * Suppression du compte de l'appelant (anonymisation côté serveur). Le serveur
+ * l'identifie par son jeton et refuse en 409 tant qu'une commande, une boutique
+ * ou une livraison est en cours.
+ */
+export async function deleteAccountRequest(
+  token: AuthCredential | null,
+  request: typeof apiClient = apiClient,
+): Promise<void> {
+  await request('/users/me', { method: 'DELETE', token });
+}
+
+export function useDeleteAccount(token: AuthCredential | null) {
+  return useMutation({ mutationFn: () => deleteAccountRequest(token) });
+}

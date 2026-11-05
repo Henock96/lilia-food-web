@@ -34,6 +34,16 @@ describe('ConfirmDialog', () => {
     expect(html).toContain('Garder ma commande');
   });
 
+  it('décrit les conséquences, annoncées au lecteur d’écran', () => {
+    const html = render({ description: 'Cette action est irréversible.' });
+    expect(html).toContain('Cette action est irréversible.');
+    expect(html).toContain('aria-describedby');
+  });
+
+  it('sans description : pas de référence vide', () => {
+    expect(render()).not.toContain('aria-describedby');
+  });
+
   it('le focus va au geste sans conséquence', () => {
     const html = render();
     expect(html.indexOf('data-autofocus')).toBeGreaterThan(-1);
