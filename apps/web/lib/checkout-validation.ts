@@ -37,6 +37,8 @@ export function checkoutQuoteReady(input: {
  * devis vient en dernier : il dépend de ce que le client doit d'abord compléter.
  */
 export function checkoutBlocker(input: {
+  /** Des lignes du visiteur attendent encore leur versement au panier serveur. */
+  guestCartPending: boolean;
   maintenance: string | null;
   vendorServesNobody: boolean;
   isEmpty: boolean;
@@ -46,6 +48,7 @@ export function checkoutBlocker(input: {
   phoneValid: boolean;
   quoteReady: boolean;
 }): string | null {
+  if (input.guestCartPending) return 'Reprise de votre panier…';
   if (input.maintenance) return input.maintenance;
   if (input.vendorServesNobody) return 'Ce vendeur ne prend pas de commande pour le moment.';
   if (input.isEmpty) return 'Votre panier est vide.';

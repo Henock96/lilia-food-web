@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Lock, Plus, ShoppingBag } from 'lucide-react';
 import type { Product, ProductVendorRef } from '@lilia/types';
-import { useAddToCart, useCart, useClearCart } from '@lilia/api-client';
+import { useAddToCart, useClearCart } from '@lilia/api-client';
 import {
   cn,
   formatCurrency,
@@ -23,7 +22,10 @@ import {
 import { toast } from 'sonner';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { analytics } from '@/lib/analytics';
+import { buildGuestLine, guestLineOptions } from '@/lib/guest-cart';
 import { computePurchaseState } from '@/lib/product-purchase-state';
+import { useCartView } from '@/lib/use-cart-view';
+import { useGuestCartStore } from '@/store/guest-cart';
 import { ImageCarousel } from '@/components/ui';
 import { QuantityStepper } from '@/components/ui/quantity-stepper';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
@@ -52,10 +54,9 @@ export function ProductPurchase({
 }) {
   const { token } = useAuthSession();
   const isCurrentSession = useSessionGuard();
-  const router = useRouter();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
-  const { data: cart } = useCart(token);
+  const cart = useCartView(token);
 
   // F3-10 — premier format encore vendable (le moins cher sinon) : ouvrir la
   // fiche sur un carton épuisé ferait croire le produit indisponible.
@@ -142,31 +143,55 @@ export function ProductPurchase({
     confirmAdded();
   }
 
-  async function handleAdd() {
-    if (!isCurrentSession()) return;
-    if (!token) {
-      // Le bouton reste actif pour un visiteur non connecté : le griser lui
-      // ferait croire que le produit est indisponible. On l'emmène se
-      // connecter, et on le ramène ici — la page connaît son propre chemin,
-      // ce que la liste du menu ne pouvait pas faire.
-      toast.error('Connectez-vous pour ajouter au panier', {
+  function guestLine() {
+    return buildGuestLine(
+      product,
+      selectedVariant!,
+      quantity,
+      toSelectedOptions(groups, selection),
+      guestLineOptions(groups, selection),
+    );
+  }
+
+  /** Visiteur : l'ajout reste local jusqu'à la connexion, le serveur revalidera. */
+  function addAsGuest() {
+    const status = useGuestCartStore.getState().add(guestLine());
+    if (status === 'other_vendor') {
+      toast.error('Votre panier contient des plats d’un autre vendeur.', {
         action: {
-          label: 'Se connecter',
-          // Navigation client (LINT-001) : `window.location.href` rechargeait
-          // toute l'application — état React, cache de requêtes, bundle — pour
-          // un simple changement de page interne.
+          label: 'Vider et ajouter',
           onClick: () => {
-            if (!isCurrentSession()) return;
-            router.push(`/connexion?redirect=/produits/${product.id}`);
+            useGuestCartStore.getState().replaceWith(guestLine());
+            confirmAdded();
+            toast.success(`${product.nom} ajouté au panier`);
           },
         },
       });
       return;
     }
+    if (status === 'limit') {
+      toast.error('Quantité maximale atteinte pour ce produit.');
+      return;
+    }
+    confirmAdded();
+    toast.success(
+      quantity > 1
+        ? `${quantity} × ${product.nom} ajoutés au panier`
+        : `${product.nom} ajouté au panier`,
+    );
+  }
+
+  async function handleAdd() {
+    if (!isCurrentSession()) return;
     if (!selectedVariant) return;
 
     if (hasPreorderConflict(cart, product)) {
       setConflictOpen(true);
+      return;
+    }
+
+    if (!token) {
+      addAsGuest();
       return;
     }
 
@@ -212,6 +237,13 @@ export function ProductPurchase({
   async function handleConfirmConflict() {
     if (!isCurrentSession()) return;
     setConflictOpen(false);
+    if (!token) {
+      if (!selectedVariant) return;
+      useGuestCartStore.getState().replaceWith(guestLine());
+      confirmAdded();
+      toast.success(`Panier vidé. ${product.nom} ajouté.`);
+      return;
+    }
     try {
       await clearCart.mutateAsync();
       if (!isCurrentSession()) return;

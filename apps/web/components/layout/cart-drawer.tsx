@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import { collectionReadState, runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { analytics } from '@/lib/analytics';
 import { useDialogFocus } from '@/lib/dialog-focus';
+import { canIncreaseGuestLine } from '@/lib/guest-cart';
+import { useCartView } from '@/lib/use-cart-view';
+import { useGuestCartStore } from '@/store/guest-cart';
 import { CartLineDetails } from '@/components/cart/cart-line-details';
 import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
@@ -22,13 +25,21 @@ export function CartDrawer() {
   const { isOpen, closeCart } = useCartStore();
   const dialogRef = useDialogFocus<HTMLDivElement>(isOpen, closeCart);
   const isCurrentSession = useSessionGuard();
-  const { data: cart, isLoading, isError, isFetching, isPaused, refetch } = useCart(token);
+  const { data: serverCart, isLoading, isError, isFetching, isPaused, refetch } = useCart(token);
+  const cart = useCartView(token);
+  const guestLines = useGuestCartStore((s) => s.lines);
   const updateItem = useUpdateCartItem(token);
   const removeItem = useRemoveCartItem(token);
   const gate = useRef(false);
   const busy = updateItem.isPending || removeItem.isPending || updateItem.isPaused || removeItem.isPaused || isFetching || isPaused;
-  const readState = sessionLoading ? 'loading' : !token ? 'anonymous' : collectionReadState(cart, isLoading, isError || isPaused);
+  // Le visiteur a son panier local : rien à charger, rien qui puisse échouer.
+  const guest = !sessionLoading && !token;
+  const readState = sessionLoading ? 'loading' : guest ? 'ready' : collectionReadState(serverCart, isLoading, isError || isPaused);
   function changeQuantity(itemId: string, quantite: number) {
+    if (guest) {
+      useGuestCartStore.getState().setQuantity(itemId, quantite);
+      return;
+    }
     if (busy) return;
     void runVisibleMutation({ gate, isCurrent: isCurrentSession,
       run: () => quantite === 0 ? removeItem.mutateAsync(itemId) : updateItem.mutateAsync({ itemId, quantite }),
@@ -56,7 +67,8 @@ export function CartDrawer() {
 
   function handleCheckout() {
     closeCart();
-    router.push('/panier');
+    // Le panier du visiteur est versé à la connexion, puis retrouvé sur `/panier`.
+    router.push(guest ? '/connexion?redirect=/panier' : '/panier');
   }
 
   return (
@@ -111,12 +123,6 @@ export function CartDrawer() {
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {readState === 'loading' ? (
                 <p role="status">Chargement du panier…</p>
-              ) : readState === 'anonymous' ? (
-                <div>
-                  <p>Connectez-vous pour consulter votre panier.</p>
-                  <button type="button" onClick={() => { closeCart(); router.push('/connexion?redirect=/panier'); }}
-                    className="mt-3 text-tomato-700 underline">Se connecter</button>
-                </div>
               ) : readState === 'error' ? (
                 <div role="alert">
                   <p>Impossible de charger votre panier. Son contenu ne peut pas être confirmé.</p>
@@ -172,7 +178,7 @@ export function CartDrawer() {
                         <div className="flex items-center gap-1.5">
                           <button
                             aria-label="Diminuer la quantité"
-                            disabled={busy}
+                            disabled={!guest && busy}
                             onClick={() => changeQuantity(item.id, item.quantite - 1)}
                             className="w-6 h-6 bg-white border border-cream-300 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
@@ -181,7 +187,7 @@ export function CartDrawer() {
                           <span className="w-5 text-center text-sm font-bold text-ink-900">{item.quantite}</span>
                           <button
                             aria-label="Augmenter la quantité"
-                            disabled={busy}
+                            disabled={guest ? !canIncreaseGuestLine(guestLines, item.id) : busy}
                             onClick={() => changeQuantity(item.id, item.quantite + 1)}
                             className="w-6 h-6 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >
@@ -198,15 +204,20 @@ export function CartDrawer() {
             {/* Footer */}
             {readState === 'ready' && items.length > 0 && (
               <div className="px-5 py-4 border-t border-cream-200 bg-white">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm text-ink-500">Sous-total</span>
+                <div className={`flex justify-between items-center ${guest ? 'mb-1' : 'mb-4'}`}>
+                  <span className="text-sm text-ink-500">{guest ? 'Sous-total indicatif' : 'Sous-total'}</span>
                   <span className="font-bold text-ink-900">{formatCurrency(subTotal)}</span>
                 </div>
+                {guest && (
+                  <p className="mb-4 text-xs text-ink-500">
+                    Prix vus à l’ajout. Le montant exact, avec les frais, s’affiche après la connexion, avant tout paiement.
+                  </p>
+                )}
                 <button
                   onClick={handleCheckout}
                   className="w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100/50 active:scale-[0.98]"
                 >
-                  Voir le panier
+                  {guest ? 'Se connecter pour commander' : 'Voir le panier'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

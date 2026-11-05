@@ -36,6 +36,7 @@ describe('Providers et hooks réels, rendu React sans navigateur', () => {
       signOut: async () => { current = null; },
       publish: (state) => { bridge.state = state; },
       resetPrivateState: retireQueryClient,
+      purgeGuestCart: () => {},
     });
     bridge.controller = controller;
     const login = async (uid: string) => {

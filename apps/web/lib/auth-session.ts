@@ -11,6 +11,7 @@ import { reconcileSessionCookie } from './session';
 import { retireQueryClient } from './query-client';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
+import { useGuestCartStore } from '@/store/guest-cart';
 
 let browserSession: AuthSessionController | undefined;
 
@@ -26,6 +27,7 @@ export function getBrowserSession(): AuthSessionController {
       useCartStore.setState({ isOpen: false, itemCount: 0 });
       toast.dismiss();
     },
+    purgeGuestCart: () => useGuestCartStore.getState().clear(),
     syncProfile,
   });
   return browserSession;

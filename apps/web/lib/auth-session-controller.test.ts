@@ -25,6 +25,7 @@ function harness() {
     signOut: vi.fn(async () => { current = null; }),
     publish: vi.fn(),
     resetPrivateState: vi.fn(() => cache.clear()),
+    purgeGuestCart: vi.fn(),
   };
   const controller = new AuthSessionController(ports);
   return { controller, ports, cache, setCurrent: (user: Identity | null) => { current = user; },
@@ -289,6 +290,25 @@ describe('AuthSessionController — isolation réelle des générations', () => 
     token.resolve('fresh'); await Promise.all([refresh, callback]);
     expect(a.getIdToken).toHaveBeenCalledTimes(2);
     expect(h.controller.getCredential()!.getToken()).toBe('fresh');
+  });
+
+  it('fermeture d’une session ouverte : le panier invité restant est purgé', async () => {
+    const h = harness(); await h.login(identity('A'));
+    await h.controller.logout();
+    expect(h.ports.purgeGuestCart).toHaveBeenCalledOnce();
+  });
+
+  it('connexion : le panier du visiteur n’est jamais purgé, il attend sa fusion', async () => {
+    const h = harness(); await h.login(identity('A'));
+    expect(h.ports.purgeGuestCart).not.toHaveBeenCalled();
+  });
+
+  it('401 pendant la première synchronisation : le visiteur garde son panier', async () => {
+    const h = harness();
+    vi.mocked(h.ports.syncProfile).mockRejectedValueOnce(Object.assign(new Error('401'), { status: 401 }));
+    await h.login(identity('A'));
+    expect(h.controller.getSnapshot().phase).toBe('anonymous');
+    expect(h.ports.purgeGuestCart).not.toHaveBeenCalled();
   });
 
 });

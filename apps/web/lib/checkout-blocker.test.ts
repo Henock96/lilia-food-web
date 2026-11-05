@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkoutBlocker } from './checkout-validation';
 
 const ready = {
+  guestCartPending: false,
   maintenance: null,
   vendorServesNobody: false,
   isEmpty: false,
@@ -30,6 +31,10 @@ describe('checkoutBlocker', () => {
     expect(checkoutBlocker({ ...ready, ...change })).toBe(message);
   });
 
+  it('panier invité pas encore versé : on ne commande pas sans ses articles', () => {
+    expect(checkoutBlocker({ ...ready, guestCartPending: true })).toBe('Reprise de votre panier…');
+  });
+
   it('dit d’abord ce que le client peut corriger avant le devis qui en dépend', () => {
     expect(checkoutBlocker({ ...ready, needsAddress: true, quoteReady: false })).toBe(
       'Sélectionnez une adresse de livraison.',
@@ -40,6 +45,7 @@ describe('checkoutBlocker', () => {
     for (let bits = 0; bits < 2 ** 8; bits++) {
       const on = (i: number) => (bits & (1 << i)) !== 0;
       const input = {
+        guestCartPending: false,
         maintenance: on(0) ? 'x' : null,
         vendorServesNobody: on(1),
         isEmpty: on(2),

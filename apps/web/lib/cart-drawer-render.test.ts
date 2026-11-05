@@ -1,9 +1,12 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Product, ProductVariant } from '@lilia/types';
 import { CartDrawer } from '../components/layout/cart-drawer';
+import { buildGuestLine, guestCartAsCart, type GuestCartLine } from './guest-cart';
 
-const fixture = vi.hoisted(() => ({ data: undefined as unknown, loading: false, error: false, paused: false, pending: false, token: 'synthetic' as string | null, sessionLoading: false }));
+const fixture = vi.hoisted(() => ({ data: undefined as unknown, loading: false, error: false, paused: false, pending: false, token: 'synthetic' as string | null, sessionLoading: false, guestLines: [] as GuestCartLine[] }));
+vi.mock('@/lib/use-cart-view', () => ({ useCartView: (token: unknown) => token ? fixture.data : guestCartAsCart(fixture.guestLines) }));
 vi.mock('@/lib/auth-session', () => ({ useAuthSession: () => ({ token: fixture.token, isLoading: fixture.sessionLoading }), useSessionGuard: () => () => true }));
 vi.mock('@/store/cart', () => ({ useCartStore: () => ({ isOpen: true, closeCart: vi.fn() }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -48,14 +51,33 @@ describe('cart drawer rendered states', () => {
   });
 });
 
-it('invites an anonymous visitor to sign in without inventing a read error or empty cart', () => {
-  fixture.token = null;
-  const html = render();
-  expect(html).toContain('Connectez-vous pour consulter votre panier.');
-  expect(html).not.toContain('Impossible de charger'); expect(html).not.toContain('Votre panier est vide');
-});
-it('waits for the session before inviting the visitor to sign in', () => {
-  fixture.token = null; fixture.sessionLoading = true;
-  const html = render();
-  expect(html).toContain('Chargement du panier'); expect(html).not.toContain('Connectez-vous');
+describe('panier du visiteur', () => {
+  // Rendu serveur : zustand y lit son état initial, la vue s'injecte donc ici.
+  const line = () => buildGuestLine(
+    { id: 'p1', nom: 'Poulet DG', restaurantId: 'v1', stockRestant: null } as Product,
+    { id: 'va1', label: 'Grande', prix: 3000 } as ProductVariant, 2, [], [],
+  );
+  afterEach(() => { fixture.guestLines = []; });
+
+  it('vide : un panier vide, sans erreur de lecture', () => {
+    fixture.token = null;
+    const html = render();
+    expect(html).toContain('Votre panier est vide'); expect(html).not.toContain('Impossible de charger');
+  });
+
+  it('avec des lignes : prix indicatif, sans total final, et la connexion comme suite', () => {
+    fixture.token = null; fixture.guestLines = [line()];
+    const html = render();
+    expect(html).toContain('Poulet DG');
+    expect(html).toContain('Sous-total indicatif');
+    expect(html).toContain('Se connecter pour commander');
+    expect(html).not.toContain('Voir le panier');
+    expect(html).not.toContain('>Total<');
+  });
+
+  it('attend la session avant de montrer quoi que ce soit', () => {
+    fixture.token = null; fixture.sessionLoading = true; fixture.guestLines = [line()];
+    const html = render();
+    expect(html).toContain('Chargement du panier'); expect(html).not.toContain('Poulet DG');
+  });
 });

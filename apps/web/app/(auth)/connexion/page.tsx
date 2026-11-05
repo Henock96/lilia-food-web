@@ -190,7 +190,7 @@ function ConnexionForm() {
 
       <p className="text-center text-sm text-ink-500 mt-6">
         Pas encore de compte ?{' '}
-        <Link href="/inscription" className="text-tomato-700 font-medium hover:underline">
+        <Link href={`/inscription?redirect=${encodeURIComponent(redirectTo)}`} className="text-tomato-700 font-medium hover:underline">
           S&apos;inscrire
         </Link>
       </p>
