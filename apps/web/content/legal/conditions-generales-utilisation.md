@@ -1,7 +1,7 @@
 # Conditions Générales d'Utilisation — Lilia Food
 
-> Document légal · Version 1.1 · Entrée en vigueur : 2026-05-19
-> Dernière mise à jour : 2026-08-27
+> Document légal · Version 1.2 · Entrée en vigueur : 2026-11-05
+> Dernière mise à jour : 2026-11-05
 > Société : **Lilia Food** (en cours d'immatriculation au RCCM Brazzaville)
 > Contact légal : `contact@lilia-food.com` · Support : `contact@lilia-food.com`
 >
@@ -71,27 +71,25 @@ L'utilisateur banni peut contester par email sous 30 jours.
 ```
 Total = Sous-total
        + Frais de livraison (fixés par le restaurant, par zone)
-       + Frais de service (8% du sous-total)
+       + Frais de service
        − Réduction code promo
-       − Réduction points fidélité (1 point = 5 XAF, minimum 100 points)
+       − Réduction points fidélité
 ```
+
+Le montant de chaque ligne — dont les frais de service et la valeur des points utilisés — est affiché au récapitulatif avant la validation de la commande. Le montant débité est celui de ce récapitulatif.
 
 ### 4.3 Paiement
 
-**Mode actuel : MANUAL (Mobile Money)**
-
-- Le client transfère le montant exact via MTN MoMo ou Airtel Money sur le numéro Lilia communiqué dans l'app.
-- Il signale le paiement dans l'app (référence transaction).
-- L'équipe Lilia **valide manuellement** (délai cible : moins de 10 minutes en heures ouvrées).
-- Une notification confirme la validation et déclenche la commande.
-
-**Mode futur : MTN PRODUCTION automatique** (cf. roadmap Q4 2026). Une fois activé, le paiement sera prélevé via prompt MTN sur le téléphone du client après confirmation.
+- Le paiement se fait exclusivement par Mobile Money (MTN MoMo ou Airtel Money). Le paiement à la livraison n'est pas proposé.
+- Après validation de la commande, une demande de paiement est envoyée sur le téléphone du client, qui la confirme avec son code secret.
+- La commande n'est considérée comme payée qu'après confirmation du paiement par l'opérateur. Tant que cette confirmation n'est pas reçue, la commande reste en attente de paiement et peut être payée à nouveau depuis son détail.
+- En cas d'indisponibilité du paiement automatique, Lilia Food peut proposer un virement Mobile Money : le numéro, le montant et la référence sont alors affichés sur la commande, et un agent Lilia Food confirme la réception.
 
 ### 4.4 Devise et taxes
 
 - Devise : **XAF (Franc CFA)** uniquement.
 - Les prix affichés sont **TTC** (TVA incluse pour les restaurants assujettis).
-- Frais de service Lilia : 8% du sous-total, **non remboursables** en cas d'annulation après validation paiement.
+- Frais de service Lilia : montant affiché au récapitulatif de commande.
 
 ## 5. Livraison
 
@@ -99,21 +97,21 @@ Total = Sous-total
 
 - **Délai cible** : 60 minutes max, **engagement non garanti** (dépend trafic, météo, charge resto, distance).
 - **Zone** : périmètre couvert défini dans l'app (quartiers de Brazzaville pré-définis). Hors-zone = commande impossible.
-- **Suivi temps réel** : à partir du statut `EN_ROUTE`, le client visualise le livreur sur la carte.
+- **Suivi** : le client suit l'avancement de sa commande dans l'application et sur le site. Pendant la course, l'application mobile peut afficher la position du livreur.
 
 ### 5.2 Réception
 
 - Le client doit être **joignable** au numéro fourni.
 - Présence requise à l'adresse à l'arrivée du livreur.
-- **3 tentatives** de contact sans réponse → la commande passe en `ECHEC`, sans remboursement automatique (étude au cas par cas).
-- Refus du client à la livraison : la commande est marquée échouée, traitement support pour remboursement éventuel sous conditions.
+- Si le client reste injoignable malgré le protocole de contact suivi par le livreur (appels répétés et attente sur place, à proximité de l'adresse), ou s'il refuse la commande à la livraison, la commande est déclarée en **échec de livraison** et n'est pas remboursée.
+- Dans tout autre cas d'échec de livraison (adresse introuvable, incident du livreur, protocole de contact incomplet…), le client est remboursé.
 
 ### 5.3 Échec ou retard
 
 | Situation | Recours |
 |---|---|
 | Retard > 30 min vs estimation | Contact support possible, geste commercial éventuel (points fidélité) |
-| Client absent malgré 3 appels | Pas de remboursement automatique, traitement support |
+| Client injoignable malgré le protocole de contact | Pas de remboursement (section 5.2) |
 | Problème livreur (panne, accident) | Réassignation gratuite, dédommagement éventuel |
 | Plat manquant ou erroné à réception | Signalement dans les 24h avec photo → remboursement partiel ou total |
 | Plat de qualité non conforme | Avis + signalement → instruction Lilia + resto |
@@ -124,28 +122,26 @@ Total = Sous-total
 
 | Statut commande | Annulation possible ? | Remboursement |
 |---|---|---|
-| `EN_ATTENTE` (avant paiement validé) | Oui, sans frais | N/A |
-| `PAYER` (paiement validé, resto pas encore accepté) | Oui, gratuite si dans les 2 min, sinon frais de service retenus | Total moins frais service |
-| `EN_PREPARATION` | Non par le client (resto a commencé) | — |
-| `PRET` / `EN_ROUTE` | Non | — |
-| `LIVRER` | Litige post-livraison → procédure section 5.3 | Au cas par cas |
+| En attente de paiement | Oui, sans frais | Rien n'a été débité |
+| Payée, acceptée ou en préparation | Non par le client : demande au support | Si la commande est annulée, remboursement de la totalité du montant encaissé |
+| Prête ou en route | Non | — |
+| Livrée | Réclamation dans l'app (section 5.3) | Au cas par cas |
 
-### 6.2 Droit du restaurateur
+### 6.2 Droit du vendeur
 
-Un restaurateur peut annuler une commande en statut `PAYER` ou `EN_PREPARATION` pour motif valable (rupture stock, fermeture imprévue) → remboursement **intégral** au client + signalement Lilia.
+Un vendeur peut annuler une commande payée, avant le départ du livreur, pour motif valable (rupture de stock, fermeture imprévue). Une commande en route ne peut être annulée que par Lilia Food. Toute annulation d'une commande payée ouvre un remboursement de la **totalité** du montant encaissé.
 
 ### 6.3 Modalités du remboursement
 
 - Par retour Mobile Money sur le numéro ayant servi au paiement, **sous 5 jours ouvrés**.
-- Ou en **avoir Lilia** (points fidélité majorés de 20%), au choix du client.
 
 ## 7. Programme de fidélité et parrainage
 
 ### 7.1 Points fidélité
 
-- **Acquisition** : 1 point pour chaque tranche de 100 XAF de sous-total commandé et livré.
-- **Valeur** : 1 point = 5 XAF de réduction.
-- **Utilisation** : minimum 100 points, applicables au checkout sur la prochaine commande.
+- **Acquisition** : des points sont crédités pour les commandes livrées, selon le barème en vigueur affiché dans l'application.
+- **Valeur** : la valeur d'un point en XAF est celle affichée dans l'application et au checkout au moment de son utilisation.
+- **Utilisation** : à partir du seuil affiché dans l'application, applicables au checkout sur une prochaine commande.
 - **Non-cumulables** avec certains codes promo spécifiques (mention explicite dans le code).
 - **Non-monétisables** : aucun rachat en espèces.
 - **Expiration** : 24 mois d'inactivité du compte (préavis 30j par email).
@@ -153,8 +149,7 @@ Un restaurateur peut annuler une commande en statut `PAYER` ou `EN_PREPARATION` 
 ### 7.2 Parrainage
 
 - Chaque utilisateur dispose d'un **code parrainage 8 caractères** auto-généré.
-- Bonus parrain : **+500 points** à la première commande livrée du filleul.
-- Bonus filleul : **+300 points** à sa première commande livrée.
+- Bonus de parrainage : des points sont crédités au parrain et, le cas échéant, au filleul après la première commande livrée du filleul, selon le barème en vigueur affiché dans l'application.
 - **Anti-abus** : Lilia se réserve le droit d'annuler des bonus en cas de suspicion de fraude (multi-comptes, faux numéros).
 
 ### 7.3 Codes promo
@@ -265,7 +260,4 @@ Adresse postale (à publier au siège social définitif) : Lilia Food, Brazzavil
 |---|---|---|
 | 1.0 | 2026-05-19 | Version initiale (partie d'un document combiné avec la politique de confidentialité) |
 | 1.1 | 2026-08-27 | Séparée de la politique de confidentialité en document autonome. Section 8 (restaurateurs) réécrite : suppression du forfait de démarrage, ajout de la période d'essai gratuite d'une semaine, commission reportée et non chiffrée dans ce document. |
-
----
-
-*Document généré à partir des Lilia Food Docs (architecture, business flows, paiements). À faire valider par un avocat congolais avant publication officielle. Adapter raison sociale + RCCM + représentant légal une fois l'immatriculation finalisée, et compléter la section 8 dès que le taux de commission post-essai sera tranché.*
+| 1.2 | 2026-11-05 | Frais de service, valeur et seuil des points, barème de fidélité et bonus de parrainage renvoyés au récapitulatif et à l'application plutôt que chiffrés. Paiement décrit tel qu'il fonctionne (demande Mobile Money automatique, confirmation par l'opérateur, pas de paiement à la livraison). Annulation et remboursement alignés : le client annule avant paiement ; après paiement, l'annulation passe par le support ou le vendeur et ouvre le remboursement de la totalité du montant encaissé. Échec de livraison : cas de non-remboursement précisés. Avoir majoré retiré. |
