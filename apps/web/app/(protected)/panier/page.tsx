@@ -45,7 +45,7 @@ import { LoyaltyToggle } from '@/components/checkout/loyalty-toggle';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
 import { minimumOrderError, PRICING_SETTINGS_FALLBACK } from '@/lib/checkout-estimate';
-import { checkoutCartSignature, checkoutQuoteReady, checkoutCacheCurrent } from '@/lib/checkout-validation';
+import { checkoutBlocker, checkoutCartSignature, checkoutQuoteReady, checkoutCacheCurrent } from '@/lib/checkout-validation';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { maintenanceNotice } from '@/lib/maintenance';
 import {
@@ -264,6 +264,24 @@ export default function PanierPage() {
   const minimumError = vendorRestaurant
     ? minimumOrderError(subTotal, vendorRestaurant.minimumOrderAmount, vendorRestaurant.nom)
     : null;
+  const blocker = checkoutBlocker({
+    maintenance,
+    vendorServesNobody,
+    isEmpty,
+    minimumError,
+    needsAddress: isDelivery && !selectedAdresseId,
+    needsSlot: cartIsPreorder && !scheduledFor,
+    phoneValid: phoneIsValid,
+    quoteReady,
+  });
+  const checkoutButtonContent = checkoutLoading ? (
+    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+  ) : (
+    <>
+      Commander
+      <ArrowRight className="w-4 h-4" />
+    </>
+  );
 
   async function handleValidatePromo() {
     if (!isCurrentSession()) return;
@@ -1069,17 +1087,35 @@ export default function PanierPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={!!maintenance || vendorServesNobody || checkoutLoading || isEmpty || !quoteReady || !phoneIsValid || !!minimumError || (isDelivery && !selectedAdresseId) || (cartIsPreorder && !scheduledFor)}
-                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={checkoutLoading || blocker !== null}
+                className="mt-4 w-full hidden lg:flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {checkoutLoading ? (
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Commander
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+                {checkoutButtonContent}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sous `lg`, le récapitulatif arrive après tous les blocs : le total et
+          « Commander » restent à portée de pouce. `sticky`, pas `fixed` : la
+          barre s'arrête avant le pied de page, et la page animée par une
+          transformation ne fausse pas son positionnement. */}
+      {!isEmpty && (
+        <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-6 mt-4 border-t border-cream-200 bg-white pb-safe lg:hidden">
+          <div className="px-4 sm:px-6 py-3">
+            {blocker && <p className="mb-2 text-xs text-warning">{blocker}</p>}
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs text-ink-500">Total</p>
+                <p className="font-bold text-ink-900">{quote ? formatCurrency(quote.total) : '…'}</p>
+              </div>
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading || blocker !== null}
+                className="flex min-h-11 shrink-0 items-center justify-center gap-2 px-6 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {checkoutButtonContent}
               </button>
             </div>
           </div>
