@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getVendorMenu } from '@/lib/vendor-menu';
+import { PageLoadError } from '@/components/ui/page-load-error';
 import { RestaurantHero } from '@/components/restaurants/restaurant-hero';
 import { RestaurantMenu } from '@/components/restaurants/restaurant-menu';
 import { DailyMenus } from '@/components/restaurants/daily-menus';
@@ -27,12 +28,18 @@ const getRestaurant = getVendorMenu;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const restaurant = await getRestaurant(id);
+  const result = await getRestaurant(id);
   // Une fiche introuvable ne doit surtout pas être indexée : sans `noindex`,
   // un vendeur retiré du catalogue laisse une page vide dans l'index.
-  if (!restaurant) {
+  if (result.kind === 'missing') {
     return { title: 'Vendeur introuvable', robots: { index: false, follow: false } };
   }
+  // Une panne, elle, ne dit rien du vendeur : pas de `noindex`, qui le
+  // retirerait de l'index pour un incident de quelques minutes.
+  if (result.kind === 'unavailable') {
+    return { title: 'Vendeur', alternates: { canonical: `/restaurants/${id}` } };
+  }
+  const restaurant = result.value;
 
   const description = restaurant.adresse
     ? `Commander chez ${restaurant.nom} à Brazzaville — ${restaurant.adresse}. Livraison et paiement Mobile Money avec Lilia Food.`
@@ -56,9 +63,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function RestaurantPage({ params }: PageProps) {
   const { id } = await params;
-  const restaurant = await getRestaurant(id);
+  const result = await getRestaurant(id);
 
-  if (!restaurant) notFound();
+  if (result.kind === 'missing') notFound();
+  if (result.kind === 'unavailable') {
+    return <PageLoadError title="Impossible de charger ce vendeur." vendorId={id} />;
+  }
+  const restaurant = result.value;
 
   return (
     <div className="min-h-screen bg-cream-100">

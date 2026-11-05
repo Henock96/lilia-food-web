@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache';
 import { apiClient, apiClientRaw, MAX_PAGE_SIZE } from '@lilia/api-client';
 import type { Product, Restaurant } from '@lilia/types';
+import { readResultFromError, type ReadResult } from './read-result';
 
 /**
  * **La carte d'un vendeur, telle que le site la lit.**
@@ -88,35 +89,39 @@ async function fetchRemainingProducts(
 }
 
 /**
- * Carte complète d'un vendeur, ou `null` s'il est introuvable ou non publié.
+ * Carte complète d'un vendeur. `missing` s'il est introuvable ou non publié
+ * (404 du serveur), `unavailable` si le serveur n'a pas répondu.
  *
  * Le `try/catch` vit **hors** de la frontière `'use cache'` : une rejection
  * survenue à l'intérieur est observée par le prérendu lui-même, pas seulement
  * par l'`await` appelant — c'est ce qui faisait échouer la compilation quand le
  * backend Render sortait de veille (voir le commentaire jumeau dans
- * `lib/vendors.ts`). Normaliser l'échec en `null` *avant* la mise en cache le
- * rendrait par ailleurs mémoïsable, et un vendeur bien vivant resterait
- * introuvable jusqu'à expiration.
+ * `lib/vendors.ts`). Normaliser l'échec *avant* la mise en cache le rendrait
+ * par ailleurs mémoïsable, et un vendeur bien vivant resterait indisponible
+ * jusqu'à expiration.
  */
-export async function getVendorMenu(id: string): Promise<Restaurant | null> {
+export async function getVendorMenu(id: string): Promise<ReadResult<Restaurant>> {
   let vendor: Restaurant;
   try {
     vendor = await fetchVendorMenu(id);
-  } catch {
-    return null;
+  } catch (error) {
+    return readResultFromError(error);
   }
 
   const loaded = vendor.products?.length ?? 0;
   const total = vendor.totalProducts ?? loaded;
 
-  if (!vendor.hasMoreProducts || loaded >= total) return vendor;
+  if (!vendor.hasMoreProducts || loaded >= total) return { kind: 'found', value: vendor };
 
   try {
     const rest = await fetchRemainingProducts(id, loaded, total);
-    return { ...vendor, products: [...(vendor.products ?? []), ...rest] };
+    return {
+      kind: 'found',
+      value: { ...vendor, products: [...(vendor.products ?? []), ...rest] },
+    };
   } catch {
     // Une carte partielle vaut mieux qu'une page d'erreur : le client voit ce
     // qui a été chargé, et `hasMoreProducts` reste vrai pour le dire.
-    return vendor;
+    return { kind: 'found', value: vendor };
   }
 }
