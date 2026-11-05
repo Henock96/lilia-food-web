@@ -772,7 +772,7 @@ export default function PanierPage() {
               <label className="block text-sm font-medium text-ink-700 mb-2">
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
-                  Numéro de contact <span className="text-rose-500">*</span>
+                  Numéro de contact <span className="text-danger">*</span>
                 </span>
               </label>
               <input
@@ -844,7 +844,7 @@ export default function PanierPage() {
                 </button>
               </div>
               {promoResult?.valid && (
-                <p className="text-xs text-emerald-600 mt-1.5 font-medium">
+                <p className="text-xs text-success mt-1.5 font-medium">
                   ✓ {promoResult.description}
                 </p>
               )}
@@ -875,7 +875,7 @@ export default function PanierPage() {
                       <span>{label}</span>
                     </div>
                     {!available && (
-                      <span className="ml-auto text-[11px] text-amber-600">Indisponible</span>
+                      <span className="ml-auto text-[11px] text-warning">Indisponible</span>
                     )}
                   </button>
                 ))}
@@ -911,7 +911,7 @@ export default function PanierPage() {
                     <p className="text-sm font-semibold text-amber-800">
                       {loyaltyPoints} points disponibles
                     </p>
-                    <p className="text-xs text-amber-600">
+                    <p className="text-xs text-warning">
                       = {formatCurrency(loyaltyPoints * pricingSettings.loyaltyPointValueXaf)} de réduction sur le panier
                     </p>
                   </div>
@@ -950,7 +950,7 @@ export default function PanierPage() {
                     </div>
                     <button
                       onClick={() => setPickerOpen(true)}
-                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                      className="text-sm text-tomato-700 hover:text-ink-900 font-medium"
                     >
                       Modifier
                     </button>
@@ -993,20 +993,20 @@ export default function PanierPage() {
                 {vendorOffer && vendorOffer.discountXaf > 0 && (
                   <div
                     data-testid="checkout-vendor-offer"
-                    className="flex justify-between text-emerald-600 font-medium"
+                    className="flex justify-between text-success font-medium"
                   >
                     <span>{vendorOffer.label}</span>
                     <span>-{formatCurrency(vendorOffer.discountXaf)}</span>
                   </div>
                 )}
                 {discount > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-medium">
+                  <div className="flex justify-between text-success font-medium">
                     <span>Code promo</span>
                     <span>-{formatCurrency(discount)}</span>
                   </div>
                 )}
                 {loyaltyDiscount > 0 && (
-                  <div className="flex justify-between text-amber-600 font-medium">
+                  <div className="flex justify-between text-warning font-medium">
                     {/* Points réellement consommés, pas le solde : le serveur
                         n'en prend jamais plus que le montant dû. */}
                     <span>Points fidélité ({loyaltyPointsUsed} pts)</span>
@@ -1041,13 +1041,13 @@ export default function PanierPage() {
                 </p>
               )}
               {isDelivery && !selectedAdresseId && (
-                <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-3">
+                <p className="flex items-center gap-1.5 text-xs text-warning mt-3">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   Sélectionnez une adresse de livraison
                 </p>
               )}
               {!phoneIsValid && (
-                <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-3">
+                <p className="flex items-center gap-1.5 text-xs text-warning mt-3">
                   <Phone className="w-3.5 h-3.5 shrink-0" />
                   Renseignez un numéro de contact valide
                 </p>

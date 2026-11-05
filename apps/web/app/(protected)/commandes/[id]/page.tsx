@@ -301,7 +301,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <div className="flex justify-between text-ink-500">
               <span>Livraison</span>
               {order.deliveryFee === 0 && order.promoCodeId ? (
-                <span className="text-emerald-600 font-medium">Gratuit</span>
+                <span className="text-success font-medium">Gratuit</span>
               ) : (
                 <span>{formatCurrency(order.deliveryFee)}</span>
               )}
@@ -312,7 +312,7 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <span>{formatCurrency(order.serviceFee)}</span>
           </div>
           {order.discountAmount > 0 && (
-            <div className="flex justify-between text-emerald-600">
+            <div className="flex justify-between text-success">
               <span>Réduction code promo</span>
               <span>-{formatCurrency(order.discountAmount)}</span>
             </div>

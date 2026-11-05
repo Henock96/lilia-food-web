@@ -507,7 +507,7 @@ function PaymentForm({
         ))}
       </div>
       {operators.some((op) => !op.available) && (
-        <p className="text-xs text-amber-600">
+        <p className="text-xs text-warning">
           Un opérateur est momentanément indisponible — choisissez l’autre.
         </p>
       )}
