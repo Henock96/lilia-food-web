@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { EMAIL_ALREADY_REGISTERED, googleAuthFailureMessage } from '@/lib/auth-errors';
 import { getBrowserSession, useAuthenticationGuard } from '@/lib/auth-session';
 import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { pageVariants } from '@lilia/motion';
@@ -143,7 +144,7 @@ export default function InscriptionPage() {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const code = (err as { code?: string }).code;
       if (code === 'auth/email-already-in-use') {
-        toast.error('Cet email est déjà utilisé');
+        toast.error(EMAIL_ALREADY_REGISTERED);
       } else if (code === 'auth/weak-password') {
         toast.error('Mot de passe trop faible (min. 6 caractères)');
       } else if (code === 'auth/network-request-failed') {
@@ -183,9 +184,10 @@ export default function InscriptionPage() {
 
       toast.success('Bienvenue sur Lilia Food 🎉');
       router.push(destinationAfterSignup());
-    } catch {
+    } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
-      toast.error('Inscription Google échouée');
+      const message = googleAuthFailureMessage(err, 'Inscription Google échouée');
+      if (message) toast.error(message);
     } finally {
       if (ticket !== undefined) await getBrowserSession().cancelAuthentication(ticket);
       if (ticket === undefined || authenticationCurrent(ticket)) setGoogleLoading(false);

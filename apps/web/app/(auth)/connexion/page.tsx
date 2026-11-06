@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { googleAuthFailureMessage } from '@/lib/auth-errors';
 import { getBrowserSession, useAuthenticationGuard, useSessionGuard } from '@/lib/auth-session';
 import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { pageVariants } from '@lilia/motion';
@@ -71,9 +72,10 @@ function ConnexionForm() {
       if (!authenticationCurrent(ticket, cred.user)) return;
       toast.success('Connexion réussie !');
       router.push(redirectTo);
-    } catch {
+    } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
-      toast.error('Connexion Google échouée');
+      const message = googleAuthFailureMessage(err, 'Connexion Google échouée');
+      if (message) toast.error(message);
     } finally {
       if (ticket !== undefined) await getBrowserSession().cancelAuthentication(ticket);
       if (ticket === undefined || authenticationCurrent(ticket)) setGoogleLoading(false);
