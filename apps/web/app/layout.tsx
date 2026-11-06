@@ -36,7 +36,7 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Lilia Food — Les vendeurs de Brazzaville, livrés ou à emporter',
+    default: 'Lilia Food — Commande et livraison de repas à Brazzaville',
     template: '%s | Lilia Food',
   },
   // Marketplace multi-vendeurs, pas une simple livraison de restaurants :
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'Lilia Food' }],
   manifest: '/manifest.json',
   openGraph: {
-    title: 'Lilia Food — Les vendeurs de Brazzaville',
+    title: 'Lilia Food — Commande et livraison de repas à Brazzaville',
     description: 'Restaurants, cuisines maison et boutiques de Brazzaville au même endroit. Livraison ou retrait, paiement MTN MoMo ou Airtel Money.',
     url: SITE_URL,
     siteName: 'Lilia Food',
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Lilia Food',
-    description: 'Les vendeurs de Brazzaville, livrés ou à emporter',
+    description: 'Commande tes repas à Brazzaville, livrés ou à retirer sur place.',
   },
   appleWebApp: {
     capable: true,

@@ -7,6 +7,7 @@ import { Star, Clock, Bike, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Restaurant } from '@lilia/types';
 import { formatDeliveryTime, cn, coverImage } from '@lilia/utils';
+import { cloudinaryLoader } from '@/lib/cloudinary-image';
 import { useFavorites, useToggleFavorite } from '@lilia/api-client';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { coverFit, type CoverFit } from '@/lib/cover-fit';
@@ -91,7 +92,7 @@ export function VendorCard({ restaurant }: VendorCardProps) {
             alt=""
             fill
             // Image vendeur = URL externe arbitraire (Cloudinary ou lien tiers).
-            unoptimized
+            loader={cloudinaryLoader}
             sizes="(max-width: 640px) 96px, (max-width: 1024px) 50vw, 25vw"
             className={cn(fit === 'contain' ? 'object-contain p-3' : 'object-cover')}
             onLoad={(e) =>

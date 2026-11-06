@@ -2,6 +2,7 @@
 
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import Image from 'next/image';
+import { cloudinaryLoader } from '@/lib/cloudinary-image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@lilia/utils';
 
@@ -70,9 +71,9 @@ export function ImageCarousel({
               src={img.url}
               alt={img.alt}
               fill
-              // Galerie vendeur = URLs externes arbitraires → unoptimized
+              // Galerie vendeur = URLs externes arbitraires → chargeur dédié
               // (allowlist next/image conservée pour les visuels curés).
-              unoptimized
+              loader={cloudinaryLoader}
               className="object-cover"
               priority={priority && i === 0}
               sizes={sizes}

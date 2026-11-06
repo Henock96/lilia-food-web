@@ -60,8 +60,8 @@ export async function Footer() {
               </span>
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-cream-100/75">
-              La marketplace gourmande de Brazzaville. Restaurants, cuisines maison, boulangeries,
-              pâtisseries et boissons — livrés chauds, payés par MoMo.
+              La marketplace gourmande de Brazzaville. Restaurants, cuisines maison et boissons,
+              livrés ou à retirer, payés par Mobile Money.
             </p>
             <div className="mt-5 flex flex-col gap-2.5 text-sm">
               <span className="flex items-center gap-2.5 text-cream-100/85">
@@ -102,7 +102,8 @@ export async function Footer() {
           <div>
             <h2 className="mb-4 font-display text-xs font-bold uppercase tracking-[0.15em] text-cream-100">Catégories</h2>
             <ul className="flex flex-col gap-2.5 text-sm text-cream-100/75">
-              {HOME_CATEGORIES.map((c) => (
+              {/* Pas de boulangerie publiée : ce lien menait à une liste vide. */}
+              {HOME_CATEGORIES.filter((c) => c.type !== 'BAKERY').map((c) => (
                 <li key={c.label}>
                   <Link
                     href={`/restaurants?vendorType=${c.type}`}

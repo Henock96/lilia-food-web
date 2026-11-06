@@ -16,16 +16,16 @@ const ROTATE_MS = 6000;
  * géographique, absent du `h1` précédent alors que Brazzaville est le mot
  * décisif pour le référencement local.
  */
-const SITE_HEADLINE = "T'as faim ? On te livre à Brazzaville.";
+const SITE_HEADLINE = 'Commande tes repas à Brazzaville, on te les livre.';
 
 /**
- * Accroche factuelle : la marketplace réunit plusieurs types de vendeurs, et
- * chacun propose la livraison, le retrait ou les deux. L'ancienne version
+ * Accroche factuelle : elle dit ce que fait Lilia Food (commander, payer en
+ * Mobile Money, suivre) et ne cite que ce qui existe. Une version précédente
  * affirmait « tout est livré » et citait des boulangeries absentes du
  * catalogue.
  */
 const SITE_SUBHEADLINE =
-  'Restaurants, cuisines maison et boutiques de Brazzaville, au même endroit. Livraison ou retrait, selon le vendeur.';
+  'Restaurants et cuisines maison sur une seule app. Paie en MTN MoMo ou Airtel Money, suis ta commande en temps réel, ou récupère-la sur place.';
 
 /**
  * Hero de la home. `slides` est calculé côté serveur (voir
@@ -33,11 +33,15 @@ const SITE_SUBHEADLINE =
  * depuis le backend. Ce composant ne fait aucun appel réseau — il ne fait
  * que rendre ce qu'on lui donne.
  *
+ * Le texte vit sur un aplat `tomato-600`, jamais sur l'image : les bannières
+ * portent leur propre texte, et deux voiles sombres n'empêchaient pas les deux
+ * messages de se superposer. L'image est à côté du texte, ou dessous sur
+ * mobile.
+ *
  * Modes :
- * - 0 slide → bannière statique, aplat `tomato-600`.
- * - 1 slide → bannière statique avec image en fond.
- * - 2+ slides → cartes cliquables en bas, rotation auto entre les slides.
- *   L'image active sert de fond, overlay sombre pour la lisibilité.
+ * - 0 slide → texte seul.
+ * - 1 slide → image fixe.
+ * - 2+ slides → rotation auto entre les slides.
  */
 export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
   const reduced = useReducedMotion();
@@ -86,48 +90,17 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
 
   return (
     <section
-      className={`relative flex min-h-[28rem] overflow-hidden sm:min-h-[30rem] ${hasImage ? '' : 'bg-tomato-600'}`}
+      className="bg-tomato-600"
       aria-label="Accueil Lilia Food"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setHovered(true)}
       onBlurCapture={() => setHovered(false)}
     >
-      {hasImage && (
-        <>
-          {mountedIndexes.map((i) => {
-            const s = slides[i];
-            return (
-              <Image
-                key={s.id}
-                src={s.imageUrl}
-                alt=""
-                fill
-                priority={i === 0}
-                sizes="100vw"
-                className={`object-cover transition-opacity duration-[400ms] ${
-                  i === active ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-            );
-          })}
-          {/* Deux voiles superposés. L'ancien dégradé seul retombait à 20 %
-              d'opacité en milieu de hauteur, exactement là où se trouvent le
-              titre et le paragraphe : le texte blanc passait sur des zones
-              claires de la bannière, parfois sur du texte incrusté dans
-              l'image. Le voile plat garantit un plancher de contraste sur
-              toute la surface, le dégradé garde la profondeur en bas. */}
-          <div aria-hidden className="absolute inset-0 bg-ink-900/45" />
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-gradient-to-t from-ink-900/80 via-ink-900/25 to-transparent"
-          />
-        </>
-      )}
-
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-8 px-4 py-10 sm:px-10 lg:grid-cols-2 lg:gap-12 lg:px-16 lg:py-14">
       {/* Titre et bouton sont rendus immédiatement, sans animation d'entrée :
           c'est ce qui évite la page vide de plusieurs secondes. */}
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col items-start justify-end px-4 pb-8 pt-16 sm:px-10 lg:px-16">
+      <div className="flex w-full flex-col items-start">
         {/* Le titre de la bannière s'affiche ici, au-dessus du h1, et non
             DANS le h1. Auparavant le h1 prenait la valeur du slide actif : il
             changeait donc toutes les six secondes. Un titre de niveau 1 est
@@ -232,6 +205,28 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
             </div>
           </div>
         )}
+      </div>
+
+      {hasImage && (
+        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl">
+          {mountedIndexes.map((i) => {
+            const s = slides[i];
+            return (
+              <Image
+                key={s.id}
+                src={s.imageUrl}
+                alt=""
+                fill
+                priority={i === 0}
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className={`object-cover transition-opacity duration-[400ms] ${
+                  i === active ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            );
+          })}
+        </div>
+      )}
       </div>
     </section>
   );
