@@ -41,7 +41,7 @@ export function FeaturedRestaurants({ searchParams }: { searchParams: Promise<Se
           id="vendeurs-titre"
           className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl"
         >
-          Ils font saliver tout Brazza
+          Commande chez eux aujourd&apos;hui
         </h2>
         <Suspense fallback={<ShowcaseFallback />}>
           <Showcase searchParams={searchParams} />
@@ -58,7 +58,7 @@ async function Showcase({ searchParams }: { searchParams: Promise<SearchParams> 
   if (result.status === 'error') {
     return (
       <>
-        <p className="mt-2 text-sm text-ink-500">Les vendeurs de Brazzaville, en direct.</p>
+        <p className="mt-2 text-sm text-ink-500">Choisis une boutique et découvre sa carte.</p>
         <VendorsLoadError className="mt-8" />
       </>
     );
@@ -126,7 +126,7 @@ async function Showcase({ searchParams }: { searchParams: Promise<SearchParams> 
 function ShowcaseFallback() {
   return (
     <>
-      <p className="mt-2 text-sm text-ink-500">Les vendeurs de Brazzaville, en direct.</p>
+      <p className="mt-2 text-sm text-ink-500">Choisis une boutique et découvre sa carte.</p>
       <div className={`mt-6 ${VENDOR_GRID_CLASSNAME}`} aria-hidden>
         {Array.from({ length: Math.min(SHOWCASE_BATCH, 8) }).map((_, i) => (
           <RestaurantCardSkeleton key={i} />

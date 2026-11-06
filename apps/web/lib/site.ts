@@ -19,11 +19,11 @@ export const SITE_URL = 'https://www.liliafood.com';
  * la forme lisible. Les deux décrivent toujours la même ligne.
  */
 export const CONTACT = {
-  phonePrimary: { display: '+242 06 561 42 94', e164: '+242065614294' },
+  phonePrimary: { display: '+242 06 745 46 10', e164: '+242067454610' },
   phoneSecondary: { display: '+242 05 372 03 93', e164: '+242053720393' },
   email: 'contact@liliafood.com',
   /** Le lien WhatsApp attend le numéro sans « + » ni séparateur. */
-  whatsapp: 'https://wa.me/242065614294',
+  whatsapp: 'https://wa.me/242067454610',
   city: 'Brazzaville',
   country: 'CG',
   countryName: 'Congo',
