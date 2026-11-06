@@ -41,6 +41,7 @@ import {
   normalizeCongoPhone,
 } from '@lilia/utils';
 import { pageVariants, containerVariants, cardVariants } from '@lilia/motion';
+import { useGuestCartStore } from '@/store/guest-cart';
 import { LoyaltyToggle } from '@/components/checkout/loyalty-toggle';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
@@ -108,6 +109,10 @@ export default function PanierPage() {
   const phoneIsValid = isValidCongoPhone(contactPhone);
   const phoneError = phoneTouched && !phoneIsValid;
   const fieldId = useId();
+  // Lignes composées en visiteur, pas encore versées : commander maintenant
+  // créerait une commande sans elles (`GuestCartAdoption`).
+  const guestCartPending = useGuestCartStore((s) => s.lines.length > 0);
+  const guestCartFailed = useGuestCartStore((s) => s.adoption === 'failed');
   // Choix du client. Le mode effectif (`isDelivery`) en est dérivé plus bas,
   // contre les modes que le vendeur propose.
   const [chosenIsDelivery, setIsDelivery] = useState(true);
@@ -265,6 +270,7 @@ export default function PanierPage() {
     ? minimumOrderError(subTotal, vendorRestaurant.minimumOrderAmount, vendorRestaurant.nom)
     : null;
   const blocker = checkoutBlocker({
+    guestCartPending,
     maintenance,
     vendorServesNobody,
     isEmpty,
@@ -478,6 +484,25 @@ export default function PanierPage() {
         Mon panier
       </h1>
 
+      {guestCartPending && (
+        <div role="status" className="mb-6 rounded-2xl border border-cream-300 bg-white p-4 text-sm text-ink-700">
+          {guestCartFailed ? (
+            <>
+              <p>Votre panier n’a pas pu être repris. Vérifiez votre connexion.</p>
+              <button
+                type="button"
+                onClick={() => useGuestCartStore.getState().setAdoption('idle')}
+                className="mt-2 font-medium text-tomato-700 underline"
+              >
+                Réessayer
+              </button>
+            </>
+          ) : (
+            <p>Reprise de votre panier…</p>
+          )}
+        </div>
+      )}
+
       {maintenance && !isEmpty && (
         <div
           role="status"
@@ -491,7 +516,7 @@ export default function PanierPage() {
         </div>
       )}
 
-      {isEmpty ? (
+      {isEmpty && guestCartPending ? null : isEmpty ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

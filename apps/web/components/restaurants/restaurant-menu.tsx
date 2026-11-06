@@ -17,8 +17,11 @@ import {
   hasModifiers,
 } from '@lilia/utils';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
-import { useAddToCart, useClearCart, useCart } from '@lilia/api-client';
+import { useAddToCart, useClearCart } from '@lilia/api-client';
 import { analytics } from '@/lib/analytics';
+import { buildGuestLine } from '@/lib/guest-cart';
+import { useCartView } from '@/lib/use-cart-view';
+import { useGuestCartStore } from '@/store/guest-cart';
 import { toast } from 'sonner';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
 import { computePurchaseState } from '@/lib/product-purchase-state';
@@ -113,7 +116,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   const isCurrentSession = useSessionGuard();
   const addToCart = useAddToCart(token);
   const clearCart = useClearCart(token);
-  const { data: cart } = useCart(token);
+  const cart = useCartView(token);
   const [conflictOpen, setConflictOpen] = useState(false);
   const router = useRouter();
   /** F3-09 — un produit à options s'ajoute depuis sa fiche, où le choix se fait. */
@@ -175,6 +178,36 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
     });
   }
 
+  function confirmGuestAdded(message: string) {
+    trackAdded();
+    setAdded(true);
+    setTimeout(() => { if (isCurrentSession()) setAdded(false); }, 2000);
+    toast.success(message);
+  }
+
+  /** Visiteur : l'ajout reste local jusqu'à la connexion, le serveur revalidera. */
+  function addAsGuest(variant: NonNullable<typeof selectedVariant>) {
+    const line = buildGuestLine(product, variant, 1, [], []);
+    const status = useGuestCartStore.getState().add(line);
+    if (status === 'other_vendor') {
+      toast.error('Votre panier contient des plats d\'un autre restaurant.', {
+        action: {
+          label: 'Vider et ajouter',
+          onClick: () => {
+            useGuestCartStore.getState().replaceWith(line);
+            confirmGuestAdded(`${product.nom} ajouté au panier`);
+          },
+        },
+      });
+      return;
+    }
+    if (status === 'limit') {
+      toast.error('Quantité maximale atteinte pour ce produit.');
+      return;
+    }
+    confirmGuestAdded(`${product.nom} ajouté au panier`);
+  }
+
   async function handleAdd() {
     if (!isCurrentSession()) return;
     // F3-09 — jamais d'ajout « en un clic » d'un produit à options : un choix
@@ -184,14 +217,15 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
       router.push(`/produits/${product.id}`);
       return;
     }
-    if (!token) {
-      toast.error('Connectez-vous pour ajouter au panier');
-      return;
-    }
     if (!selectedVariant || !purchaseState.canAdd) return;
 
     if (hasPreorderConflict(cart, product)) {
       setConflictOpen(true);
+      return;
+    }
+
+    if (!token) {
+      addAsGuest(selectedVariant);
       return;
     }
 
@@ -237,6 +271,11 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
     if (!isCurrentSession()) return;
     setConflictOpen(false);
     if (!selectedVariant || !purchaseState.canAdd) return;
+    if (!token) {
+      useGuestCartStore.getState().replaceWith(buildGuestLine(product, selectedVariant, 1, [], []));
+      confirmGuestAdded(`Panier vidé. ${product.nom} ajouté.`);
+      return;
+    }
     try {
       await clearCart.mutateAsync();
       if (!isCurrentSession()) return;

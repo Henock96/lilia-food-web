@@ -13,8 +13,19 @@ export const cartKeys = {
 export function cartQueryOptions(token: AuthCredential | null) {
   return {
     queryKey: cartKeys.detail(),
-    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
-      const cart = await apiClient<Cart>('/cart', { signal, token });
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<Cart> => {
+      let cart: Cart;
+      try {
+        cart = await apiClient<Cart>('/cart', { signal, token });
+      } catch (error) {
+        // Le serveur ne crée le panier qu'au premier ajout : un compte neuf
+        // reçoit 404, ce qui veut dire « vide », et l'annoncer comme une panne
+        // montrait « Impossible de charger votre panier » à chaque nouvel inscrit.
+        if (error instanceof ApiError && error.status === 404) {
+          return { id: '', userId: '', items: [], createdAt: '', updatedAt: '' };
+        }
+        throw error;
+      }
       if (!cart || !Array.isArray(cart.items)) {
         throw new ApiError(502, 'Le panier reçu est incomplet. Réessayez.', 'INVALID_CART');
       }

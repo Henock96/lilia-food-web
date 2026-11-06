@@ -13,6 +13,7 @@ import {
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { getBrowserSession, useAuthenticationGuard } from '@/lib/auth-session';
+import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { pageVariants } from '@lilia/motion';
 import { apiClient, type AuthCredential } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
@@ -24,6 +25,15 @@ async function updateDbProfile(token: AuthCredential, imageUrl: string): Promise
     token,
     body: JSON.stringify({ imageUrl }),
   });
+}
+
+/**
+ * Un visiteur qui crée son compte depuis le tiroir revient sur `/panier`, comme
+ * à la connexion. Lu au moment de partir : `useSearchParams` imposerait une
+ * frontière `Suspense` à toute la page pour une valeur lue une seule fois.
+ */
+function destinationAfterSignup(): string {
+  return sanitizeRedirect(new URLSearchParams(window.location.search).get('redirect'));
 }
 
 type Step = 'idle' | 'account' | 'sync' | 'photo' | 'done';
@@ -128,7 +138,7 @@ export default function InscriptionPage() {
       // ── Étape 4 : redirection (toujours atteinte) ─────────────────────────
       setStep('done');
       toast.success('Compte créé avec succès ! Bienvenue 🎉');
-      router.push('/restaurants');
+      router.push(destinationAfterSignup());
     } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const code = (err as { code?: string }).code;
@@ -172,7 +182,7 @@ export default function InscriptionPage() {
       if (!authenticationCurrent(ticket, cred.user)) return;
 
       toast.success('Bienvenue sur Lilia Food 🎉');
-      router.push('/restaurants');
+      router.push(destinationAfterSignup());
     } catch {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       toast.error('Inscription Google échouée');

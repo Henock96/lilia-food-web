@@ -7,8 +7,8 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Menu, X } from 'lucide-react';
 import { useAuthSession } from '@/lib/auth-session';
+import { useCartView } from '@/lib/use-cart-view';
 import { useCartStore } from '@/store/cart';
-import { useCart } from '@lilia/api-client';
 import { cn } from '@lilia/utils';
 
 const navLinks = [
@@ -31,7 +31,7 @@ export function Header() {
     setMobileOpen(false);
   }
 
-  const { data: cart } = useCart(token);
+  const cart = useCartView(token);
 
   useEffect(() => {
     if (cart) {

@@ -30,6 +30,7 @@ describe('Providers + vrais hooks privés — rendu Node sans Firebase/réseau',
       signOut: async () => { current = null; },
       publish: (state) => useAuthStore.setState(state),
       resetPrivateState: retireQueryClient,
+      purgeGuestCart: () => {},
     });
     active.controller = controller;
     const user = (uid: string): Identity => ({ uid, email: null, displayName: uid, photoURL: null,

@@ -37,6 +37,11 @@ export interface SessionPorts {
   signOut(): Promise<void>;
   publish(state: SessionState): void;
   resetPrivateState(): void;
+  /**
+   * Séparé de `resetPrivateState`, qui tourne aussi à la connexion : le panier
+   * du visiteur doit y survivre pour être versé.
+   */
+  purgeGuestCart(): void;
 }
 
 /** One owner of the identity generation. Tokens live only in this instance,
@@ -246,6 +251,11 @@ export class AuthSessionController {
 
   logout(): Promise<boolean> {
     if (this.logoutFlight) return this.logoutFlight;
+    // Seule la fermeture d'une session ouverte purge : ces lignes (versement
+    // interrompu) sont à celui qui part, et le compte suivant sur ce navigateur
+    // pourrait les payer. Un échec pendant la connexion, lui, passe aussi par
+    // ici : le visiteur doit y garder son panier.
+    if (this.state.phase === 'ready') this.ports.purgeGuestCart();
     this.loggingOut = true;
     this.blockedUid = this.ports.currentUser()?.uid ?? null;
     this.authentication = null;

@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { getQueryClient } from '@/lib/query-client';
 import { AuthProvider } from './auth-provider';
+import { GuestCartAdoption } from './guest-cart-adoption';
 import { bindSessionQueryClient, declareOrderFlowCapability } from '@lilia/api-client';
 import { getBrowserSession } from '@/lib/auth-session';
 import { useAuthStore } from '@/store/auth';
@@ -29,6 +30,7 @@ function SessionData({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <GuestCartAdoption />
       <SessionContent key={boundary}>{children}</SessionContent>
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
