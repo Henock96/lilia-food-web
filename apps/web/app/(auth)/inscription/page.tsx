@@ -14,7 +14,8 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } fro
 import { auth } from '@/lib/firebase';
 import { EMAIL_ALREADY_REGISTERED, googleAuthFailureMessage } from '@/lib/auth-errors';
 import { getBrowserSession, useAuthenticationGuard } from '@/lib/auth-session';
-import { sanitizeRedirect } from '@/lib/sanitize-redirect';
+import { destinationAfterAuth } from '@/lib/post-auth-destination';
+import { readGuestCart } from '@/lib/guest-cart';
 import { pageVariants } from '@lilia/motion';
 import { apiClient, type AuthCredential } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
@@ -29,12 +30,16 @@ async function updateDbProfile(token: AuthCredential, imageUrl: string): Promise
 }
 
 /**
- * Un visiteur qui crée son compte depuis le tiroir revient sur `/panier`, comme
- * à la connexion. Lu au moment de partir : `useSearchParams` imposerait une
- * frontière `Suspense` à toute la page pour une valeur lue une seule fois.
+ * Un visiteur qui crée son compte avec un panier revient sur `/panier`, comme
+ * à la connexion. Lu avant l'authentification, qui vide le panier invité, et
+ * dans `window.location` : `useSearchParams` imposerait une frontière
+ * `Suspense` à toute la page pour une valeur lue une seule fois.
  */
 function destinationAfterSignup(): string {
-  return sanitizeRedirect(new URLSearchParams(window.location.search).get('redirect'));
+  return destinationAfterAuth(
+    new URLSearchParams(window.location.search).get('redirect'),
+    readGuestCart().length,
+  );
 }
 
 type Step = 'idle' | 'account' | 'sync' | 'photo' | 'done';
@@ -92,6 +97,7 @@ export default function InscriptionPage() {
     }
 
     setLoading(true);
+    const destination = destinationAfterSignup();
     let ticket: number | undefined;
     try {
       ticket = await getBrowserSession().beginAuthentication();
@@ -139,7 +145,7 @@ export default function InscriptionPage() {
       // ── Étape 4 : redirection (toujours atteinte) ─────────────────────────
       setStep('done');
       toast.success('Compte créé avec succès ! Bienvenue 🎉');
-      router.push(destinationAfterSignup());
+      router.push(destination);
     } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const code = (err as { code?: string }).code;
@@ -163,6 +169,7 @@ export default function InscriptionPage() {
 
   async function handleGoogle() {
     setGoogleLoading(true);
+    const destination = destinationAfterSignup();
     let ticket: number | undefined;
     try {
       ticket = await getBrowserSession().beginAuthentication();
@@ -183,7 +190,7 @@ export default function InscriptionPage() {
       if (!authenticationCurrent(ticket, cred.user)) return;
 
       toast.success('Bienvenue sur Lilia Food 🎉');
-      router.push(destinationAfterSignup());
+      router.push(destination);
     } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const message = googleAuthFailureMessage(err, 'Inscription Google échouée');
