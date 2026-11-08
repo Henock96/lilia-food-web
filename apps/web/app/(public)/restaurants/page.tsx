@@ -135,7 +135,7 @@ async function Catalogue({ searchParams }: { searchParams: Promise<SearchParams>
                 {result.value.total} résultat{result.value.total > 1 ? 's' : ''}
               </p>
             )}
-            <VendorGrid vendors={result.value.vendors} />
+            <VendorGrid vendors={result.value.vendors} priorityCount={2} />
             <CataloguePagination
               params={params}
               page={params.page}

@@ -50,11 +50,13 @@ import { serviceModesOf } from '@/lib/service-modes';
  */
 interface VendorCardProps {
   restaurant: Restaurant;
+  /** Carte en tête de catalogue : son image est le LCP, chargée tout de suite. */
+  priority?: boolean;
 }
 
 const NEW_VENDOR_DAYS = 7;
 
-export function VendorCard({ restaurant }: VendorCardProps) {
+export function VendorCard({ restaurant, priority = false }: VendorCardProps) {
   // Instant figé au montage : pas d'appel impur à Date.now() pendant le rendu.
   const [now] = useState(() => Date.now());
   // Une URL de couverture peut être morte (lien tiers périssable) : on retombe
@@ -93,6 +95,8 @@ export function VendorCard({ restaurant }: VendorCardProps) {
             fill
             // Image vendeur = URL externe arbitraire (Cloudinary ou lien tiers).
             loader={cloudinaryLoader}
+            loading={priority ? 'eager' : undefined}
+            fetchPriority={priority ? 'high' : undefined}
             sizes="(max-width: 640px) 96px, (max-width: 1024px) 50vw, 25vw"
             className={cn(fit === 'contain' ? 'object-contain p-3' : 'object-cover')}
             onLoad={(e) =>

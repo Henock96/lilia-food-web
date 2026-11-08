@@ -21,15 +21,22 @@ export const VENDOR_GRID_CLASSNAME =
 export function VendorGrid({
   vendors,
   className,
+  priorityCount = 0,
 }: {
   vendors: Restaurant[];
   className?: string;
+  /**
+   * Cartes dont l'image part en priorité. Sur le catalogue, la première carte
+   * est l'élément LCP ; sur l'accueil la grille est sous le bandeau, et la
+   * prioriser ferait concurrence à l'image du bandeau.
+   */
+  priorityCount?: number;
 }) {
   return (
     <ul role="list" className={cn(VENDOR_GRID_CLASSNAME, className)}>
-      {vendors.map((v) => (
+      {vendors.map((v, i) => (
         <li key={v.id}>
-          <VendorCard restaurant={v} />
+          <VendorCard restaurant={v} priority={i < priorityCount} />
         </li>
       ))}
     </ul>
