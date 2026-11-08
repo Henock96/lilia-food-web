@@ -3,16 +3,15 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { RotateCw } from 'lucide-react';
-import { retryVendors } from '@/lib/actions/vendors';
 
 /**
  * Échec de chargement du catalogue — distinct, visuellement et dans le texte,
  * de « aucun vendeur ». L'accueil rendait une panne comme un catalogue vide.
  *
- * `retryVendors()` invalide l'entrée de cache `vendors` avant le
- * `router.refresh()` : sans ça, le rafraîchissement pourrait resservir une
- * valeur mémorisée. `useTransition` garde le bouton désactivé pendant tout le
- * réveil éventuel du backend (30 à 60 s), pour éviter les clics en rafale.
+ * `router.refresh()` suffit : l'échec venait d'une lecture qui a levé, et une
+ * rejection n'est jamais mise en cache (SEC-06 : la purge publique qui
+ * précédait a été retirée). `useTransition` garde le bouton désactivé pendant
+ * tout le réveil éventuel du backend, pour éviter les clics en rafale.
  */
 export function VendorsLoadError({ className }: { className?: string }) {
   const router = useRouter();
@@ -34,8 +33,7 @@ export function VendorsLoadError({ className }: { className?: string }) {
         disabled={retrying}
         aria-busy={retrying}
         onClick={() =>
-          startRetry(async () => {
-            await retryVendors();
+          startRetry(() => {
             router.refresh();
           })
         }

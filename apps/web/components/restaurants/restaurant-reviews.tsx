@@ -1,43 +1,14 @@
 import { Star } from 'lucide-react';
-import { apiClient } from '@lilia/api-client';
-import type { ReviewStats, Review } from '@lilia/types';
 import { formatRelativeTime, getInitials } from '@lilia/utils';
+import { getVendorReviews } from '@/lib/vendor-reviews';
 import { LeaveReviewForm } from './leave-review-form';
 
 interface RestaurantReviewsProps {
   restaurantId: string;
 }
 
-async function getReviewStats(id: string): Promise<ReviewStats | null> {
-  'use cache';
-  try {
-    return await apiClient<ReviewStats>(`/reviews/restaurant/${id}/stats`);
-  } catch {
-    return null;
-  }
-}
-
-async function getReviews(id: string): Promise<Review[]> {
-  'use cache';
-  try {
-    // Le backend renvoie `{ message, data: reviews, stats }` → après le wrap
-    // global c'est `{ data: { message, data: reviews, stats } }`. `apiClient`
-    // déballe un niveau → on obtient `{ message, data: reviews, stats }`, donc
-    // on extrait encore `.data` pour récupérer le tableau d'avis.
-    const res = await apiClient<Review[] | { data?: Review[] }>(
-      `/reviews/restaurant/${id}`,
-    );
-    return Array.isArray(res) ? res : (res?.data ?? []);
-  } catch {
-    return [];
-  }
-}
-
 export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps) {
-  const [stats, reviews] = await Promise.all([
-    getReviewStats(restaurantId),
-    getReviews(restaurantId),
-  ]);
+  const { stats, reviews } = await getVendorReviews(restaurantId);
 
   if (!stats || reviews.length === 0) {
     return (

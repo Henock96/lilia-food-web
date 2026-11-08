@@ -67,7 +67,7 @@ export default async function RestaurantPage({ params }: PageProps) {
 
   if (result.kind === 'missing') notFound();
   if (result.kind === 'unavailable') {
-    return <PageLoadError title="Impossible de charger ce vendeur." vendorId={id} />;
+    return <PageLoadError title="Impossible de charger ce vendeur." />;
   }
   const restaurant = result.value;
 

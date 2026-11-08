@@ -47,11 +47,13 @@ describe('POST /api/revalidate', () => {
     expect(res.status).toBe(200);
     // Deux étiquettes : la fiche, et l'accueil/catalogue où son statut
     // d'ouverture et son image apparaissent aussi.
-    // Le profil est passé explicitement : depuis Next 16 il est obligatoire,
-    // et il doit correspondre au `cacheLife` posé sur ces entrées — sinon la
-    // purge est annulée en pratique par un profil plus long.
-    expect(revalidateTag).toHaveBeenCalledWith('vendor-v1', 'minutes');
-    expect(revalidateTag).toHaveBeenCalledWith('vendors', 'minutes');
+    // `{ expire: 0 }` : le visiteur suivant attend la relecture au lieu de
+    // recevoir l'ancien prix. Avec un profil (`'minutes'`), seul son `expire`
+    // compte, et c'est la durée pendant laquelle le périmé reste servi
+    // (doc Next 16.4.5 `revalidateTag.md`, « Revalidation Behavior »).
+    expect(revalidateTag).toHaveBeenCalledWith('vendor-v1', { expire: 0 });
+    expect(revalidateTag).toHaveBeenCalledWith('vendors', { expire: 0 });
+    expect(revalidateTag).toHaveBeenCalledWith('banners', { expire: 0 });
   });
 
   describe('refus', () => {

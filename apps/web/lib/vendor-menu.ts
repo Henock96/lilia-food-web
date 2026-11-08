@@ -2,6 +2,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { apiClient, apiClientRaw, MAX_PAGE_SIZE } from '@lilia/api-client';
 import type { Product, Restaurant } from '@lilia/types';
 import { readResultFromError, type ReadResult } from './read-result';
+import { reportServerReadFailure, serverReadSignal } from './server-read';
 
 /**
  * **La carte d'un vendeur, telle que le site la lit.**
@@ -37,14 +38,24 @@ import { readResultFromError, type ReadResult } from './read-result';
  * ⚠️ On ne retire pas `'use cache'` pour autant : c'est lui qui protège la page
  * du réveil du service Render, qui s'endort. La bonne réponse est de **borner**
  * la fraîcheur, pas de la supprimer.
+ *
+ * ## `: remote` (PERF-02, audit du 06/11/2026)
+ *
+ * `'use cache'` seul range l'entrée dans la mémoire de l'instance Vercel qui a
+ * rendu la page ; la suivante relisait le backend (2 à 3 s). Le cache distant
+ * est partagé par toutes les instances et purgé partout par `revalidateTag`.
+ *
+ * ⚠️ Ne pas allonger `cacheLife` sans y penser : `isOpen` est dans cette entrée
+ * et change avec l'heure **sans aucune purge**. Une entrée servie périmée
+ * montre l'ouverture du moment où elle a été lue.
  */
 async function fetchVendorMenu(id: string): Promise<Restaurant | null> {
-  'use cache';
+  'use cache: remote';
   cacheTag('vendors');
   cacheTag(`vendor-${id}`);
   cacheLife('minutes');
   try {
-    return await apiClient<Restaurant>(`/vendors/${id}`);
+    return await apiClient<Restaurant>(`/vendors/${id}`, { signal: serverReadSignal() });
   } catch (error) {
     // ⚠️ Une erreur ressort de `'use cache'` sans son statut : relue dehors, un
     // 404 ressemblerait à une panne, et tout vendeur retiré afficherait
@@ -74,7 +85,7 @@ async function fetchRemainingProducts(
   alreadyLoaded: number,
   total: number,
 ): Promise<Product[]> {
-  'use cache';
+  'use cache: remote';
   cacheTag('vendors');
   cacheTag(`vendor-${id}`);
   cacheLife('minutes');
@@ -84,11 +95,14 @@ async function fetchRemainingProducts(
   // réponse serveur est une boucle pilotée de l'extérieur.
   const MAX_PAGES = 20;
   const firstPage = Math.floor(alreadyLoaded / MAX_PAGE_SIZE) + 1;
+  // Un délai pour tout le parcours : un par page s'additionnerait (20 × 10 s).
+  const signal = serverReadSignal();
 
   for (let i = 0; i < MAX_PAGES; i++) {
     const page = firstPage + i;
     const res = await apiClientRaw<{ data: Product[]; meta?: { totalPages?: number } }>(
       `/products?restaurantId=${id}&page=${page}&limit=${MAX_PAGE_SIZE}`,
+      { signal },
     );
     rest.push(...(res.data ?? []));
     if (alreadyLoaded + rest.length >= total) break;
@@ -113,7 +127,8 @@ export async function getVendorMenu(id: string): Promise<ReadResult<Restaurant>>
   let vendor: Restaurant | null;
   try {
     vendor = await fetchVendorMenu(id);
-  } catch {
+  } catch (error) {
+    reportServerReadFailure(`carte du vendeur ${id}`, error);
     return { kind: 'unavailable' };
   }
   if (!vendor) return { kind: 'missing' };
@@ -129,9 +144,10 @@ export async function getVendorMenu(id: string): Promise<ReadResult<Restaurant>>
       kind: 'found',
       value: { ...vendor, products: [...(vendor.products ?? []), ...rest] },
     };
-  } catch {
+  } catch (error) {
     // Une carte partielle vaut mieux qu'une page d'erreur : le client voit ce
     // qui a été chargé, et `hasMoreProducts` reste vrai pour le dire.
+    reportServerReadFailure(`pages suivantes du vendeur ${id}`, error);
     return { kind: 'found', value: vendor };
   }
 }

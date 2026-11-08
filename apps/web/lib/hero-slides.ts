@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { connection } from 'next/server';
 import { apiClientRaw } from '@lilia/api-client';
 import type { Banner } from '@lilia/types';
+import { reportServerReadFailure, serverReadSignal } from './server-read';
 
 /** Bannière promotionnelle affichée dans le hero de la home. */
 export interface HeroBannerSlide {
@@ -48,11 +49,11 @@ const MAX_SLIDES = 5;
  * résultat parfaitement légitime — et la home resterait figée sans hero.
  */
 async function loadBanners(): Promise<HeroBannerSlide[]> {
-  'use cache';
+  'use cache: remote';
   cacheTag('banners');
   cacheLife('minutes');
 
-  const res = await apiClientRaw<{ data: Banner[] }>('/banners');
+  const res = await apiClientRaw<{ data: Banner[] }>('/banners', { signal: serverReadSignal() });
   return (res.data ?? [])
       .filter((b) => b.isActive)
       .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -87,9 +88,10 @@ export async function fetchBanners(): Promise<HeroBannerSlide[]> {
   await connection();
   try {
     return await loadBanners();
-  } catch {
-    // Retourner 0 slide est un cas normal (aucune bannière configurée) : le
-    // hero dégrade proprement vers un aplat, sans rotation.
+  } catch (error) {
+    // Le hero dégrade proprement vers un aplat, sans rotation — mais une panne
+    // n'est pas « aucune bannière configurée » : elle est tracée.
+    reportServerReadFailure('bannières', error);
     return [];
   }
 }
