@@ -45,6 +45,7 @@ import { OrderFinancialsCard } from '@/components/payments/order-financials-card
 import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration-panel';
 import { RefundComposer } from '@/components/refunds/refund-composer';
 import { AssignDriver } from '@/components/orders/assign-driver';
+import { CustomerInstructions, OrderCardIdentity } from '@/components/orders/order-card-parts';
 import { deliveryProofSummary } from '@/lib/delivery-proof';
 import { formatLineOptions } from '@lilia/utils';
 
@@ -184,17 +185,14 @@ function OrderCard({
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-zinc-200 dark:border-dark-border shadow-card">
       {/* Header */}
-      <div className="flex items-center justify-between p-4">
-        <div>
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            #{order.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            {new Date(order.createdAt).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3 p-4">
+        <OrderCardIdentity
+          vendorName={order.restaurant?.nom}
+          orderId={order.id}
+          createdAt={order.createdAt}
+        />
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {order.isPreorder && order.scheduledFor && (
             <span
               className="text-xs font-medium px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400 inline-flex items-center gap-1"
@@ -217,6 +215,8 @@ function OrderCard({
           </button>
         </div>
       </div>
+
+      <CustomerInstructions notes={order.notes} />
 
       {/* Summary */}
       <div className="px-4 pb-3 flex items-center justify-between border-t border-zinc-100 dark:border-dark-border pt-3">
@@ -313,9 +313,6 @@ function OrderCard({
               </span>
             </div>
           ))}
-          {order.notes && (
-            <p className="text-xs text-zinc-400 italic mt-2">Note: {order.notes}</p>
-          )}
           {order.deliveryAddress && (
             <p className="text-xs text-zinc-500 mt-1">📍 {order.deliveryAddress}</p>
           )}
