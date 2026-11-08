@@ -10,6 +10,8 @@ import { auth } from '@/lib/firebase';
 import { googleAuthFailureMessage } from '@/lib/auth-errors';
 import { getBrowserSession, useAuthenticationGuard, useSessionGuard } from '@/lib/auth-session';
 import { sanitizeRedirect } from '@/lib/sanitize-redirect';
+import { destinationAfterAuth } from '@/lib/post-auth-destination';
+import { readGuestCart } from '@/lib/guest-cart';
 import { pageVariants } from '@lilia/motion';
 import { toast } from 'sonner';
 
@@ -18,7 +20,7 @@ function ConnexionForm() {
   const sessionCurrent = useSessionGuard();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = sanitizeRedirect(searchParams.get('redirect'));
+  const redirect = searchParams.get('redirect');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +35,7 @@ function ConnexionForm() {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
+    const destination = destinationAfterAuth(redirect, readGuestCart().length);
     let ticket: number | undefined;
     try {
       ticket = await getBrowserSession().beginAuthentication();
@@ -41,7 +44,7 @@ function ConnexionForm() {
       await getBrowserSession().completeAuthentication(ticket, cred.user);
       if (!authenticationCurrent(ticket, cred.user)) return;
       toast.success('Connexion réussie !');
-      router.push(redirectTo);
+      router.push(destination);
     } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const code = (err as { code?: string }).code;
@@ -62,6 +65,7 @@ function ConnexionForm() {
 
   async function handleGoogle() {
     setGoogleLoading(true);
+    const destination = destinationAfterAuth(redirect, readGuestCart().length);
     let ticket: number | undefined;
     try {
       ticket = await getBrowserSession().beginAuthentication();
@@ -71,7 +75,7 @@ function ConnexionForm() {
       await getBrowserSession().completeAuthentication(ticket, cred.user);
       if (!authenticationCurrent(ticket, cred.user)) return;
       toast.success('Connexion réussie !');
-      router.push(redirectTo);
+      router.push(destination);
     } catch (err: unknown) {
       if (ticket !== undefined && !authenticationCurrent(ticket)) return;
       const message = googleAuthFailureMessage(err, 'Connexion Google échouée');
@@ -192,7 +196,12 @@ function ConnexionForm() {
 
       <p className="text-center text-sm text-ink-500 mt-6">
         Pas encore de compte ?{' '}
-        <Link href={`/inscription?redirect=${encodeURIComponent(redirectTo)}`} className="text-tomato-700 font-medium hover:underline">
+        {/* Seule une destination explicite suit : le repli `/restaurants`
+            transmis ici masquerait le retour au panier après l'inscription. */}
+        <Link
+          href={redirect ? `/inscription?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}` : '/inscription'}
+          className="text-tomato-700 font-medium hover:underline"
+        >
           S&apos;inscrire
         </Link>
       </p>
