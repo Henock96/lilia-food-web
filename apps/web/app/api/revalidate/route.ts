@@ -5,11 +5,10 @@ import { revalidateTag } from 'next/cache';
  *
  * ## Pourquoi cette route existe
  *
- * La page vendeur est mise en cache (`'use cache'` + `cacheTag('vendor-<id>')`
- * + `cacheLife('minutes')`). Une **Server Action** n'invalide que le cache de
- * *son propre* déploiement : l'administration est une application Next
- * distincte, elle ne peut donc pas purger celui du site. Sans ce rappel, un
- * prix modifié attendait l'expiration du cache.
+ * La page vendeur est mise en cache (`'use cache: remote'` +
+ * `cacheTag('vendor-<id>')` + `cacheLife('minutes')`). L'administration est une
+ * application Next distincte : elle ne peut pas purger le cache du site. Sans
+ * ce rappel, un prix modifié attendait l'expiration du cache.
  *
  * L'appelant est `CatalogRevalidationService` côté backend, déclenché par
  * l'événement `catalog.changed` — c'est-à-dire par **toutes** les écritures du
@@ -64,19 +63,21 @@ export async function POST(request: Request): Promise<Response> {
   // Les deux étiquettes : la carte du vendeur, et les listes où il figure
   // (accueil, catalogue) — son statut d'ouverture ou son image y apparaissent.
   //
-  // ⚠️ Le second argument est **obligatoire** depuis Next 16 : c'est le profil
-  // de fraîcheur appliqué à l'invalidation. On passe `'minutes'`, celui-là même
-  // que `cacheLife('minutes')` pose sur ces entrées (`lib/vendor-menu.ts`,
-  // `lib/vendors.ts`). Un profil plus long ici annulerait en pratique la purge
-  // qu'on vient de demander.
-  revalidateTag(`vendor-${restaurantId}`, 'minutes');
-  revalidateTag('vendors', 'minutes');
+  // ⚠️ Le second argument est **obligatoire** depuis Next 16 et fixe combien
+  // de temps l'entrée périmée peut encore être servie (seul son `expire`
+  // compte). `'minutes'` laissait donc le visiteur suivant recevoir l'ancien
+  // prix pendant la relecture. `{ expire: 0 }` : il attend la relecture et voit
+  // le nouveau — c'est l'usage que la doc prescrit pour un rappel venu d'un
+  // autre service (`revalidateTag.md`, « Revalidation Behavior »). Avec le
+  // cache distant, la purge vaut pour toutes les instances.
+  revalidateTag(`vendor-${restaurantId}`, { expire: 0 });
+  revalidateTag('vendors', { expire: 0 });
   // Les bannières aussi : `Banner.restaurantId` est facultatif, mais quand il
   // est posé la bannière porte l'image et le nom du vendeur qui vient de
   // changer. La liste est minuscule — une relecture de plus ne coûte rien —
   // et sans cette ligne l'étiquette `banners` n'aurait aucun purgeur, donc
   // aucune existence utile.
-  revalidateTag('banners', 'minutes');
+  revalidateTag('banners', { expire: 0 });
 
   return Response.json({ revalidated: true, restaurantId });
 }

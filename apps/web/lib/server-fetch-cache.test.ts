@@ -35,6 +35,8 @@ const SERVER_FETCH_MODULES = [
   'hero-slides.ts',
   'vendors.ts',
   'vendor-menu.ts',
+  'vendor-reviews.ts',
+  '../app/sitemap.ts',
 ] as const;
 
 function source(file: string): string {
@@ -50,7 +52,22 @@ describe('frontières de cache des lectures serveur', () => {
     });
 
     it('déclare une frontière de cache', () => {
-      expect(code).toContain("'use cache'");
+      expect(code).toContain("'use cache");
+    });
+
+    it('range ses entrées dans le cache partagé, jamais en mémoire d’instance (PERF-02)', () => {
+      // `'use cache'` seul vit dans la mémoire de l'instance Vercel qui a
+      // rendu la page : l'instance suivante relit le backend (2 à 3 s).
+      // Lignes de directive seulement : les commentaires citent `'use cache'`.
+      const boundaries = (code.match(/^\s*'use cache[^']*';?\s*$/gm) ?? []).map((b) => b.trim());
+      expect(boundaries.length).toBeGreaterThan(0);
+      expect(boundaries.every((b) => b === "'use cache: remote';")).toBe(true);
+    });
+
+    it('borne l’attente du backend', () => {
+      // Présence seulement : chaque appel est vérifié par le test de comportement
+      // du module (`vendor-menu`, `vendors-read`, `hero-slides`, `vendor-reviews`, `sitemap`).
+      expect(code).toMatch(/serverReadSignal\(/);
     });
 
     it('pose une étiquette, pour être invalidable', () => {
@@ -62,6 +79,20 @@ describe('frontières de cache des lectures serveur', () => {
     it('borne sa fraîcheur', () => {
       expect(code).toMatch(/cacheLife\(/);
     });
+  });
+
+  it('la fiche produit, lue sans cache, borne aussi son attente', () => {
+    const page = readFileSync(join(__dirname, '../app/(public)/produits/[id]/page.tsx'), 'utf8');
+    expect(page).toMatch(/apiClient<Product>\([^)]*serverReadSignal\(\)/);
+  });
+
+  it('la section des avis lit le backend par `lib/vendor-reviews.ts`, pas en direct', () => {
+    const component = readFileSync(
+      join(__dirname, '../components/restaurants/restaurant-reviews.tsx'),
+      'utf8',
+    );
+    expect(component).not.toMatch(/apiClient/);
+    expect(component).not.toMatch(/^\s*'use cache/m);
   });
 
   it('l’étiquette des bannières est invalidable depuis le backend', () => {

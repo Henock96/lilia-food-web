@@ -35,8 +35,33 @@ describe('getVendorMenu', () => {
     // ce test ne peut pas reproduire : la directive n'agit pas sous vitest. La
     // lecture du fichier garantit au moins que le 404 est traité dans la frontière.
     const source = readFileSync(path.join(__dirname, 'vendor-menu.ts'), 'utf8');
-    const boundary = source.slice(source.indexOf("'use cache';"), source.indexOf('async function fetchRemainingProducts'));
+    const boundary = source.slice(source.indexOf("'use cache: remote';"), source.indexOf('async function fetchRemainingProducts'));
     expect(boundary).toContain("readResultFromError(error).kind === 'missing'");
+  });
+
+  it('borne l’attente du backend, pages suivantes comprises', async () => {
+    api.apiClient.mockResolvedValue({ id: 'v1', products: [{ id: 'p1' }], hasMoreProducts: true, totalProducts: 2 });
+    api.apiClientRaw.mockResolvedValue({ data: [{ id: 'p2' }], meta: { totalPages: 1 } });
+    await getVendorMenu('v1');
+    expect(api.apiClient.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(api.apiClientRaw.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('pages suivantes : un seul délai pour tout le parcours, pas un par page', async () => {
+    api.apiClient.mockResolvedValue({ id: 'v1', products: [{ id: 'p1' }], hasMoreProducts: true, totalProducts: 201 });
+    api.apiClientRaw.mockResolvedValue({ data: Array.from({ length: 100 }, (_, i) => ({ id: `p${i}` })), meta: { totalPages: 3 } });
+    await getVendorMenu('v1');
+    const signals = api.apiClientRaw.mock.calls.map(([, options]) => options?.signal);
+    expect(signals.length).toBeGreaterThan(1);
+    expect(new Set(signals).size).toBe(1);
+  });
+
+  it('délai dépassé : indisponible, et tracé', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.apiClient.mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+    expect(await getVendorMenu('v1')).toEqual({ kind: 'unavailable' });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('TimeoutError'));
+    warn.mockRestore();
   });
 
   it('panne du serveur : indisponible, pas introuvable', async () => {

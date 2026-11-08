@@ -46,6 +46,20 @@ beforeEach(() => {
 });
 
 describe('fetchBanners', () => {
+  it('borne l’attente du backend', async () => {
+    mockApi.mockResolvedValue({ data: [banner()] });
+    await fetchBanners();
+    expect(mockApi.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('une panne est tracée, pas confondue en silence avec « aucune bannière »', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockApi.mockRejectedValue(new Error('fetch failed'));
+    expect(await fetchBanners()).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bannières'));
+    warn.mockRestore();
+  });
+
   it('retourne un tableau vide quand l\'API échoue', async () => {
     mockApi.mockRejectedValueOnce(new Error('Network'));
     expect(await fetchBanners()).toEqual([]);

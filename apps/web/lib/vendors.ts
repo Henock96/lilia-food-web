@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { connection } from 'next/server';
 import { apiClientRaw } from '@lilia/api-client';
 import type { VendorType } from '@lilia/types';
+import { reportServerReadFailure, serverReadSignal } from './server-read';
 import {
   MAX_COLLECTED_PAGES,
   SERVER_MAX_LIMIT,
@@ -38,8 +39,7 @@ import {
  *
  * ## Cache — trois règles héritées, toutes conservées
  *
- * 1. `cacheTag('vendors')` : invalidable par `retryVendors()` et
- *    `POST /api/revalidate`.
+ * 1. `cacheTag('vendors')` : invalidable par `POST /api/revalidate`.
  * 2. `cacheLife('minutes')` : un vendeur qui ouvre ou rejoint le catalogue se
  *    reflète en quelques minutes.
  * 3. Le `try/catch` vit **hors** de la frontière `'use cache'` : une erreur
@@ -54,10 +54,10 @@ import {
  */
 
 async function fetchVendorPage(query: VendorQuery): Promise<VendorPage> {
-  'use cache';
+  'use cache: remote';
   cacheTag('vendors');
   cacheLife('minutes');
-  const raw = await apiClientRaw<RawVendorResponse>(vendorsPath(query));
+  const raw = await apiClientRaw<RawVendorResponse>(vendorsPath(query), { signal: serverReadSignal() });
   return normalizeVendorPage(raw, query);
 }
 
@@ -72,7 +72,8 @@ export async function getVendorPage(query: VendorQuery): Promise<Loaded<VendorPa
   await connection();
   try {
     return { status: 'ok', value: await fetchVendorPage(query) };
-  } catch {
+  } catch (error) {
+    reportServerReadFailure('page du catalogue vendeurs', error);
     return { status: 'error' };
   }
 }
@@ -96,7 +97,8 @@ export async function getVendorFacets(): Promise<Loaded<VendorFacets>> {
     ) as Record<VendorType, number>;
     const total = byTypeCounts.reduce((sum, n) => sum + n, 0);
     return { status: 'ok', value: { byType, open, total } };
-  } catch {
+  } catch (error) {
+    reportServerReadFailure('compteurs du catalogue vendeurs', error);
     return { status: 'error' };
   }
 }
@@ -121,7 +123,8 @@ export async function getAllVendors(
       );
     }
     return { status: 'ok', value };
-  } catch {
+  } catch (error) {
+    reportServerReadFailure('catalogue vendeurs complet', error);
     return { status: 'error' };
   }
 }

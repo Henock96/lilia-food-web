@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PageLoadError } from '../components/ui/page-load-error';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock('@/lib/actions/vendors', () => ({ revalidateVendorMenu: vi.fn() }));
 
 afterEach(() => vi.unstubAllGlobals());
 

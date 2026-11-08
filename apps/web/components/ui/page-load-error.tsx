@@ -3,16 +3,16 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { RotateCw } from 'lucide-react';
-import { revalidateVendorMenu } from '@/lib/actions/vendors';
 
 /**
  * Échec de chargement d'une fiche — distinct d'une fiche introuvable, comme
  * `VendorsLoadError` l'est d'un catalogue vide.
  *
- * `vendorId` : la carte vendeur vit sous `'use cache'`, il faut invalider son
- * entrée avant le `router.refresh()`. La fiche produit n'a pas de cache.
+ * `router.refresh()` suffit : cet écran ne s'affiche qu'après une lecture qui
+ * a levé, et une rejection n'est jamais mise en cache. Il n'y a rien à purger
+ * (SEC-06 : la purge publique qui précédait a été retirée).
  */
-export function PageLoadError({ title, vendorId }: { title: string; vendorId?: string }) {
+export function PageLoadError({ title }: { title: string }) {
   const router = useRouter();
   const [retrying, startRetry] = useTransition();
 
@@ -33,8 +33,7 @@ export function PageLoadError({ title, vendorId }: { title: string; vendorId?: s
           disabled={retrying}
           aria-busy={retrying}
           onClick={() =>
-            startRetry(async () => {
-              if (vendorId) await revalidateVendorMenu(vendorId);
+            startRetry(() => {
               router.refresh();
             })
           }

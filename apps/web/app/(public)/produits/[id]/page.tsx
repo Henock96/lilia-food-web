@@ -12,6 +12,7 @@ import { TrackProductView } from '@/components/analytics/track-product-view';
 import { BreadcrumbJsonLd, ProductJsonLd } from '@/components/seo/json-ld';
 import { PageLoadError } from '@/components/ui/page-load-error';
 import { readResultFromError, type ReadResult } from '@/lib/read-result';
+import { reportServerReadFailure, serverReadSignal } from '@/lib/server-read';
 import { SITE_URL } from '@/lib/site';
 
 interface PageProps {
@@ -42,9 +43,11 @@ interface PageProps {
  */
 const getProduct = cache(async (id: string): Promise<ReadResult<Product>> => {
   try {
-    return { kind: 'found', value: await apiClient<Product>(`/products/${id}`) };
+    return { kind: 'found', value: await apiClient<Product>(`/products/${id}`, { signal: serverReadSignal() }) };
   } catch (error) {
-    return readResultFromError(error);
+    const result = readResultFromError(error);
+    if (result.kind === 'unavailable') reportServerReadFailure(`produit ${id}`, error);
+    return result;
   }
 });
 
