@@ -49,11 +49,14 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="group flex min-h-11 items-center gap-2.5">
+          <Link href="/" className="group flex min-h-11 min-w-11 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
               <Image src="/logo.jpg" alt="" width={72} height={72} className="h-full w-full object-cover" />
             </span>
-            <span className="whitespace-nowrap font-display text-xl font-extrabold tracking-tight text-ink-900">
+            {/* Sous 360 px, le nom ne tient pas à côté des actions (la page
+                débordait de 45 px à 320 px, UX-01) : seul le logo reste
+                visible, le nom reste lu par les lecteurs d'écran. */}
+            <span className="whitespace-nowrap font-display text-xl font-extrabold tracking-tight text-ink-900 max-[359px]:sr-only">
               Lilia<span className="text-tomato-600"> Food</span>
               {/* Le nom accessible commence par le texte visible (WCAG 2.5.3). */}
               <span className="sr-only">, accueil</span>
@@ -80,7 +83,7 @@ export function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <button
               onClick={toggleCart}
               className="relative flex h-11 w-11 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-cream-200 hover:text-ink-900"
@@ -129,7 +132,7 @@ export function Header() {
             ) : (
               <Link
                 href="/connexion"
-                className="inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 tracking-[-0.01em] whitespace-nowrap select-none bg-tomato-600 text-white hover:bg-tomato-700 shadow-sm hover:shadow-md min-h-11 px-5 py-2.5 text-sm rounded-pill"
+                className="inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 tracking-[-0.01em] whitespace-nowrap select-none bg-tomato-600 text-white hover:bg-tomato-700 shadow-sm hover:shadow-md min-h-11 px-4 sm:px-5 py-2.5 text-sm rounded-pill"
               >
                 Connexion
               </Link>

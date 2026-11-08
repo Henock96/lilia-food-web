@@ -34,8 +34,8 @@ export default function HomePage({ searchParams }: { searchParams: Promise<Searc
     <div>
       <OrganizationJsonLd />
       <WebSiteJsonLd />
-      {/* Repli : le hero sans bannière, exactement ce que rend `slides: []`. */}
-      <Suspense fallback={<HeroSlider slides={[]} />}>
+      {/* Repli : le hero sans bannière, mais avec la place de l'image réservée. */}
+      <Suspense fallback={<HeroSlider slides={[]} pending />}>
         <HeroFromBanners />
       </Suspense>
       {/* Les vendeurs d'abord : c'est ce que le visiteur vient chercher. */}

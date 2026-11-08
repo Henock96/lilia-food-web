@@ -346,7 +346,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
         {/* Variants */}
         {product.variants.length > 1 && (
           <div
-            className="flex flex-wrap gap-1.5 mt-2"
+            className="flex flex-wrap gap-2 mt-2"
             role="group"
             aria-label={`Format de ${product.nom}`}
           >
@@ -355,8 +355,12 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
                 key={v.id}
                 onClick={() => setSelectedVariantId(v.id)}
                 aria-pressed={selectedVariant?.id === v.id}
+                // 26 px de haut : trop peu pour un doigt sur le geste d'achat
+                // (UX-02). 36 px visibles, 44 px de zone par le `::before` ;
+                // `gap-2` évite que deux rangées se disputent la même zone.
                 className={cn(
-                  'px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
+                  'relative min-h-9 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                  'before:absolute before:inset-x-0 before:-inset-y-1',
                   selectedVariant?.id === v.id
                     ? 'bg-white border-tomato-600 text-tomato-700 font-semibold'
                     : 'bg-white border-cream-300 text-ink-700 hover:border-tomato-600',
@@ -410,8 +414,11 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
                 : undefined
             }
             whileTap={canAdd ? { scale: 0.9 } : {}}
+            // 32 px visibles, 44 px de zone tactile par le `::before` (UX-02).
+            // `shrink-0` : le prix voisin le comprimait à 30 px.
             className={cn(
-              'w-8 h-8 rounded-full flex items-center justify-center transition-all',
+              'relative w-8 h-8 shrink-0 rounded-full flex items-center justify-center transition-all',
+              'before:absolute before:-inset-1.5',
               canAdd
                 ? added
                   ? 'bg-success text-white'

@@ -42,8 +42,23 @@ const SITE_SUBHEADLINE =
  * - 0 slide → texte seul.
  * - 1 slide → image fixe.
  * - 2+ slides → rotation auto entre les slides.
+ *
+ * `pending` : repli affiché pendant que les bannières arrivent. Il réserve la
+ * place de l'image ; sans elle, leur arrivée poussait la suite de la page de
+ * 308 px (CLS 0,18 en visite de retour, audit du 06/11/2026, PERF-04).
+ *
+ * ⚠️ La réservation suppose au moins deux bannières (quatre en production le
+ * 08/11/2026) : avec une seule, la rangée de contrôles n'existe pas et la page
+ * se contracte de 52 px ; sans bannière, de tout le bloc image. Le repli ne
+ * peut pas connaître ce nombre avant les données.
  */
-export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
+export function HeroSlider({
+  slides,
+  pending = false,
+}: {
+  slides: HeroBannerSlide[];
+  pending?: boolean;
+}) {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
   // Deux causes de pause distinctes. Un état unique faisait qu'en sortant la
@@ -142,7 +157,10 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
             enterKeyHint="search"
             autoComplete="off"
             placeholder="Vendeur ou spécialité…"
-            className="min-h-11 min-w-0 flex-1 bg-transparent px-2 text-base text-ink-900 placeholder:text-ink-500 focus:outline-none"
+            // `w-0` : un `<input>` a une largeur propre (~200 px ici) qui
+            // imposait 349 px au formulaire, donc à toute la colonne, et
+            // faisait déborder la page à 360 px (UX-01). `flex-1` l'étire.
+            className="min-h-11 w-0 min-w-0 flex-1 bg-transparent px-2 text-base text-ink-900 placeholder:text-ink-500 focus:outline-none"
           />
           <button
             type="submit"
@@ -205,8 +223,14 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
             </div>
           </div>
         )}
+        {/* Place de la rangée de contrôles : apparue à l'arrivée des
+            bannières, elle repoussait encore l'image de 52 px. */}
+        {pending && !hasImage && <div className="mt-2 h-11" aria-hidden />}
       </div>
 
+      {pending && !hasImage && (
+        <div className="aspect-[16/10] w-full rounded-2xl bg-white/10" aria-hidden />
+      )}
       {hasImage && (
         <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl">
           {mountedIndexes.map((i) => {
@@ -217,7 +241,12 @@ export function HeroSlider({ slides }: { slides: HeroBannerSlide[] }) {
                 src={s.imageUrl}
                 alt=""
                 fill
-                priority={i === 0}
+                // Image LCP de l'accueil. `priority` (déprécié en Next 16) ne
+                // posait pas `fetchpriority` : elle partait en priorité basse,
+                // derrière les scripts, et son préchargement arrivait au milieu
+                // du HTML streamé (audit du 06/11/2026, PERF-03).
+                loading={i === 0 ? 'eager' : undefined}
+                fetchPriority={i === 0 ? 'high' : undefined}
                 sizes="(min-width: 1024px) 50vw, 100vw"
                 className={`object-cover transition-opacity duration-[400ms] ${
                   i === active ? 'opacity-100' : 'opacity-0'
