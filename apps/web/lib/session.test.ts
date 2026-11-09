@@ -10,6 +10,27 @@ function deferred<T>() {
 const ok = () => new Response(null, { status: 200 });
 
 describe('session cookie coordinator', () => {
+  it('visiteur anonyme sans témoin : aucune requête pour un cookie absent (PERF-07)', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(ok());
+    const cookies = createSessionCookieCoordinator({ fetch: send, hasSessionCookie: () => false });
+    expect(await cookies.reconcile({ token: null, isCurrent: () => true })).toBe('applied');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('déconnexion avec témoin présent : le DELETE part', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(ok());
+    const cookies = createSessionCookieCoordinator({ fetch: send, hasSessionCookie: () => true });
+    expect(await cookies.reconcile({ token: null, isCurrent: () => true })).toBe('applied');
+    expect(send.mock.calls.map(([, init]) => init?.method)).toEqual(['DELETE']);
+  });
+
+  it('connexion : le POST part même sans témoin', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(ok());
+    const cookies = createSessionCookieCoordinator({ fetch: send, hasSessionCookie: () => false });
+    expect(await cookies.reconcile({ token: 'synthetic-A', isCurrent: () => true })).toBe('applied');
+    expect(send.mock.calls.map(([, init]) => init?.method)).toEqual(['POST']);
+  });
+
   it('attend le POST A envoyé avant le DELETE de déconnexion', async () => {
     const started = deferred<void>();
     const response = deferred<Response>();
@@ -45,9 +66,10 @@ describe('session cookie coordinator', () => {
     const b = cookies.reconcile({ token: 'synthetic-B', isCurrent: () => generation === 3 });
     response.resolve(ok());
     expect(await Promise.all([a, logout, b])).toEqual(['obsolete', 'obsolete', 'applied']);
-    expect(send.mock.calls.map(([, init]) => init?.body)).toEqual([
-      JSON.stringify({ token: 'synthetic-A' }), JSON.stringify({ token: 'synthetic-B' }),
-    ]);
+    // Le DELETE dépassé n'est pas parti ; la dernière écriture pose le témoin.
+    expect(send.mock.calls.map(([, init]) => init?.method)).toEqual(['POST', 'POST']);
+    // Aucun jeton ne quitte le navigateur (SEC-07).
+    expect(send.mock.calls.every(([, init]) => init?.body === undefined)).toBe(true);
   });
 
   it.each(['http', 'network'] as const)('signale un échec %s et laisse la file reprendre', async (failure) => {
