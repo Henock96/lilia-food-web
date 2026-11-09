@@ -79,8 +79,10 @@ const nextConfig: NextConfig = {
           // Par défaut, l'URL complète partait vers chaque domaine tiers.
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
+            // `geolocation=()` : le site ne lit jamais la position (l'adresse
+            // de livraison passe par le quartier). Un script tiers non plus.
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), payment=(), interest-cohort=()',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()',
           },
           // HSTS était servi sans `includeSubDomains` ni `preload`.
           {

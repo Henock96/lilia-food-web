@@ -1,3 +1,5 @@
+import { hasSessionCookieInBrowser } from './session-cookie';
+
 export type SessionCookieResult = 'applied' | 'obsolete';
 
 export interface SessionCookieIntent {
@@ -11,6 +13,8 @@ type CookieWork = () => Promise<SessionCookieResult>;
 interface CookieCoordinatorOptions {
   fetch?: typeof fetch;
   withLock?: (work: CookieWork) => Promise<SessionCookieResult>;
+  /** Le témoin est-il posé ? Lu sous verrou : un autre onglet a pu le poser. */
+  hasSessionCookie?: () => boolean;
 }
 
 const COOKIE_LOCK = 'lilia-session-cookie';
@@ -42,6 +46,7 @@ async function browserLock(work: CookieWork): Promise<SessionCookieResult> {
 export function createSessionCookieCoordinator(options: CookieCoordinatorOptions = {}) {
   const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
   const withLock = options.withLock ?? browserLock;
+  const hasSessionCookie = options.hasSessionCookie ?? hasSessionCookieInBrowser;
   let queue: Promise<unknown> = Promise.resolve();
 
   return {
@@ -50,13 +55,14 @@ export function createSessionCookieCoordinator(options: CookieCoordinatorOptions
         if (!intent.isCurrent()) return 'obsolete' as const;
         return withLock(async () => {
           if (!intent.isCurrent()) return 'obsolete';
+          // Visiteur anonyme : rien à effacer, donc pas d'appel (PERF-07). Une
+          // fonction Vercel partait à chaque visite pour un cookie absent.
+          if (intent.token === null && !hasSessionCookie()) return 'applied';
           const response = await send('/api/auth/session', intent.token === null
             ? { method: 'DELETE' }
-            : {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: intent.token }),
-              });
+            // Sans corps : le cookie n'est qu'un témoin (`lib/session-cookie.ts`),
+            // le jeton n'a pas à quitter le navigateur pour le poser.
+            : { method: 'POST' });
           if (!response.ok) {
             throw new Error(`Écriture du cookie de session refusée (${response.status})`);
           }

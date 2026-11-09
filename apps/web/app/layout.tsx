@@ -73,10 +73,9 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#E8541F' }, // orange500 de l'app
-    { media: '(prefers-color-scheme: dark)',  color: '#0F0D0B' }, // darkBg de l'app
-  ],
+  // orange500 de l'app. Pas de variante sombre : le site n'a pas de mode sombre,
+  // et une barre noire au-dessus d'une page crème annonçait le contraire (UX-07).
+  themeColor: '#E8541F',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -87,6 +86,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body>
+        {/* Le contenu arrive en flux et n'est révélé que par JavaScript : sans
+            lui, la page restait blanche sans explication (PERF-10). */}
+        <noscript>
+          <p style={{ padding: '1rem', textAlign: 'center' }}>
+            Lilia Food a besoin de JavaScript pour afficher ses pages. Activez-le dans votre navigateur, puis rechargez la page.
+          </p>
+        </noscript>
         <Suspense>
           <Providers>
             {children}
