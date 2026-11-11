@@ -4,11 +4,14 @@ import type { AuthCredential } from '../auth-session';
 import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
   AvailableDeliverer,
+  DispatchSupervision,
   OrderDelivery,
+  OrderDispatchView,
   OrderStatus,
 } from '@lilia/types';
 
 import { apiClient, apiClientRaw, ApiError } from '../client';
+import { opsKeys } from './ops';
 import { orderKeys } from './orders';
 
 export const deliveryKeys = {
@@ -16,7 +19,113 @@ export const deliveryKeys = {
   deliverers: () => [...deliveryKeys.all, 'deliverers'] as const,
   byOrder: (orderId: string) =>
     [...deliveryKeys.all, 'by-order', orderId] as const,
+  dispatchByOrder: (orderId: string) =>
+    [...deliveryKeys.all, 'dispatch', orderId] as const,
+  supervision: () => [...deliveryKeys.all, 'dispatch', 'supervision'] as const,
 };
+
+// ─── Dispatch FCFS — premier arrivé, premier servi (10/11/2026) ────────────
+
+export interface OrderDispatchQuery {
+  orderId: string;
+  token: AuthCredential | null;
+  /** Point d'injection des tests. */
+  fetchView?: (path: string, signal?: AbortSignal) => Promise<OrderDispatchView>;
+}
+
+/**
+ * Verdict serveur sur la recherche de livreur d'une commande.
+ *
+ * `null` sur **404 seulement** : un backend antérieur au dispatch ne connaît
+ * pas la route, l'écran retombe alors sur la règle historique. Toute autre
+ * erreur remonte — même raison que `orderDeliveryQueryOptions`.
+ */
+export function orderDispatchQueryOptions({
+  orderId,
+  token,
+  fetchView = (path, signal) =>
+    apiClient<OrderDispatchView>(path, { token, signal }),
+}: OrderDispatchQuery) {
+  return {
+    queryKey: deliveryKeys.dispatchByOrder(orderId),
+    queryFn: async ({
+      signal,
+    }: { signal?: AbortSignal } = {}): Promise<OrderDispatchView | null> => {
+      try {
+        return await fetchView(`/deliveries/by-order/${orderId}/dispatch`, signal);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: !!orderId && !!token,
+    staleTime: 15 * 1000,
+    // La recherche avance sans que la commande change de statut.
+    refetchInterval: 30_000,
+  };
+}
+
+export function useOrderDispatch(orderId: string, token: AuthCredential | null) {
+  return useQuery(orderDispatchQueryOptions({ orderId, token }));
+}
+
+/**
+ * L'affectation manuelle est-elle proposable ? Le serveur tranche
+ * (`manualAssignmentAllowed`) ; sans verdict (backend ancien), règle
+ * historique.
+ */
+export function manualAssignmentOpen(
+  verdict: OrderDispatchView | null | undefined,
+): boolean {
+  return verdict?.manualAssignmentAllowed ?? true;
+}
+
+/** `GET /admin/deliveries/dispatch` — supervision des recherches. */
+export function useDispatchSupervision(token: AuthCredential | null) {
+  return useQuery({
+    queryKey: deliveryKeys.supervision(),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<DispatchSupervision>('/admin/deliveries/dispatch', {
+        signal,
+        token,
+      }),
+    enabled: !!token,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/** Chemin de relance : par commande, qu'une course existe ou non. */
+export function redispatchRequest(orderId: string) {
+  return { path: `/admin/deliveries/by-order/${orderId}/redispatch` };
+}
+
+/**
+ * Relance une recherche — **sans jamais choisir de livreur**. Le serveur
+ * refuse (409) une recherche déjà ouverte ou une course déjà prise.
+ */
+export function useRedispatch(token: AuthCredential | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) =>
+      apiClientRaw<{ data: { deliveryId: string; state: string }; message?: string }>(
+        redispatchRequest(orderId).path,
+        { method: 'POST', token },
+      ),
+    onSuccess: (_data, orderId) => {
+      void queryClient.invalidateQueries({
+        queryKey: deliveryKeys.dispatchByOrder(orderId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: deliveryKeys.byOrder(orderId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: deliveryKeys.supervision(),
+      });
+      void queryClient.invalidateQueries({ queryKey: opsKeys.queue });
+    },
+  });
+}
 
 /**
  * Statuts de commande sur lesquels le serveur accepte une assignation.

@@ -3027,7 +3027,74 @@ export type OpsBucketKey =
   | 'payouts_in_flight'
   | 'refunds_in_flight'
   /** Réclamation prise en charge qui n'avance plus. */
-  | 'claims_stalled';
+  | 'claims_stalled'
+  /** Dispatch FCFS (10/11/2026) — recherche de livreur en cours. */
+  | 'dispatch_open'
+  /** Dispatch FCFS — cinq diffusions sans preneur : relance humaine. */
+  | 'dispatch_exhausted';
+
+// --- Dispatch FCFS — premier arrivé, premier servi (10/11/2026) ---
+
+/** État d'une recherche de livreur, dérivé par le serveur. */
+export type DispatchState =
+  | 'NONE'
+  | 'SEARCHING'
+  | 'ASSIGNED'
+  | 'EXHAUSTED'
+  | 'CLOSED';
+
+/** Champs communs d'une recherche (verdict et supervision). */
+export interface DispatchSnapshot {
+  deliveryId: string | null;
+  deliveryStatus?: DeliveryStatus;
+  state: DispatchState;
+  startedAt?: string | null;
+  nextRoundAt?: string | null;
+  endedAt?: string | null;
+  outcome?: string | null;
+  endReason?: string | null;
+  round?: number;
+  notifiedCount?: number;
+  waitingSeconds?: number | null;
+  acceptedAt?: string | null;
+}
+
+/**
+ * `GET /deliveries/by-order/:orderId/dispatch` — verdict serveur. Le bouton
+ * d'affectation suit `manualAssignmentAllowed` : vrai seulement tant que le
+ * dispatch automatique est éteint.
+ */
+export interface OrderDispatchView extends DispatchSnapshot {
+  orderId: string;
+  isDelivery: boolean;
+  mode: 'AUTOMATIC' | 'MANUAL';
+  manualAssignmentAllowed: boolean;
+  redispatchAllowed: boolean;
+  maxRounds: number;
+  roundIntervalSeconds: number;
+  deliverer?: { id: string; nom: string | null } | null;
+}
+
+/** Une ligne de la supervision (`GET /admin/deliveries/dispatch`). */
+export interface DispatchSupervisionItem extends DispatchSnapshot {
+  deliveryId: string;
+  orderId: string;
+  orderRef: string;
+  orderStatus: OrderStatus;
+  restaurant: { id: string; nom: string; quartier: string | null };
+  deliverer: { id: string; nom: string | null; phone: string | null } | null;
+  redispatchAllowed: boolean;
+}
+
+export interface DispatchSupervision {
+  enabled: boolean;
+  maxRounds: number;
+  roundIntervalSeconds: number;
+  open: DispatchSupervisionItem[];
+  exhausted: DispatchSupervisionItem[];
+  assigned: DispatchSupervisionItem[];
+  failedBeforePickup: DispatchSupervisionItem[];
+}
 
 /** F-03 — joignabilité d'une boutique (`GET /admin/vendors/reachability`). */
 export type VendorReachabilityStatus =
