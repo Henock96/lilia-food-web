@@ -6,6 +6,7 @@ import { FeaturedRestaurants } from '@/components/home/featured-restaurants';
 import { HowItWorks } from '@/components/home/how-it-works';
 import { BecomePartner } from '@/components/home/become-partner';
 import { DownloadApp } from '@/components/home/download-app';
+import { SitecParticipation } from '@/components/home/sitec-participation';
 import { fetchBanners } from '@/lib/hero-slides';
 import { OrganizationJsonLd, WebSiteJsonLd } from '@/components/seo/json-ld';
 
@@ -44,6 +45,7 @@ export default function HomePage({ searchParams }: { searchParams: Promise<Searc
       <HowItWorks />
       <DownloadApp />
       <BecomePartner />
+      <SitecParticipation />
     </div>
   );
 }
