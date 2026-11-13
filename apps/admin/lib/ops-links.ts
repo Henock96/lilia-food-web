@@ -25,6 +25,10 @@ export function opsItemHref(bucket: OpsBucketKey, item: OpsItem): string | null 
       return '/paiements/reversements';
     case 'incidents_open':
       return `/incidents/${encodeURIComponent(item.id)}`;
+    // Dispatch FCFS — la relance vit sur l'écran de supervision.
+    case 'dispatch_open':
+    case 'dispatch_exhausted':
+      return '/recherche-livreurs';
     case 'outbox_failed':
       return null;
   }

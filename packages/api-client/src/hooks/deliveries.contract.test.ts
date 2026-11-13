@@ -5,7 +5,10 @@ import {
   assignDelivererRequest,
   assignSuccessMessage,
   canAssignDeliverer,
+  manualAssignmentOpen,
   orderDeliveryQueryOptions,
+  orderDispatchQueryOptions,
+  redispatchRequest,
 } from './deliveries';
 
 /**
@@ -157,5 +160,64 @@ describe('canAssignDeliverer', () => {
     // l'interdit pas explicitement — c'est l'interface qui ne doit pas
     // proposer un geste dénué de sens.
     expect(canAssignDeliverer('PRET', false)).toBe(false);
+  });
+});
+
+/**
+ * Dispatch FCFS (10/11/2026) — le web admin suit le verdict serveur, et la
+ * relance ne choisit jamais de livreur.
+ */
+describe('orderDispatchQueryOptions', () => {
+  it('lit le verdict de la commande', async () => {
+    const paths: string[] = [];
+    const res = await orderDispatchQueryOptions({
+      orderId: 'o1',
+      token: 'tok',
+      fetchView: async (path: string) => {
+        paths.push(path);
+        return { manualAssignmentAllowed: false, state: 'SEARCHING' } as never;
+      },
+    }).queryFn();
+    expect(paths).toEqual(['/deliveries/by-order/o1/dispatch']);
+    expect(res?.state).toBe('SEARCHING');
+  });
+
+  it('404 (backend antérieur) → null, donc règle historique', async () => {
+    const res = await orderDispatchQueryOptions({
+      orderId: 'o1',
+      token: 'tok',
+      fetchView: async () => {
+        throw new ApiError(404, 'Not Found');
+      },
+    }).queryFn();
+    expect(res).toBeNull();
+    expect(manualAssignmentOpen(res)).toBe(true);
+  });
+
+  it('NE dissimule PAS un 403', async () => {
+    await expect(
+      orderDispatchQueryOptions({
+        orderId: 'o1',
+        token: 'tok',
+        fetchView: async () => {
+          throw new ApiError(403, 'Accès refusé');
+        },
+      }).queryFn(),
+    ).rejects.toThrow('Accès refusé');
+  });
+});
+
+describe('manualAssignmentOpen', () => {
+  it('suit le verdict serveur', () => {
+    expect(manualAssignmentOpen({ manualAssignmentAllowed: false } as never)).toBe(false);
+    expect(manualAssignmentOpen({ manualAssignmentAllowed: true } as never)).toBe(true);
+  });
+});
+
+describe('redispatchRequest', () => {
+  it('relance par la commande, sans livreur dans la requête', () => {
+    expect(redispatchRequest('o1')).toEqual({
+      path: '/admin/deliveries/by-order/o1/redispatch',
+    });
   });
 });

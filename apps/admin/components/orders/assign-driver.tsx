@@ -4,11 +4,34 @@ import { useState } from 'react';
 import {
   assignSuccessMessage,
   canAssignDeliverer,
+  manualAssignmentOpen,
   useAssignDeliverer,
   useAvailableDeliverers,
   useOrderDelivery,
+  useOrderDispatch,
+  useRedispatch,
 } from '@lilia/api-client';
-import type { AdminOrder, DeliveryStatus } from '@lilia/types';
+import type {
+  AdminOrder,
+  DeliveryStatus,
+  OrderDispatchView,
+} from '@lilia/types';
+
+import { DispatchStateBadge, dispatchLines } from '@/components/orders/dispatch-state';
+
+/** Résumé d'une recherche FCFS : état, livreurs notifiés, diffusions. */
+function DispatchSummary({ view }: { view: OrderDispatchView }) {
+  return (
+    <div className="mb-3 space-y-1">
+      <DispatchStateBadge state={view.state} delivererName={view.deliverer?.nom ?? null} />
+      {dispatchLines(view, view.maxRounds).map((line) => (
+        <p key={line} className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
 import { AlertCircle, Bike, Phone, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -76,11 +99,38 @@ export function AssignDriver({
   const [selected, setSelected] = useState('');
 
   const deliveryQuery = useOrderDelivery(order.id, token);
+  const dispatchQuery = useOrderDispatch(order.id, token);
   const deliverersQuery = useAvailableDeliverers(token);
   const assign = useAssignDeliverer(token);
+  const redispatch = useRedispatch(token);
 
   const delivery = deliveryQuery.data;
-  const assignable = canAssignDeliverer(order.status, order.isDelivery);
+  const dispatch = dispatchQuery.data;
+  // FCFS (10/11/2026) — le serveur tranche : dispatch automatique allumé,
+  // plus personne n'affecte. Le bloc d'affectation disparaît de lui-même.
+  // Fermé par défaut : ni pendant le chargement, ni sur une erreur ; seul un
+  // backend antérieur (404 → `null`) garde la règle historique.
+  const manualOpen =
+    dispatchQuery.isSuccess && manualAssignmentOpen(dispatch);
+  const assignable =
+    manualOpen && canAssignDeliverer(order.status, order.isDelivery);
+
+  async function handleRedispatch() {
+    if (
+      !window.confirm(
+        'Relancer la recherche ?\n\nTous les livreurs disponibles seront de ' +
+          'nouveau notifiés ; le premier qui accepte prendra la commande.',
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await redispatch.mutateAsync(order.id);
+      toast.success(res.message ?? 'Recherche relancée');
+    } catch (e) {
+      toast.error(apiMessage(e, 'Impossible de relancer la recherche'));
+    }
+  }
 
   // Un retrait au comptoir n'a pas de course : ne rien afficher vaut mieux
   // qu'un bloc « aucun livreur » qui suggère qu'il en manque un.
@@ -184,9 +234,28 @@ export function AssignDriver({
         </p>
       )}
 
+      {/* FCFS — état de la recherche automatique, quand il y en a une. */}
+      {dispatch && dispatch.state !== 'NONE' && (
+        <DispatchSummary view={dispatch} />
+      )}
+      {dispatch?.redispatchAllowed && (
+        <button
+          onClick={handleRedispatch}
+          disabled={redispatch.isPending}
+          className="mb-3 inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:border-dark-border dark:text-zinc-300 dark:hover:bg-dark-surface"
+        >
+          <RefreshCw size={12} /> Relancer la recherche
+        </button>
+      )}
+
       {/* Assignation. Le bloc disparaît quand le serveur refuserait le geste —
           plutôt que d'afficher un bouton qui répondra 400. */}
-      {!assignable ? (
+      {!manualOpen ? (
+        <p className="text-[11px] text-zinc-400">
+          Attribution automatique : le premier livreur disponible qui accepte
+          prend la commande. Aucune affectation manuelle.
+        </p>
+      ) : !assignable ? (
         <p className="text-[11px] text-zinc-400">
           {order.status === 'EN_ATTENTE'
             ? 'Un livreur ne peut être assigné qu’après le paiement.'

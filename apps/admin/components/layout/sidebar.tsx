@@ -30,6 +30,7 @@ import {
   UtensilsCrossed,
   CreditCard,
   Bike,
+  Radar,
   MapPin,
   Settings,
   AlertTriangle,
@@ -103,6 +104,8 @@ const NAV_ITEMS: {
   { href: '/parrainages', label: 'Parrainages', icon: Gift,            badge: false, adminOnly: true  },
   { href: '/incidents',   label: 'Incidents',   icon: AlertTriangle,   badge: false, adminOnly: true  },
   { href: '/livreurs',    label: 'Livreurs',    icon: Bike,            badge: false, adminOnly: true  },
+  // Dispatch FCFS (10/11/2026) — supervision et relance, jamais d'attribution.
+  { href: '/recherche-livreurs', label: 'Recherche livreurs', icon: Radar, badge: false, adminOnly: true },
   { href: '/zones',       label: 'Zones',       icon: MapPin,          badge: false, adminOnly: true  },
   // Grille de livraison plateforme (F3-02) : versions, simulateur, publication.
   { href: '/tarifs-livraison', label: 'Tarifs livraison', icon: Route, badge: false, adminOnly: true  },
