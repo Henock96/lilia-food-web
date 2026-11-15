@@ -45,7 +45,10 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
         {/* Barres de répartition */}
         <div className="flex-1 flex flex-col gap-1">
           {[5, 4, 3, 2, 1].map((star) => {
-            const count = stats.distribution?.[star.toString()] ?? 0;
+            // Lot B : le serveur envoie `ratingDistribution` ; `distribution`
+            // n'a jamais existé, les barres restaient vides.
+            const count =
+              (stats.ratingDistribution ?? stats.distribution)?.[star.toString()] ?? 0;
             const pct = stats.totalReviews > 0 ? (count / stats.totalReviews) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-2">
@@ -86,6 +89,12 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
             </div>
             {review.comment && (
               <p className="text-xs text-ink-700 leading-relaxed line-clamp-3">{review.comment}</p>
+            )}
+            {review.vendorReply && (
+              <div className="ml-4 pl-3 border-l-2 border-cream-300">
+                <p className="text-xs font-medium text-ink-900">Réponse de la boutique</p>
+                <p className="text-xs text-ink-700 leading-relaxed line-clamp-4">{review.vendorReply}</p>
+              </div>
             )}
             <span className="text-xs text-ink-500">{formatRelativeTime(review.createdAt)}</span>
           </div>
