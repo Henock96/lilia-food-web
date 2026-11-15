@@ -93,11 +93,11 @@ const STATUS_TABS: OrderStatus[] = [
   'ANNULER',
 ];
 
-// La table de transitions vit désormais dans `lib/order-transitions.ts`, testée
-// ligne à ligne contre `ORDER_TRANSITION_MATRIX`. Elle était ici, recopiée à la
-// main et gardée par un seul contrôle sur `EN_ATTENTE` : le vendeur voyait donc
-// « En route » puis « Livrée » sur des commandes où le serveur lui répond 403,
-// et l'admin un bouton « En route » inatteignable par construction.
+// Plus aucune table de transitions côté web (durcissement lot 5) : les gestes
+// viennent du verdict serveur `allowedActions`. Recopiée ici puis dans
+// `lib/order-transitions.ts`, elle proposait au vendeur « En route » puis
+// « Livrée » sur des commandes où le serveur lui répond 403, et à l'admin un
+// bouton « En route » inatteignable par construction.
 
 // LIL-123 : Brazzaville n'a pas de DST, mais on passe toujours par Intl pour rester
 // portable si on déménage l'admin sur un fuseau différent. `en-CA` produit le

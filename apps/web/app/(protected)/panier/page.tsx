@@ -45,7 +45,7 @@ import { useGuestCartStore } from '@/store/guest-cart';
 import { LoyaltyToggle } from '@/components/checkout/loyalty-toggle';
 import { PreorderSlotPicker } from '@/components/checkout/preorder-slot-picker';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
-import { minimumOrderError, PRICING_SETTINGS_FALLBACK } from '@/lib/checkout-estimate';
+import { minimumOrderError } from '@/lib/minimum-order';
 import { checkoutBlocker, checkoutCartSignature, checkoutQuoteReady, checkoutCacheCurrent } from '@/lib/checkout-validation';
 import { analytics, onceKey, CURRENCY } from '@/lib/analytics';
 import { maintenanceNotice } from '@/lib/maintenance';
@@ -142,8 +142,6 @@ export default function PanierPage() {
   // 800 XAF de frais sur une commande de 10 000 et payait 1 500.
   const { data: platformSettings } = usePublicPlatformSettings();
   const queryClient = useQueryClient();
-  // These settings describe loyalty only. Displayed money comes from the quote.
-  const pricingSettings = platformSettings ?? PRICING_SETTINGS_FALLBACK;
   // Fenêtre de maintenance déclarée par l'administrateur (MAINT-001) : on le
   // dit en haut du panier et on désactive « Commander », au lieu de laisser le
   // client remplir tout le checkout pour découvrir un 503 dans un toast.
@@ -971,10 +969,10 @@ export default function PanierPage() {
             {/* Le seuil vient du serveur : il est passé de 100 à 1 point avec
                 le forfait par commande, et le coder en dur aurait rendu la
                 section invisible pour tout le monde. */}
-            {platformSettings && loyaltyPoints >= pricingSettings.loyaltyMinRedemption && (
+            {platformSettings && loyaltyPoints >= platformSettings.loyaltyMinRedemption && (
               <LoyaltyToggle
                 points={loyaltyPoints}
-                pointValueXaf={pricingSettings.loyaltyPointValueXaf}
+                pointValueXaf={platformSettings.loyaltyPointValueXaf}
                 active={useLoyaltyPoints}
                 discountXaf={quote ? loyaltyDiscount : null}
                 pointsUsed={quote ? loyaltyPointsUsed : null}

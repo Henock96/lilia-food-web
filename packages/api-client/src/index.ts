@@ -47,6 +47,7 @@ export * from './hooks/claims';
 export * from './hooks/approvals';
 export * from './hooks/vendor-reachability';
 export * from './hooks/reconciliation';
+export * from './hooks/order-margins';
 
 export * from './auth-session';
 export { bindSessionQueryClient, type SessionQueryScope } from './session-query';

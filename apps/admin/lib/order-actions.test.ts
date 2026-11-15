@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { OrderStatus } from '@lilia/types';
+import type { OrderAction, OrderStatus } from '@lilia/types';
 
 import {
   ACTION_TARGET,
@@ -16,48 +16,34 @@ import {
 /**
  * Gestes proposés sur une commande (Phase 3, F3-01 — règle R1).
  *
- * Le serveur publie `allowedActions` : ce back-office n'a plus à recopier la
- * matrice. Le repli ne sert que face à un serveur antérieur, qui n'a ni
- * `/accept` ni `/reject` — il ne les propose donc jamais.
+ * Le serveur publie `allowedActions` ; durcissement lot 5 : plus aucune copie
+ * de la matrice côté web, donc plus de repli.
  */
-const order = (status: OrderStatus, extra: Record<string, unknown> = {}) => ({
+const order = (
+  status: OrderStatus,
+  allowedActions?: OrderAction[],
+): { status: OrderStatus; isDelivery: boolean; allowedActions?: OrderAction[] } => ({
   status,
   isDelivery: true,
-  ...extra,
+  ...(allowedActions ? { allowedActions } : {}),
 });
 
 describe('resolveOrderActions', () => {
-  it('le serveur fait foi quand il publie', () => {
-    expect(
-      resolveOrderActions(order('PAYER', { allowedActions: ['ACCEPT', 'REJECT'] }), 'RESTAURATEUR'),
-    ).toEqual(['ACCEPT', 'REJECT']);
-  });
-
-  it('liste vide publiée : aucun geste', () => {
-    expect(resolveOrderActions(order('EN_ROUTE', { allowedActions: [] }), 'ADMIN')).toEqual([]);
-  });
-
-  it('serveur antérieur : repli sans Accepter ni Refuser', () => {
-    expect(resolveOrderActions(order('PAYER'), 'RESTAURATEUR')).toEqual([
-      'START_PREPARATION',
-      'CANCEL',
+  it('le serveur fait foi', () => {
+    expect(resolveOrderActions(order('PAYER', ['ACCEPT', 'REJECT']))).toEqual([
+      'ACCEPT',
+      'REJECT',
     ]);
   });
 
-  it('repli : un vendeur n’annule pas une course en route (le serveur répondrait 403)', () => {
-    expect(resolveOrderActions(order('EN_ROUTE'), 'RESTAURATEUR')).toEqual([]);
-    expect(resolveOrderActions(order('EN_ROUTE'), 'ADMIN')).toEqual(['CANCEL']);
+  it('liste vide publiée : aucun geste', () => {
+    expect(resolveOrderActions(order('EN_ROUTE', []))).toEqual([]);
   });
 
-  it('repli : rien avant paiement ni sur un état terminal', () => {
-    for (const status of ['LIVRER', 'ANNULER', 'ECHEC_LIVRAISON'] as const) {
-      expect(resolveOrderActions(order(status), 'ADMIN')).toEqual([]);
+  it('aucun verdict serveur : aucun geste, jamais une supposition', () => {
+    for (const status of ['PAYER', 'EN_ATTENTE', 'EN_ROUTE', 'PRET'] as const) {
+      expect(resolveOrderActions(order(status))).toEqual([]);
     }
-    expect(resolveOrderActions(order('EN_ATTENTE'), 'RESTAURATEUR')).toEqual(['CANCEL']);
-  });
-
-  it('rôle inconnu : rien plutôt qu’une supposition', () => {
-    expect(resolveOrderActions(order('PAYER'), undefined)).toEqual([]);
   });
 });
 
