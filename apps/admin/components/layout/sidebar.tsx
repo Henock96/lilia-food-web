@@ -39,7 +39,7 @@ import {
   Undo2,
   Route,
   Siren,
-  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale } from 'lucide-react';
+  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale, Percent } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -96,6 +96,7 @@ const NAV_ITEMS: {
   { href: '/remboursements', label: 'Remboursements', icon: Undo2,      badge: 'refunds', adminOnly: true  },
   // Lot 2 (30/10/2026) — écarts Lilia ↔ prestataire ; un écart ouvert bloque des versements.
   { href: '/rapprochement', label: 'Rapprochement', icon: Scale,       badge: false, adminOnly: true  },
+  { href: '/marges',        label: 'Marges',        icon: Percent,     badge: false, adminOnly: true  },
   // F3-08 — gestes financiers à deux administrateurs.
   { href: '/approbations', label: 'Approbations', icon: ShieldCheck,    badge: false, adminOnly: true  },
   // File d'arbitrage des récompenses de parrainage retenues par le scoring

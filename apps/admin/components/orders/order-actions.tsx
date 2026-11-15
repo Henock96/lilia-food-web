@@ -103,7 +103,7 @@ export function OrderActions({
   const [delReason, setDelReason] = useState<DeliveryArbitrationReason | null>(null);
   const [delNote, setDelNote] = useState('');
   const [voucher, setVoucher] = useState('');
-  const actions = resolveOrderActions(order, role);
+  const actions = resolveOrderActions(order);
   const canCloseDelivery = !!onArbitrateDelivery && asksDeliveryArbitration(order);
 
   if (actions.length === 0 && !canCloseDelivery) return null;

@@ -558,6 +558,43 @@ export interface DeliveryTariffReadiness {
   }>;
 }
 
+/**
+ * `GET /admin/margins` (durcissement lot 5). `CONFIRMED` : frais réels ;
+ * `ESTIMATED` : taux du contrat ; `UNKNOWN` : ni l'un ni l'autre.
+ */
+export type MarginQuality = 'CONFIRMED' | 'ESTIMATED' | 'UNKNOWN';
+
+export interface MarginCost {
+  /** `null` : inconnu, jamais 0. */
+  amountXaf: number | null;
+  quality: MarginQuality;
+}
+
+export interface OrderMarginRow {
+  orderId: string;
+  orderRef: string;
+  createdAt: string;
+  vendor: string;
+  totalPaidXaf: number;
+  marginBeforeProviderFeesXaf: number | null;
+  collectionFee: MarginCost;
+  payoutFee: MarginCost;
+  marginXaf: number | null;
+  quality: MarginQuality;
+}
+
+export interface OrderMargins {
+  rates: { collectionFeeBps: number | null; payoutFeeBps: number | null };
+  truncated: boolean;
+  summary: {
+    orders: number;
+    byQuality: Record<MarginQuality, number>;
+    /** Somme des seules marges connues, à lire avec `byQuality`. */
+    knownMarginXaf: number;
+  };
+  rows: OrderMarginRow[];
+}
+
 /** `GET /delivery-tariffs/current` — la grille en vigueur, vue vendeur. */
 export interface CurrentDeliveryTariff {
   mode: DeliveryPricingMode;
