@@ -1271,6 +1271,11 @@ export interface Order {
    * Absent sur une API ancienne : le geste n'est pas proposé.
    */
   deliveryArbitrable?: boolean;
+  /**
+   * Lot B — verdict d'avis (client propriétaire seulement). Absent sur une API
+   * ancienne : aucune invite n'est affichée.
+   */
+  review?: OrderReviewVerdict;
   orderFlow?: 'PAY_FIRST' | 'ACCEPT_FIRST';
   paymentDueAt?: string | null;
   restaurantId: string;
@@ -1510,21 +1515,78 @@ export interface Review {
   orderId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Réponse publique du vendeur (lot B) ; `null` si absente ou masquée. */
+  vendorReply?: string | null;
+  vendorReplyAt?: string | null;
 }
 
 export interface ReviewStats {
   averageRating: number;
   totalReviews: number;
-  distribution: Record<string, number>;
+  /**
+   * Nom réel renvoyé par le serveur. `distribution` n'a jamais existé côté
+   * API : les barres de répartition de la fiche restaient vides.
+   */
+  ratingDistribution?: Record<string, number>;
+  /** @deprecated jamais envoyé par l'API ; lire `ratingDistribution`. */
+  distribution?: Record<string, number>;
 }
 
 export interface CreateReviewDto {
   rating: number; // 1..5
   comment?: string;
   restaurantId: string;
-  /** ID de la commande liée (optionnel). Non utilisé côté web pour l'instant. */
+  /** Commande notée (lot B) : un avis par commande livrée prouvée. */
   orderId?: string;
 }
+
+/** Lot B — verdict serveur d'une case d'avis sur une commande. */
+export type ReviewSlot = 'CAN' | 'DONE' | 'NO';
+
+/** Lot B — verdict publié sur `GET /orders/:id` pour le client propriétaire. */
+export interface OrderReviewVerdict {
+  vendor: ReviewSlot;
+  driver: ReviewSlot;
+}
+
+export interface CreateDeliveryReviewDto {
+  deliveryId: string;
+  rating: number; // 1..5
+  comment?: string;
+}
+
+/** Lot B — avis vu par la modération (back-office). */
+export interface AdminReviewRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  orderId: string | null;
+  restaurantId: string;
+  hiddenAt: string | null;
+  hiddenReason: string | null;
+  vendorReply: string | null;
+  vendorReplyAt: string | null;
+  vendorReplyHiddenAt: string | null;
+  user: { nom: string | null } | null;
+  restaurant: { nom: string } | null;
+}
+
+/** Lot B — note de livreur vue par la modération. */
+export interface AdminDeliveryReviewRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  orderId: string;
+  delivererId: string;
+  hiddenAt: string | null;
+  hiddenReason: string | null;
+  user: { nom: string | null } | null;
+  deliverer: { nom: string | null } | null;
+}
+
+export type ReviewVisibilityFilter = 'visible' | 'hidden' | 'all';
 
 export interface UpdateReviewDto {
   rating?: number;

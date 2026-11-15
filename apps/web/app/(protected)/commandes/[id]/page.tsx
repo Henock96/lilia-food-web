@@ -15,6 +15,7 @@ import { pageVariants, statusTimelineVariants } from '@lilia/motion';
 import { PaymentPanel } from '@/components/checkout/payment-panel';
 import { HandoverCodePanel, ReportIssuePanel } from '@/components/orders/handover-and-report';
 import { ClaimPanel } from '@/components/orders/claim-panel';
+import { OrderReviewPanel } from '@/components/orders/order-review-panel';
 import { OrderSyncNotice } from '@/components/orders/order-sync-notice';
 import { PickupPanel } from '@/components/orders/pickup-panel';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -352,6 +353,16 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       {/* F3-06 : commande livrée → réclamation détaillée (articles, photo, fil
           avec le service client), 24 h après la livraison. Avant livraison, le
           signalement F-06 reste le recours (non reçue, retard). */}
+      {/* Lot B : invite à noter, pilotée par le verdict serveur. */}
+      <OrderReviewPanel
+        orderId={order.id}
+        restaurantId={order.restaurantId}
+        restaurantName={order.restaurant?.nom}
+        deliveryId={order.delivery?.id ?? null}
+        verdict={order.review}
+        token={token}
+      />
+
       {order.status === 'LIVRER' ? (
         <ClaimPanel orderId={order.id} items={order.items} token={token} />
       ) : (
