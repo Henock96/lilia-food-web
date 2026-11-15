@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type {
   AdminOrder,
+  DeliveryArbitrationReason,
   OrderAction,
   OrderStatus,
   PickupArbitrationReason,
@@ -13,17 +14,34 @@ import { Timer } from 'lucide-react';
 import {
   ACTION_LABELS,
   ACTION_TARGET,
+  DELIVERY_ARBITRATION_REASONS,
   PICKUP_ARBITRATION_REASONS,
   PREP_MINUTES_CHOICES,
   REJECTION_REASONS,
   arbitrationIsComplete,
+  asksDeliveryArbitration,
   asksPickupArbitration,
+  deliveryArbitrationIsComplete,
+  parseVoucherAmount,
   asksPickupCode,
   isPickupCode,
   resolveOrderActions,
 } from '@/lib/order-actions';
 
-type Mode = 'idle' | 'accept' | 'reject' | 'handover' | 'arbitrate';
+type Mode =
+  | 'idle'
+  | 'accept'
+  | 'reject'
+  | 'handover'
+  | 'arbitrate'
+  | 'arbitrate-delivery';
+
+/** Clôture d'une livraison par l'ADMIN (15/11/2026). */
+export interface DeliveryArbitrationSubmit {
+  reason: DeliveryArbitrationReason;
+  note?: string;
+  voucherAmountXaf?: number;
+}
 
 /**
  * Gestes sur une commande (Phase 3, F3-01 — règle R1).
@@ -41,6 +59,7 @@ export function OrderActions({
   onReject,
   onHandOverWithCode,
   onArbitratePickup,
+  onArbitrateDelivery,
 }: {
   order: AdminOrder;
   role: string | undefined;
@@ -64,6 +83,14 @@ export function OrderActions({
     reason: PickupArbitrationReason,
     note?: string,
   ) => Promise<boolean>;
+  /**
+   * ADMIN, livraison prête ou en route : clôture sans le livreur, avoir
+   * facultatif. Rend `true` au succès, comme l'arbitrage de retrait.
+   */
+  onArbitrateDelivery?: (
+    id: string,
+    input: DeliveryArbitrationSubmit,
+  ) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState<Mode>('idle');
   const [prepMinutes, setPrepMinutes] = useState<number>(20);
@@ -73,9 +100,13 @@ export function OrderActions({
   const [code, setCode] = useState('');
   const [arbReason, setArbReason] = useState<PickupArbitrationReason | null>(null);
   const [arbNote, setArbNote] = useState('');
+  const [delReason, setDelReason] = useState<DeliveryArbitrationReason | null>(null);
+  const [delNote, setDelNote] = useState('');
+  const [voucher, setVoucher] = useState('');
   const actions = resolveOrderActions(order, role);
+  const canCloseDelivery = !!onArbitrateDelivery && asksDeliveryArbitration(order);
 
-  if (actions.length === 0) return null;
+  if (actions.length === 0 && !canCloseDelivery) return null;
 
   function trigger(action: OrderAction) {
     if (action === 'ACCEPT') return setMode('accept');
@@ -253,6 +284,88 @@ export function OrderActions({
     );
   }
 
+  // 15/11/2026 — l'ADMIN clôture une livraison sans le livreur.
+  if (mode === 'arbitrate-delivery') {
+    const total = order.total ?? 0;
+    const complete = deliveryArbitrationIsComplete(delReason, delNote, voucher, total);
+    const voucherAmount = parseVoucherAmount(voucher, total);
+    const voucherInvalid = Number.isNaN(voucherAmount);
+    return (
+      <div
+        role="group"
+        aria-label="Clôturer la livraison"
+        className="w-full space-y-2 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3"
+      >
+        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+          La commande passe « livrée » sans le livreur. Le client n’est pas
+          remboursé et ne gagne pas de points ; le versement du vendeur est
+          ouvert. Le motif est journalisé.
+        </p>
+        <div className="space-y-1">
+          {DELIVERY_ARBITRATION_REASONS.map((r) => (
+            <label key={r.value} className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-200">
+              <input
+                type="radio"
+                name={`arbitrate-delivery-${order.id}`}
+                checked={delReason === r.value}
+                onChange={() => setDelReason(r.value)}
+              />
+              {r.label}
+            </label>
+          ))}
+        </div>
+        <input
+          type="text"
+          maxLength={300}
+          value={delNote}
+          onChange={(e) => setDelNote(e.target.value)}
+          placeholder={delReason === 'OTHER' ? 'Précisez le motif (obligatoire)' : 'Précision (facultatif)'}
+          aria-label="Précision du motif"
+          className="w-full text-xs rounded-lg border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-card px-2 py-1.5"
+        />
+        <label className="block text-xs text-zinc-700 dark:text-zinc-200">
+          Avoir offert au client (FCFA, facultatif)
+          <input
+            type="text"
+            inputMode="numeric"
+            value={voucher}
+            onChange={(e) => setVoucher(e.target.value.replace(/\D/g, ''))}
+            placeholder="Aucun"
+            aria-invalid={voucherInvalid}
+            className="mt-1 w-40 text-xs rounded-lg border border-zinc-200 dark:border-dark-border bg-white dark:bg-dark-card px-2 py-1.5"
+          />
+        </label>
+        {voucherInvalid && (
+          <p className="text-[11px] text-red-600 dark:text-red-400">
+            Entre 100 et 100 000 FCFA, sans dépasser le total payé ({total} FCFA).
+          </p>
+        )}
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={() => setMode('idle')} className="text-xs px-3 py-1.5 text-zinc-600 dark:text-zinc-300">
+            Retour
+          </button>
+          <button
+            type="button"
+            disabled={!complete || pending}
+            onClick={async () => {
+              if (!delReason || !complete || !onArbitrateDelivery) return;
+              const note = delNote.trim();
+              const ok = await onArbitrateDelivery(order.id, {
+                reason: delReason,
+                ...(note ? { note } : {}),
+                ...(typeof voucherAmount === 'number' ? { voucherAmountXaf: voucherAmount } : {}),
+              });
+              if (ok) setMode('idle');
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium disabled:opacity-50"
+          >
+            Clôturer la livraison
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (mode === 'reject') {
     return (
       <div className="w-full space-y-2 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3">
@@ -345,6 +458,21 @@ export function OrderActions({
           </button>
         );
       })}
+      {canCloseDelivery && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setDelReason(null);
+            setDelNote('');
+            setVoucher('');
+            setMode('arbitrate-delivery');
+          }}
+          className="text-xs px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+        >
+          Clôturer la livraison
+        </button>
+      )}
     </div>
   );
 }
