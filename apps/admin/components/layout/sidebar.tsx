@@ -81,9 +81,9 @@ const NAV_ITEMS: {
   { href: '/vendeurs',    label: 'Vendeurs',    icon: Building2,       badge: 'vendors', adminOnly: true  },
   // Audit du 28/10/2026 (F-03) — qui sera prévenu d'une commande payée.
   { href: '/vendeurs/joignabilite', label: 'Joignabilité', icon: BellRing, badge: false, adminOnly: true },
-  // Clients : ADMIN voit /admin/clients (plateforme), RESTAURATEUR voit ses
-  // clients scopés via GET /restaurants/:id/clients (LIL-107).
-  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: false },
+  // Clients : ADMIN seulement (/admin/clients). Lot C du 15/11/2026 (D2) : le
+  // vendeur ne connaît pas ses clients, ses commandes portent un numéro.
+  { href: '/clients',     label: 'Clients',     icon: Users,           badge: false, adminOnly: true  },
   // Comptes, rôles et bannissement. Les endpoints existaient depuis août sans
   // aucun appelant : changer un rôle ou suspendre un compte supposait un appel
   // HTTP à la main.
