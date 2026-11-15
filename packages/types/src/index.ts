@@ -64,6 +64,25 @@ export type PickupArbitrationReason =
   | 'CUSTOMER_CONFIRMED_TO_SUPPORT'
   | 'VENDOR_COULD_NOT_RECORD'
   | 'OTHER';
+
+/**
+ * Motif d'une clôture de livraison par l'ADMIN (15/11/2026) — liste fermée,
+ * identique à `DELIVERY_ARBITRATION_REASONS` côté serveur.
+ */
+export type DeliveryArbitrationReason =
+  | 'CUSTOMER_REFUSED'
+  | 'DRIVER_DID_NOT_CONFIRM'
+  | 'DELIVERED_OUTSIDE_APP'
+  | 'OTHER';
+
+/** `POST /admin/orders/:id/delivery/arbitrate` — réponse (`data`). */
+export interface DeliveryArbitrationResult {
+  id: string;
+  status: OrderStatus;
+  deliveryProof: string | null;
+  /** Avoir offert au client ; son code sert à l'opérateur au téléphone. */
+  voucher: { code: string; amountXaf: number; expiresAt: string } | null;
+}
 /**
  * Opérateur choisi par le client pour payer.
  *
@@ -1210,6 +1229,11 @@ export interface Order {
   id: string;
   /** Verdict serveur ; absent sur une API ancienne, ne vaut jamais autorisation. */
   paymentAllowed?: boolean;
+  /**
+   * Verdict serveur (ADMIN) : la livraison peut être clôturée sans le livreur.
+   * Absent sur une API ancienne : le geste n'est pas proposé.
+   */
+  deliveryArbitrable?: boolean;
   orderFlow?: 'PAY_FIRST' | 'ACCEPT_FIRST';
   paymentDueAt?: string | null;
   restaurantId: string;

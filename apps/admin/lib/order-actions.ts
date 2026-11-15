@@ -1,4 +1,5 @@
 import type {
+  DeliveryArbitrationReason,
   OrderAction,
   OrderStatus,
   PickupArbitrationReason,
@@ -127,6 +128,61 @@ export function arbitrationIsComplete(
   const trimmed = note.trim();
   if (trimmed.length > 300) return false;
   return reason !== 'OTHER' || trimmed.length >= 5;
+}
+
+/**
+ * 15/11/2026 — clôture d'une livraison par l'ADMIN, sans le livreur. Le
+ * serveur publie le verdict (`deliveryArbitrable`) : absent sur une API
+ * ancienne, le geste n'est pas proposé.
+ */
+export function asksDeliveryArbitration(order: {
+  deliveryArbitrable?: boolean;
+}): boolean {
+  return order.deliveryArbitrable === true;
+}
+
+/** Motifs de clôture de livraison — liste fermée, identique au serveur. */
+export const DELIVERY_ARBITRATION_REASONS: Array<{
+  value: DeliveryArbitrationReason;
+  label: string;
+}> = [
+  { value: 'CUSTOMER_REFUSED', label: 'Le client a refusé la commande' },
+  { value: 'DRIVER_DID_NOT_CONFIRM', label: 'Livrée, mais le livreur ne l’a pas enregistré' },
+  { value: 'DELIVERED_OUTSIDE_APP', label: 'Remise hors de l’application' },
+  { value: 'OTHER', label: 'Autre raison (à préciser)' },
+];
+
+/** Bornes de l'avoir, identiques au DTO serveur. */
+export const VOUCHER_MIN_XAF = 100;
+export const VOUCHER_MAX_XAF = 100_000;
+
+/**
+ * Montant d'avoir saisi : `null` si le champ est vide (aucun avoir), `NaN`
+ * s'il est invalide (non entier, hors bornes, supérieur au total payé).
+ */
+export function parseVoucherAmount(raw: string, orderTotal: number): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === '') return null;
+  if (!/^\d+$/.test(trimmed)) return Number.NaN;
+  const amount = Number(trimmed);
+  if (amount < VOUCHER_MIN_XAF || amount > VOUCHER_MAX_XAF || amount > orderTotal) {
+    return Number.NaN;
+  }
+  return amount;
+}
+
+/** Motif requis, note 5–300 si « Autre », avoir vide ou valide. */
+export function deliveryArbitrationIsComplete(
+  reason: DeliveryArbitrationReason | null,
+  note: string,
+  voucherRaw: string,
+  orderTotal: number,
+): boolean {
+  if (!reason) return false;
+  const trimmed = note.trim();
+  if (trimmed.length > 300) return false;
+  if (reason === 'OTHER' && trimmed.length < 5) return false;
+  return !Number.isNaN(parseVoucherAmount(voucherRaw, orderTotal));
 }
 
 /** Temps de préparation proposés (bornes serveur : 5 à 120 min). */

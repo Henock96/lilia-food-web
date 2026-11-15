@@ -19,6 +19,8 @@ import type {
   StuckOrders,
   VendorRejectionReason,
   PickupArbitrationReason,
+  DeliveryArbitrationReason,
+  DeliveryArbitrationResult,
 } from '@lilia/types';
 import { apiClient, apiClientRaw, API_URL, ApiError, sessionFetch } from '../client';
 import { isVerifiedCheckoutQuote } from '../checkout-quote';
@@ -274,6 +276,58 @@ export function useArbitratePickup(token: AuthCredential | null) {
       );
     },
     // Promesse rendue : le bouton reste désactivé jusqu'à la relecture.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orderKeys.all }),
+  });
+}
+
+/** Clôture d'une livraison par l'ADMIN : motif, précision, avoir facultatif. */
+export interface DeliveryArbitrationInput {
+  reason: DeliveryArbitrationReason;
+  note?: string;
+  voucherAmountXaf?: number;
+  voucherExpiresInDays?: number;
+}
+
+/**
+ * 15/11/2026 — l'ADMIN clôture une livraison sans le livreur (client qui
+ * refuse une commande payée, livraison non enregistrée). Ouvre le versement du
+ * vendeur : `FINANCE_EXECUTE` côté serveur, MFA comprise.
+ */
+export function arbitrateDeliveryRequest(
+  orderId: string,
+  input: DeliveryArbitrationInput,
+) {
+  const note = input.note?.trim();
+  return {
+    path: `/admin/orders/${encodeURIComponent(orderId)}/delivery/arbitrate`,
+    method: 'POST' as const,
+    body: {
+      reason: input.reason,
+      ...(note ? { note } : {}),
+      ...(input.voucherAmountXaf !== undefined
+        ? { voucherAmountXaf: input.voucherAmountXaf }
+        : {}),
+      ...(input.voucherExpiresInDays !== undefined
+        ? { voucherExpiresInDays: input.voucherExpiresInDays }
+        : {}),
+    },
+  };
+}
+
+export function useArbitrateDelivery(token: AuthCredential | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      ...input
+    }: DeliveryArbitrationInput & { orderId: string }) => {
+      const req = arbitrateDeliveryRequest(orderId, input);
+      return apiClient<DeliveryArbitrationResult>(req.path, {
+        method: req.method,
+        body: JSON.stringify(req.body),
+        token,
+      });
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: orderKeys.all }),
   });
 }

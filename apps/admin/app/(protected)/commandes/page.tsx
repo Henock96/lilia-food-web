@@ -10,6 +10,7 @@ import {
   useRejectOrder,
   useHandOverPickup,
   useArbitratePickup,
+  useArbitrateDelivery,
   useDownloadReceipt,
   ApiError,
   type OrderStatusFilter,
@@ -40,7 +41,10 @@ import { toast } from 'sonner';
 import { exportToCsv } from '@/lib/export-csv';
 import { apiMessage } from '@/lib/api-message';
 import { mfaDemand } from '@/lib/mfa';
-import { OrderActions } from '@/components/orders/order-actions';
+import {
+  OrderActions,
+  type DeliveryArbitrationSubmit,
+} from '@/components/orders/order-actions';
 import { OrderFinancialsCard } from '@/components/payments/order-financials-card';
 import { FailureArbitrationPanel } from '@/components/orders/failure-arbitration-panel';
 import { RefundComposer } from '@/components/refunds/refund-composer';
@@ -144,6 +148,7 @@ function OrderCard({
   onReject,
   onHandOverWithCode,
   onArbitratePickup,
+  onArbitrateDelivery,
   pending,
 }: {
   order: AdminOrder;
@@ -162,6 +167,10 @@ function OrderCard({
     id: string,
     reason: PickupArbitrationReason,
     note?: string,
+  ) => Promise<boolean>;
+  onArbitrateDelivery: (
+    id: string,
+    input: DeliveryArbitrationSubmit,
   ) => Promise<boolean>;
   pending?: boolean;
 }) {
@@ -249,6 +258,7 @@ function OrderCard({
             onReject={onReject}
             onHandOverWithCode={onHandOverWithCode}
             onArbitratePickup={onArbitratePickup}
+            onArbitrateDelivery={onArbitrateDelivery}
           />
         </div>
       </div>
@@ -460,6 +470,7 @@ function CommandesPageContent() {
   const rejectOrder = useRejectOrder(token);
   const handOverPickup = useHandOverPickup(token);
   const arbitratePickup = useArbitratePickup(token);
+  const arbitrateDelivery = useArbitrateDelivery(token);
 
   const orders = data?.data ?? [];
   const meta = data?.meta;
@@ -598,6 +609,37 @@ function CommandesPageContent() {
         e instanceof ApiError && e.status === 404
           ? 'Le serveur ne propose pas encore l’arbitrage de remise : il doit être mis à jour.'
           : apiMessage(e, 'Arbitrage impossible'),
+      );
+      return false;
+    }
+  }
+
+  // 15/11/2026 — clôture d'une livraison sans le livreur (FINANCE_EXECUTE).
+  // Le code de l'avoir reste affiché : l'opérateur a souvent le client au
+  // téléphone, et le push peut ne pas arriver.
+  async function handleArbitrateDelivery(
+    orderId: string,
+    input: DeliveryArbitrationSubmit,
+  ): Promise<boolean> {
+    try {
+      const result = await arbitrateDelivery.mutateAsync({ orderId, ...input });
+      if (result.voucher) {
+        toast.success(
+          `Livraison clôturée. Avoir de ${result.voucher.amountXaf} FCFA pour le client : ${result.voucher.code}`,
+          { duration: Infinity, closeButton: true },
+        );
+      } else {
+        toast.success('Livraison clôturée — versement du vendeur ouvert');
+      }
+      return true;
+    } catch (e) {
+      if (mfaDemand(e)) return false;
+      // Route absente (serveur ancien) : NestJS répond « Cannot POST … ».
+      // Un 404 du service (« Commande non trouvée. ») garde son message.
+      toast.error(
+        e instanceof ApiError && e.status === 404 && /^Cannot POST/.test(e.message)
+          ? 'Le serveur ne propose pas encore la clôture de livraison : il doit être mis à jour.'
+          : apiMessage(e, 'Clôture impossible'),
       );
       return false;
     }
@@ -750,11 +792,13 @@ function CommandesPageContent() {
               onReject={handleReject}
               onHandOverWithCode={handleHandOverWithCode}
               onArbitratePickup={handleArbitratePickup}
+              onArbitrateDelivery={handleArbitrateDelivery}
               pending={
                 acceptOrder.isPending ||
                 rejectOrder.isPending ||
                 handOverPickup.isPending ||
-                arbitratePickup.isPending
+                arbitratePickup.isPending ||
+                arbitrateDelivery.isPending
               }
             />
           ))}
