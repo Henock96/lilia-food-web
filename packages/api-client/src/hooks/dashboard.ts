@@ -11,7 +11,7 @@ import type {
   ClientStats,
   RestaurantRankingRow,
 } from '@lilia/types';
-import { apiClient } from '../client';
+import { apiClient, apiClientRaw } from '../client';
 
 export const dashboardKeys = {
   all: ['dashboard'] as const,
@@ -150,14 +150,44 @@ export function useClientDetail(clientId: string | null, token: AuthCredential |
   });
 }
 
-export function usePeakHours(token: AuthCredential | null) {
-  return useQuery({
+/** Heures de pointe et verdict Premium du serveur (lot D, 16/11/2026). */
+export interface PeakHoursResult {
+  hours: PeakHourData[];
+  /** Vrai pour un vendeur Standard : le serveur ne livre rien, la section est absente. */
+  premiumRequired: boolean;
+}
+
+interface PeakHoursQuery {
+  token: AuthCredential | null;
+  /** Point d'injection des tests : la requête doit être exécutable sans React. */
+  fetchPeakHours?: (path: string, signal?: AbortSignal) => Promise<unknown>;
+}
+
+/**
+ * `GET /dashboard/peak-hours` — réservé au Premium depuis le lot D. Lu par
+ * `apiClientRaw` : `apiClient` déballe `{ data }` et perdrait le verdict
+ * `premiumRequired`, posé à côté.
+ */
+export function peakHoursQueryOptions({
+  token,
+  fetchPeakHours = (path, signal) => apiClientRaw<unknown>(path, { token, signal }),
+}: PeakHoursQuery) {
+  return {
     queryKey: dashboardKeys.peakHours(),
-    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) => {
-      const res = await apiClient<PeakHourData[] | { data: PeakHourData[] }>('/dashboard/peak-hours', { signal, token });
-      return Array.isArray(res) ? res : (res as { data: PeakHourData[] }).data ?? [];
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}): Promise<PeakHoursResult> => {
+      const res = await fetchPeakHours('/dashboard/peak-hours', signal);
+      if (Array.isArray(res)) return { hours: res as PeakHourData[], premiumRequired: false };
+      const body = (res ?? {}) as { data?: unknown; premiumRequired?: unknown };
+      return {
+        hours: Array.isArray(body.data) ? (body.data as PeakHourData[]) : [],
+        premiumRequired: body.premiumRequired === true,
+      };
     },
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
-  });
+  };
+}
+
+export function usePeakHours(token: AuthCredential | null) {
+  return useQuery(peakHoursQueryOptions({ token }));
 }
