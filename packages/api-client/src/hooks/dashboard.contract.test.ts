@@ -1,6 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import { restaurantRankingQueryOptions } from './dashboard';
+import { peakHoursQueryOptions, restaurantRankingQueryOptions } from './dashboard';
+
+/**
+ * Lot D (16/11/2026) — heures de pointe réservées au Premium. `apiClient`
+ * déballe `{ data }` : le verdict `premiumRequired`, posé à côté, serait perdu
+ * et la page afficherait un graphique vide au vendeur Standard.
+ */
+describe('peakHoursQueryOptions', () => {
+  const run = (response: unknown) =>
+    peakHoursQueryOptions({
+      token: 'tok',
+      fetchPeakHours: async () => response,
+    }).queryFn();
+
+  it('vendeur Standard : aucune heure, premiumRequired vrai', async () => {
+    await expect(
+      run({ data: [], peakHour: null, premiumRequired: true }),
+    ).resolves.toEqual({ hours: [], premiumRequired: true });
+  });
+
+  it('vendeur Premium ou ADMIN : les heures, premiumRequired faux', async () => {
+    const hours = [{ hour: 12, count: 4 }];
+    await expect(
+      run({ data: hours, peakHour: hours[0], premiumRequired: false }),
+    ).resolves.toEqual({ hours, premiumRequired: false });
+  });
+
+  it('serveur ancien sans le champ : aucune restriction', async () => {
+    await expect(run({ data: [] })).resolves.toEqual({
+      hours: [],
+      premiumRequired: false,
+    });
+  });
+});
 
 /**
  * Classement des vendeurs par revenu.

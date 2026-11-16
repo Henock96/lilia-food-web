@@ -168,10 +168,12 @@ export default function DashboardPage() {
             {Array.isArray(orderStats) && orderStats.length > 0 && (
               <OrderStats data={orderStats} />
             )}
+            {/* Lot D (16/11/2026) — réservées au Premium : section absente
+                pour un vendeur Standard, sur le verdict du serveur. */}
             {loadingPeak ? (
               <Skeleton className="h-64 rounded-2xl" />
-            ) : peakHours ? (
-              <PeakHours data={peakHours} />
+            ) : peakHours && !peakHours.premiumRequired ? (
+              <PeakHours data={peakHours.hours} />
             ) : null}
           </>
         )}
