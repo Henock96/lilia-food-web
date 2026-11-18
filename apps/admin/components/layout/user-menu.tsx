@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 import { getFirebaseAuth } from '@/lib/firebase';
 import { clearSessionCookie } from '@/lib/session';
+import { releaseBrowserPush } from '@/lib/push-loader';
 import { useAuthStore } from '@/store/auth';
 
 /**
@@ -57,6 +58,9 @@ export function UserMenu() {
     try {
       // Ordre imposé : Firebase d'abord (c'est lui la session), puis l'état
       // local, puis le cookie serveur qui garde l'accès aux routes protégées.
+      // Avant tout : désinscrire ce navigateur des notifications push, tant
+      // que le jeton est valable — sinon le compte suivant les recevrait.
+      await releaseBrowserPush(useAuthStore.getState().token);
       await signOut(getFirebaseAuth());
       clearStore();
       await clearSessionCookie();

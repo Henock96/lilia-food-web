@@ -2,10 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 import { signOut } from 'firebase/auth';
-import { apiClient, ApiError, type AuthCredential } from '@lilia/api-client';
+import { apiClient, ApiError, releasePush, type AuthCredential } from '@lilia/api-client';
 import type { User } from '@lilia/types';
 import { toast } from 'sonner';
 import { auth } from './firebase';
+import { loadBrowserPush } from './push-loader';
 import { AuthSessionController, type Identity, type SessionState } from './auth-session-controller';
 import { reconcileSessionCookie } from './session';
 import { retireQueryClient } from './query-client';
@@ -28,6 +29,8 @@ export function getBrowserSession(): AuthSessionController {
       toast.dismiss();
     },
     purgeGuestCart: () => useGuestCartStore.getState().clear(),
+    // Import différé : `firebase/messaging` reste hors du bundle initial.
+    releaseDevice: async (token) => releasePush(await loadBrowserPush(), token),
     syncProfile,
   });
   return browserSession;

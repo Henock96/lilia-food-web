@@ -42,6 +42,12 @@ export interface SessionPorts {
    * du visiteur doit y survivre pour être versé.
    */
   purgeGuestCart(): void;
+  /**
+   * Désinscrit ce navigateur des notifications push du compte qui part, avant
+   * `signOut` : le jeton d'authentification est encore valable. Ne doit pas
+   * bloquer la déconnexion (borné et sans erreur, voir `releasePush`).
+   */
+  releaseDevice?(token: string | null): Promise<void>;
 }
 
 /** One owner of the identity generation. Tokens live only in this instance,
@@ -255,7 +261,10 @@ export class AuthSessionController {
     // interrompu) sont à celui qui part, et le compte suivant sur ce navigateur
     // pourrait les payer. Un échec pendant la connexion, lui, passe aussi par
     // ici : le visiteur doit y garder son panier.
-    if (this.state.phase === 'ready') this.ports.purgeGuestCart();
+    const closingSession = this.state.phase === 'ready';
+    if (closingSession) this.ports.purgeGuestCart();
+    // Lu avant `reset`, qui l'efface.
+    const sessionToken = this.token;
     this.loggingOut = true;
     this.blockedUid = this.ports.currentUser()?.uid ?? null;
     this.authentication = null;
@@ -263,6 +272,8 @@ export class AuthSessionController {
     const generation = this.state.generation;
     const flight = (async () => {
       try {
+        // Sans session ouverte, pas de jeton à présenter : désabonnement local seul.
+        await this.ports.releaseDevice?.(closingSession ? sessionToken : null).catch(() => undefined);
         await this.ports.signOut();
         if (generation !== this.state.generation || this.ports.currentUser()) return false;
         this.blockedUid = null;

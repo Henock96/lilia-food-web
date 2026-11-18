@@ -11,6 +11,8 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().min(1),
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().min(1),
   NEXT_PUBLIC_API_URL: z.string().url().optional(),
+  // Optionnelle : absente, les notifications push sont masquées (lib/push.ts).
+  NEXT_PUBLIC_FIREBASE_VAPID_KEY: z.string().min(1).optional(),
 });
 
 const parsed = clientEnvSchema.safeParse({
@@ -22,6 +24,7 @@ const parsed = clientEnvSchema.safeParse({
     process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  NEXT_PUBLIC_FIREBASE_VAPID_KEY: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || undefined,
 });
 
 if (!parsed.success) {

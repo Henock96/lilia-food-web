@@ -5,6 +5,7 @@ import { onIdTokenChanged } from 'firebase/auth';
 import * as Sentry from '@sentry/nextjs';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { setSessionCookie, clearSessionCookie } from '@/lib/session';
+import { releaseBrowserPush } from '@/lib/push-loader';
 import { useAuthStore } from '@/store/auth';
 
 /**
@@ -41,6 +42,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Firebase session terminée (déconnexion ou expiration)
+        // Expiration ou révocation : plus de jeton pour prévenir le serveur,
+        // mais le désabonnement local suffit à ce que ce navigateur cesse de
+        // recevoir les alertes du compte parti (poste partagé).
+        void releaseBrowserPush(null);
         signOut();
         await clearSessionCookie();
       }

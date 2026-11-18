@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { AnalyticsProvider } from '@/components/analytics/analytics-provider';
 import { Providers } from '@/components/providers';
+import { PushBridge } from '@/components/push/push-bridge';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { SITE_URL } from '@/lib/site';
 import './globals.css';
@@ -98,6 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
             <ScrollToTop />
             <AnalyticsProvider />
+            <PushBridge />
             <Toaster
               position="top-center"
               richColors

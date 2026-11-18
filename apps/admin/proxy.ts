@@ -30,5 +30,8 @@ export const config = {
   // `robots.txt` doit être exclu : toutes les routes étant protégées, le
   // middleware le redirigeait vers `/connexion`, ce qui le rendait illisible
   // pour les robots — le fichier existait mais n'était jamais servi.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|api).*)'],
+  // Même raison pour le service worker des notifications et son icône : le
+  // navigateur revérifie le script sans garantie de session, et une redirection
+  // vers `/connexion` ferait échouer la mise à jour du worker.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|push-sw.js|icon-192.png|api).*)'],
 };

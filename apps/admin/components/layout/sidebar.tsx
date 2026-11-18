@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { clearSessionCookie } from '@/lib/session';
+import { releaseBrowserPush } from '@/lib/push-loader';
 import { useAuthStore } from '@/store/auth';
 import {
   useDashboardOverview,
@@ -156,6 +157,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   async function handleSignOut() {
     try {
+      // Notifications push : voir `user-menu.tsx`.
+      await releaseBrowserPush(token);
       await signOut(getFirebaseAuth());
       clearStore();
       await clearSessionCookie();
