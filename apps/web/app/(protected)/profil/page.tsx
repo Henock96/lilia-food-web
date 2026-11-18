@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { AddressPrecisionHint } from '@/components/checkout/address-precision-hint';
 import { DeleteAccount } from '@/components/profile/delete-account';
+import { PushToggle } from '@/components/push/push-toggle';
 
 export default function ProfilPage() {
   const router = useRouter();
@@ -320,6 +321,9 @@ export default function ProfilPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Notifications push ───────────────────────────── */}
+      <PushToggle />
 
       {/* ── Infos personnelles ────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-cream-200 divide-y divide-cream-100 mb-4">

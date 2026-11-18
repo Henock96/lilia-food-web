@@ -312,3 +312,33 @@ describe('AuthSessionController — isolation réelle des générations', () => 
   });
 
 });
+
+describe('AuthSessionController — notifications push à la déconnexion', () => {
+  it('libère l’appareil avec le jeton de la session, avant la déconnexion Firebase', async () => {
+    const h = harness();
+    const order: string[] = [];
+    h.ports.releaseDevice = vi.fn(async (token: string | null) => { order.push(`release:${token}`); });
+    vi.mocked(h.ports.signOut).mockImplementationOnce(async () => { order.push('signOut'); h.setCurrent(null); });
+    await h.login(identity('A'));
+    await h.controller.logout();
+    expect(order).toEqual(['release:token-A', 'signOut']);
+  });
+
+  it('sans session ouverte, désabonne localement sans jeton', async () => {
+    // Un abonnement laissé par une session précédente ne doit pas survivre :
+    // le compte suivant sur ce navigateur recevrait ses notifications.
+    const h = harness();
+    h.ports.releaseDevice = vi.fn(async () => {});
+    await h.controller.logout();
+    expect(h.ports.releaseDevice).toHaveBeenCalledWith(null);
+  });
+
+  it('se déconnecte même si la libération échoue', async () => {
+    const h = harness();
+    h.ports.releaseDevice = vi.fn(async () => { throw new Error('offline'); });
+    await h.login(identity('A'));
+    await h.controller.logout();
+    expect(h.ports.signOut).toHaveBeenCalledTimes(1);
+    expect(h.controller.getSnapshot().phase).toBe('anonymous');
+  });
+});

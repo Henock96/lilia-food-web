@@ -18,6 +18,7 @@ import { ClaimPanel } from '@/components/orders/claim-panel';
 import { OrderReviewPanel } from '@/components/orders/order-review-panel';
 import { OrderSyncNotice } from '@/components/orders/order-sync-notice';
 import { PickupPanel } from '@/components/orders/pickup-panel';
+import { PushToggle } from '@/components/push/push-toggle';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { pickupStatusLabel, timelineSteps } from '@/lib/pickup-view';
 import { toast } from 'sonner';
@@ -165,6 +166,13 @@ function CommandeDetailInner({ params }: { params: Promise<{ id: string }> }) {
       {/* F-06 : code de remise, pendant que le repas roule vers le client */}
       {order.status === 'EN_ROUTE' && (
         <HandoverCodePanel orderId={order.id} token={token} />
+      )}
+
+      {/* Notifications push : proposées ici, au moment où elles servent. */}
+      {order.status !== 'LIVRER' && order.status !== 'ANNULER' && (
+        <div className="mb-4 empty:hidden">
+          <PushToggle variant="inline" />
+        </div>
       )}
 
       {/* Timeline des statuts */}
