@@ -21,6 +21,7 @@ import {
   type SettingsForm,
   appUpdateStatus,
   buildSettingsPatch,
+  exploitationConfirmation,
   isStaleSettingsConflict,
   splitFinancialChanges,
   toSettingsForm,
@@ -168,6 +169,12 @@ export default function ParametresPage() {
           : 'Revenir aux prix fixés par les vendeurs ?\n\nLa grille plateforme cessera de s’appliquer aux prochaines commandes.',
       )
     ) {
+      return;
+    }
+    // Lot 6 — un interrupteur d'exploitation change le parcours de tous :
+    // ses préalables sont rappelés, et l'administrateur les confirme.
+    const exploitation = exploitationConfirmation(result.patch);
+    if (exploitation && !window.confirm(exploitation)) {
       return;
     }
     // Le PATCH d'abord : il fait avancer `updatedAt`, que la demande doit
@@ -454,6 +461,54 @@ export default function ParametresPage() {
         </label>
       </div>
 
+      {/* Lot 6 (6A) — exploitation. Absent d'un serveur antérieur. */}
+      {loaded.dispatchEnabled !== undefined && (
+        <ExploitationCard form={form} loaded={loaded} set={set} />
+      )}
+
+      {/* Lot 6 (6A) — taux du contrat pawaPay, pour la page Marges. */}
+      {loaded.estimatedCollectionFeeBps !== undefined && (
+        <div className={CARD}>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+            Taux du contrat pawaPay
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+            Tirés de la grille du contrat. Ils servent seulement à estimer les frais sur la page{' '}
+            <Link href="/marges" className="text-primary-600 hover:underline dark:text-primary-400">
+              Marges
+            </Link>{' '}
+            : aucun prix, aucun versement, aucune écriture comptable n&apos;en dépend. Vide : frais
+            inconnus.
+          </p>
+          <div className="space-y-3">
+            {(
+              [
+                ['estimatedCollectionFeePercent', 'Encaissement (paiement du client)'],
+                ['estimatedPayoutFeePercent', 'Versement au vendeur'],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <label htmlFor={key} className="text-sm text-zinc-600 dark:text-zinc-300">
+                  {label}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={key}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="inconnu"
+                    value={form[key]}
+                    onChange={(e) => set(key, e.target.value)}
+                    className="w-24 px-2.5 py-1.5 text-sm text-right rounded-lg border border-zinc-200 dark:border-dark-border bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary-500 tabular-nums"
+                  />
+                  <span className="text-xs text-zinc-400 w-8">%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Jours fériés (F3-03) — enregistrés à part, pas par le bouton du bas. */}
       <PublicHolidaysCard token={token} />
 
@@ -671,6 +726,112 @@ function AppUpdateStatusPanel({ status }: { status: ReturnType<typeof appUpdateS
       <p className="text-sm text-emerald-800 dark:text-emerald-200">
         <strong>Aucun blocage</strong> — aucune mise à jour n&apos;est proposée.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Lot 6 (6A) — interrupteurs d'exploitation. Un seul se bascule par
+ * enregistrement (`buildSettingsPatch`) ; chacun rappelle son préalable, et sa
+ * valeur **en vigueur** est lue sur la configuration chargée.
+ */
+function ExploitationCard({
+  form,
+  loaded,
+  set,
+}: {
+  form: SettingsForm;
+  loaded: PlatformSettings;
+  set: <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => void;
+}) {
+  const switches: {
+    key: 'vendorCanAssignDriver' | 'dispatchEnabled';
+    label: string;
+    prerequisite: string;
+  }[] = [
+    {
+      key: 'vendorCanAssignDriver',
+      label: 'Les vendeurs affectent eux-mêmes un livreur',
+      prerequisite:
+        'À décocher une fois installée chez les vendeurs l’app qui masque ce bouton. Décoché : seul un administrateur affecte.',
+    },
+    {
+      key: 'dispatchEnabled',
+      label: 'Dispatch « premier qui accepte »',
+      prerequisite:
+        'La course est proposée à tous les livreurs disponibles. Préalable : app livreur compatible installée par tous, essai à deux livreurs.',
+    },
+  ];
+  return (
+    <div className={CARD}>
+      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Exploitation</h3>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+        Un interrupteur à la fois : enregistrez, observez 24 à 48 h, puis passez au suivant. Chaque
+        changement est journalisé et se défait par le geste inverse.
+      </p>
+      <div className="space-y-4">
+        {switches.map((s) => (
+          <div key={s.key}>
+            <label className="flex items-center justify-between gap-4 cursor-pointer">
+              <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                {s.label}{' '}
+                <span className="text-[11px] text-zinc-400">
+                  (en vigueur : {loaded[s.key] ? 'oui' : 'non'})
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={form[s.key]}
+                onChange={(e) => set(s.key, e.target.checked)}
+                className="w-4 h-4 accent-primary-500"
+              />
+            </label>
+            <p className="mt-1 text-[11px] leading-snug text-zinc-500">{s.prerequisite}</p>
+          </div>
+        ))}
+
+        {loaded.orderFlow !== undefined && (
+          <div className="space-y-2">
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Parcours de commande{' '}
+              <span className="text-[11px] text-zinc-400">
+                (en vigueur : {loaded.orderFlow === 'ACCEPT_FIRST' ? 'accepter puis payer' : 'payer puis accepter'})
+              </span>
+            </p>
+            {(
+              [
+                ['PAY_FIRST', 'Le client paie, puis le vendeur accepte'],
+                ['ACCEPT_FIRST', 'Le vendeur accepte, puis le client paie'],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="radio"
+                  name="orderFlow"
+                  checked={form.orderFlow === value}
+                  onChange={() => set('orderFlow', value)}
+                  className="accent-primary-500"
+                />
+                {label}
+              </label>
+            ))}
+            {loaded.minVendorAppVersion !== undefined && (
+              <Field
+                label="Version minimale de l’app vendeurs"
+                hint="À fixer avant « accepter puis payer ». En dessous : 426. Vide = aucun seuil."
+              >
+                <input
+                  type="text"
+                  value={form.minVendorAppVersion}
+                  onChange={(e) => set('minVendorAppVersion', e.target.value)}
+                  placeholder="1.4.0"
+                  className={INPUT}
+                />
+              </Field>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

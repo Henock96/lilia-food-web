@@ -79,6 +79,14 @@ export default function MargesPage() {
       ) : data ? (
         <>
           <div className={`${cardCls} space-y-1 text-sm`}>
+            {/* Lot 6 — sans « Du », le serveur lit les 30 derniers jours. */}
+            {data.period && (
+              <p className="text-zinc-500 dark:text-zinc-400">
+                Période : du {new Date(data.period.from).toLocaleDateString('fr-FR')} au{' '}
+                {new Date(data.period.to).toLocaleDateString('fr-FR')}
+                {!from && ' (30 derniers jours par défaut)'}.
+              </p>
+            )}
             <p className="text-zinc-900 dark:text-zinc-100">
               <strong>{formatCurrency(data.summary.knownMarginXaf)}</strong> de marge connue sur{' '}
               {data.summary.orders} commande{data.summary.orders > 1 ? 's' : ''} livrée
