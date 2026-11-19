@@ -4,6 +4,7 @@ import {
   NUMBER_FIELD_SPECS,
   appUpdateStatus,
   buildSettingsPatch,
+  exploitationConfirmation,
   isStaleSettingsConflict,
   parseNumberField,
   splitFinancialChanges,
@@ -365,5 +366,118 @@ describe('réglages d’argent : demande à deux administrateurs (R-09)', () => 
       ].sort(),
     );
     expect(r.settingsChanged).toBe(false);
+  });
+});
+
+describe('exploitation : interrupteurs et taux pawaPay (lot 6)', () => {
+  const LOT5: PlatformSettings = {
+    ...PROD,
+    orderFlow: 'PAY_FIRST',
+    minVendorAppVersion: null,
+    vendorCanAssignDriver: true,
+    dispatchEnabled: false,
+    estimatedCollectionFeeBps: null,
+    estimatedPayoutFeeBps: null,
+  };
+
+  it('serveur antérieur : aucun champ d’exploitation envoyé', () => {
+    const result = patchFrom({ dispatchEnabled: true, estimatedCollectionFeePercent: '1.75' });
+    expect(result).toEqual({ ok: true, patch: { expectedUpdatedAt: PROD.updatedAt }, changed: false });
+  });
+
+  it('un interrupteur seul part dans le PATCH ordinaire', () => {
+    const result = patchFrom({ dispatchEnabled: true }, LOT5);
+    expect(result.ok && result.patch).toEqual({
+      expectedUpdatedAt: LOT5.updatedAt,
+      dispatchEnabled: true,
+    });
+    expect(result.ok && splitFinancialChanges(result.patch).financialChanged).toBe(false);
+  });
+
+  it('deux interrupteurs à la fois : refusé', () => {
+    const result = patchFrom({ dispatchEnabled: true, vendorCanAssignDriver: false }, LOT5);
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.errors.join()).toMatch(/Un seul interrupteur/);
+  });
+
+  it('ACCEPT_FIRST sans version minimale vendeurs : refusé', () => {
+    const result = patchFrom({ orderFlow: 'ACCEPT_FIRST' }, LOT5);
+    expect(!result.ok && result.errors.join()).toMatch(/version minimale de l’app vendeurs/);
+  });
+
+  it('ACCEPT_FIRST une fois la version minimale en place', () => {
+    const result = patchFrom(
+      { orderFlow: 'ACCEPT_FIRST' },
+      { ...LOT5, minVendorAppVersion: '1.4.0' },
+    );
+    expect(result.ok && result.patch.orderFlow).toBe('ACCEPT_FIRST');
+  });
+
+  it('version minimale vendeurs : normalisée, format contrôlé, vide efface', () => {
+    expect(patchFrom({ minVendorAppVersion: ' v1.4.0 ' }, LOT5)).toMatchObject({
+      ok: true,
+      patch: { minVendorAppVersion: '1.4.0' },
+    });
+    expect(patchFrom({ minVendorAppVersion: 'bientôt' }, LOT5).ok).toBe(false);
+    expect(
+      patchFrom({ minVendorAppVersion: '' }, { ...LOT5, minVendorAppVersion: '1.4.0' }),
+    ).toMatchObject({ ok: true, patch: { minVendorAppVersion: null } });
+  });
+
+  it('taux saisis en %, envoyés en points de base entiers', () => {
+    const result = patchFrom(
+      { estimatedCollectionFeePercent: '1.75', estimatedPayoutFeePercent: '1' },
+      LOT5,
+    );
+    expect(result.ok && result.patch).toMatchObject({
+      estimatedCollectionFeeBps: 175,
+      estimatedPayoutFeeBps: 100,
+    });
+    // Hors quatre yeux (L6-1) : ils ne fixent ni prix ni versement.
+    expect(result.ok && splitFinancialChanges(result.patch).financialChanged).toBe(false);
+  });
+
+  it('taux : vide efface, virgule et excès refusés, valeur chargée réaffichée', () => {
+    const loaded = { ...LOT5, estimatedCollectionFeeBps: 175 };
+    expect(toSettingsForm(loaded).estimatedCollectionFeePercent).toBe('1.75');
+    expect(patchFrom({ estimatedCollectionFeePercent: '' }, loaded)).toMatchObject({
+      ok: true,
+      patch: { estimatedCollectionFeeBps: null },
+    });
+    expect(patchFrom({ estimatedPayoutFeePercent: '1,5' }, LOT5).ok).toBe(false);
+    expect(patchFrom({ estimatedPayoutFeePercent: '150' }, LOT5).ok).toBe(false);
+  });
+});
+
+describe('exploitationConfirmation (lot 6)', () => {
+  it('rappelle le préalable de l’interrupteur basculé', () => {
+    expect(exploitationConfirmation({ dispatchEnabled: true })).toMatch(/deux livreurs/);
+    expect(exploitationConfirmation({ vendorCanAssignDriver: false })).toMatch(/app vendeurs/);
+    expect(exploitationConfirmation({ orderFlow: 'ACCEPT_FIRST' })).toMatch(/426/);
+  });
+
+  it('rien à confirmer hors interrupteur', () => {
+    expect(exploitationConfirmation({ estimatedPayoutFeeBps: 100 })).toBeNull();
+  });
+});
+
+describe('ACCEPT_FIRST hérité sans seuil vendeurs (revue lot 6)', () => {
+  const HERITE: PlatformSettings = {
+    ...PROD,
+    orderFlow: 'ACCEPT_FIRST',
+    minVendorAppVersion: null,
+    vendorCanAssignDriver: true,
+    dispatchEnabled: false,
+    estimatedCollectionFeeBps: null,
+    estimatedPayoutFeeBps: null,
+  };
+
+  it('ne bloque pas un autre réglage', () => {
+    expect(patchFrom({ maintenanceMessage: 'Pause' }, HERITE).ok).toBe(true);
+  });
+
+  it('retirer le seuil sous ACCEPT_FIRST reste refusé', () => {
+    const loaded = { ...HERITE, minVendorAppVersion: '1.4.0' };
+    expect(patchFrom({ minVendorAppVersion: '' }, loaded).ok).toBe(false);
   });
 });

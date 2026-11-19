@@ -7,6 +7,7 @@ import type {
 import {
   BLOCK_CONFIRMATION_WORD,
   normalizeVersion,
+  parseAppVersion,
   requiresBlockConfirmation,
   validateAppUpdate,
 } from './app-update-rules';
@@ -62,6 +63,14 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
   modifiersManagementEnabled: boolean;
   /** F3-10 — formats de plusieurs unités (carton de 6) ouverts aux vendeurs. */
   multiUnitVariantsEnabled: boolean;
+  /** Exploitation (durcissement lots 3 à 5) — un interrupteur à la fois. */
+  orderFlow: NonNullable<PlatformSettings['orderFlow']>;
+  minVendorAppVersion: string;
+  vendorCanAssignDriver: boolean;
+  dispatchEnabled: boolean;
+  /** Taux du contrat pawaPay, saisis en %, envoyés en points de base. */
+  estimatedCollectionFeePercent: string;
+  estimatedPayoutFeePercent: string;
   maintenanceMode: boolean;
   maintenanceMessage: string;
   minAppVersion: string;
@@ -71,6 +80,11 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
   updateMessage: string;
   /** Mot de confirmation d'un blocage — jamais envoyé. */
   blockConfirmation: string;
+}
+
+/** Points de base → % saisi (175 → « 1.75 ») ; absent ou `null` → vide. */
+function bpsToPercent(bps: number | null | undefined): string {
+  return bps == null ? '' : String(bps / 100);
 }
 
 export function toSettingsForm(s: PlatformSettings): SettingsForm {
@@ -89,6 +103,12 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     modifiersEnabled: s.modifiersEnabled ?? false,
     modifiersManagementEnabled: s.modifiersManagementEnabled ?? false,
     multiUnitVariantsEnabled: s.multiUnitVariantsEnabled ?? false,
+    orderFlow: s.orderFlow ?? 'PAY_FIRST',
+    minVendorAppVersion: s.minVendorAppVersion ?? '',
+    vendorCanAssignDriver: s.vendorCanAssignDriver ?? true,
+    dispatchEnabled: s.dispatchEnabled ?? false,
+    estimatedCollectionFeePercent: bpsToPercent(s.estimatedCollectionFeeBps),
+    estimatedPayoutFeePercent: bpsToPercent(s.estimatedPayoutFeeBps),
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage ?? '',
     minAppVersion: s.minAppVersion ?? '',
@@ -131,7 +151,17 @@ export function parseNumberField(
  * en points de base entiers (5 → 500). Vide → `null` : taux général.
  */
 export function parseGroceryServiceFee(raw: string): { bps: number | null } | { error: string } {
-  const label = 'Frais de service épiceries';
+  return parsePercentAsBps(raw, 'Frais de service épiceries');
+}
+
+/**
+ * Pourcentage saisi (0 à 100, deux décimales au plus) → points de base
+ * entiers (1.75 → 175). Vide → `null`.
+ */
+export function parsePercentAsBps(
+  raw: string,
+  label: string,
+): { bps: number | null } | { error: string } {
   const t = raw.trim();
   if (t === '') return { bps: null };
   if (/^\d+,\d+$/.test(t)) {
@@ -228,6 +258,8 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
     patch.multiUnitVariantsEnabled = form.multiUnitVariantsEnabled;
   }
 
+  errors.push(...addExploitationChanges(form, loaded, patch));
+
   if (form.maintenanceMode !== loaded.maintenanceMode) {
     patch.maintenanceMode = form.maintenanceMode;
   }
@@ -287,6 +319,117 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
 
   if (errors.length > 0) return { ok: false, errors };
   return { ok: true, patch, changed: Object.keys(patch).length > 1 };
+}
+
+/** Interrupteurs d'exploitation : on n'en bascule qu'un par enregistrement. */
+export const EXPLOITATION_SWITCHES = ['orderFlow', 'vendorCanAssignDriver', 'dispatchEnabled'] as const;
+
+/**
+ * Lot 6 (6A) — interrupteurs d'exploitation et taux du contrat pawaPay.
+ * Chaque champ n'est jugé que si le serveur le connaît (`undefined` sinon).
+ * Ajoute au `patch` ce qui a changé ; renvoie les erreurs.
+ *
+ * Deux garde-fous du runbook `activation-interrupteurs.md` :
+ *  - un seul interrupteur basculé à la fois, pour savoir lequel cause un
+ *    problème ;
+ *  - `ACCEPT_FIRST` exige une version minimale de l'app vendeurs : sans elle,
+ *    une app ancienne recevrait des demandes qu'elle ne sait pas traiter.
+ */
+function addExploitationChanges(
+  form: SettingsForm,
+  loaded: PlatformSettings,
+  patch: UpdatePlatformSettingsPayload,
+): string[] {
+  const errors: string[] = [];
+
+  if (loaded.orderFlow !== undefined && form.orderFlow !== loaded.orderFlow) {
+    patch.orderFlow = form.orderFlow;
+  }
+  if (loaded.vendorCanAssignDriver !== undefined && form.vendorCanAssignDriver !== loaded.vendorCanAssignDriver) {
+    patch.vendorCanAssignDriver = form.vendorCanAssignDriver;
+  }
+  if (loaded.dispatchEnabled !== undefined && form.dispatchEnabled !== loaded.dispatchEnabled) {
+    patch.dispatchEnabled = form.dispatchEnabled;
+  }
+  if (EXPLOITATION_SWITCHES.filter((key) => key in patch).length > 1) {
+    errors.push(
+      'Un seul interrupteur d’exploitation à la fois : enregistrez-en un, observez, puis passez au suivant.',
+    );
+  }
+
+  if (loaded.minVendorAppVersion !== undefined) {
+    const minVendor = normalizeVersion(form.minVendorAppVersion);
+    if (minVendor !== null && parseAppVersion(minVendor) === null) {
+      errors.push(`Version minimale de l’app vendeurs : format 1.2.3 attendu (« ${minVendor} »).`);
+    } else if (minVendor !== (loaded.minVendorAppVersion ?? null)) {
+      patch.minVendorAppVersion = minVendor;
+    }
+    // Jugé au seul geste qui crée l'écart (passer en ACCEPT_FIRST, ou retirer
+    // le seuil sous ACCEPT_FIRST) : un état hérité ne bloque pas les autres
+    // réglages — le serveur ne l'impose pas.
+    const createsGap = patch.orderFlow === 'ACCEPT_FIRST' || 'minVendorAppVersion' in patch;
+    if (createsGap && form.orderFlow === 'ACCEPT_FIRST' && minVendor === null) {
+      errors.push(
+        'Acceptation avant paiement : fixez d’abord la version minimale de l’app vendeurs compatible.',
+      );
+    }
+  }
+
+  for (const [formKey, settingKey, label] of [
+    ['estimatedCollectionFeePercent', 'estimatedCollectionFeeBps', 'Frais pawaPay d’encaissement'],
+    ['estimatedPayoutFeePercent', 'estimatedPayoutFeeBps', 'Frais pawaPay de versement'],
+  ] as const) {
+    if (loaded[settingKey] === undefined) continue;
+    const fee = parsePercentAsBps(form[formKey], label);
+    if ('error' in fee) {
+      errors.push(fee.error);
+    } else if (fee.bps !== (loaded[settingKey] ?? null)) {
+      patch[settingKey] = fee.bps;
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Texte de confirmation d'un interrupteur d'exploitation basculé, avec ses
+ * préalables (runbook `activation-interrupteurs.md`) ; `null` s'il n'y en a pas.
+ * Éteindre se confirme aussi : c'est un retour arrière, il doit être voulu.
+ */
+export function exploitationConfirmation(patch: UpdatePlatformSettingsPayload): string | null {
+  if (patch.vendorCanAssignDriver === false) {
+    return (
+      'Retirer aux vendeurs l’affectation des livreurs ?\n\n' +
+      'À vérifier avant : l’app vendeurs qui masque ce bouton est publiée et installée. ' +
+      'Sinon les vendeurs verront un bouton qui échoue (403).'
+    );
+  }
+  if (patch.vendorCanAssignDriver === true) {
+    return 'Rendre aux vendeurs l’affectation des livreurs ?';
+  }
+  if (patch.dispatchEnabled === true) {
+    return (
+      'Allumer le dispatch « premier qui accepte » ?\n\n' +
+      'À vérifier avant :\n' +
+      '• app livreur compatible publiée et installée par tous les livreurs actifs ;\n' +
+      '• essai réussi avec deux livreurs sur une commande de faible montant.\n\n' +
+      'L’affectation manuelle (vendeur et admin) sera refusée tant qu’il est allumé.'
+    );
+  }
+  if (patch.dispatchEnabled === false) {
+    return 'Éteindre le dispatch ? Les offres en cours expirent et l’affectation manuelle revient.';
+  }
+  if (patch.orderFlow === 'ACCEPT_FIRST') {
+    return (
+      'Passer en « accepter puis payer » ?\n\n' +
+      'À vérifier avant : app vendeurs compatible publiée et installée, vendeurs prévenus. ' +
+      'Les apps vendeurs sous la version minimale reçoivent 426 sur leurs commandes.'
+    );
+  }
+  if (patch.orderFlow === 'PAY_FIRST') {
+    return 'Revenir à « payer puis accepter » ? Les commandes en cours gardent leur parcours.';
+  }
+  return null;
 }
 
 /**

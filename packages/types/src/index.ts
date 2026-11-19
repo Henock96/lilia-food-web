@@ -584,6 +584,8 @@ export interface OrderMarginRow {
 }
 
 export interface OrderMargins {
+  /** Bornes incluses retenues par le serveur (30 jours sans `from`). */
+  period?: { from: string; to: string };
   rates: { collectionFeeBps: number | null; payoutFeeBps: number | null };
   truncated: boolean;
   summary: {
@@ -2483,6 +2485,22 @@ export interface PlatformSettings {
    * (carton de 6) ? À allumer après publication de l'app vendeurs compatible.
    */
   multiUnitVariantsEnabled?: boolean;
+
+  // ── Exploitation (durcissement lots 3 à 5) ─────────────────────────────
+  //
+  // Absents d'un serveur antérieur. Un interrupteur à la fois.
+
+  /** Lot 3 — `ACCEPT_FIRST` : le vendeur accepte avant que le client paie. */
+  orderFlow?: 'PAY_FIRST' | 'ACCEPT_FIRST';
+  /** Lot 3 — sous cette version de l'app vendeurs : 426 sur ses commandes. */
+  minVendorAppVersion?: string | null;
+  /** Lot 4 (D-7) — `false` : seul un ADMIN affecte un livreur. */
+  vendorCanAssignDriver?: boolean;
+  /** Dispatch FCFS — la course est proposée à tous les livreurs disponibles. */
+  dispatchEnabled?: boolean;
+  /** Lot 5 — frais pawaPay du contrat, en points de base. Vue des marges seule. */
+  estimatedCollectionFeeBps?: number | null;
+  estimatedPayoutFeeBps?: number | null;
 
   /** Horodatage de la dernière écriture — renvoyé en `expectedUpdatedAt`. */
   updatedAt: string;
