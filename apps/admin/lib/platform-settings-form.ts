@@ -364,7 +364,11 @@ function addExploitationChanges(
     } else if (minVendor !== (loaded.minVendorAppVersion ?? null)) {
       patch.minVendorAppVersion = minVendor;
     }
-    if (form.orderFlow === 'ACCEPT_FIRST' && minVendor === null) {
+    // Jugé au seul geste qui crée l'écart (passer en ACCEPT_FIRST, ou retirer
+    // le seuil sous ACCEPT_FIRST) : un état hérité ne bloque pas les autres
+    // réglages — le serveur ne l'impose pas.
+    const createsGap = patch.orderFlow === 'ACCEPT_FIRST' || 'minVendorAppVersion' in patch;
+    if (createsGap && form.orderFlow === 'ACCEPT_FIRST' && minVendor === null) {
       errors.push(
         'Acceptation avant paiement : fixez d’abord la version minimale de l’app vendeurs compatible.',
       );

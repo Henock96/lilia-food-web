@@ -460,3 +460,24 @@ describe('exploitationConfirmation (lot 6)', () => {
     expect(exploitationConfirmation({ estimatedPayoutFeeBps: 100 })).toBeNull();
   });
 });
+
+describe('ACCEPT_FIRST hérité sans seuil vendeurs (revue lot 6)', () => {
+  const HERITE: PlatformSettings = {
+    ...PROD,
+    orderFlow: 'ACCEPT_FIRST',
+    minVendorAppVersion: null,
+    vendorCanAssignDriver: true,
+    dispatchEnabled: false,
+    estimatedCollectionFeeBps: null,
+    estimatedPayoutFeeBps: null,
+  };
+
+  it('ne bloque pas un autre réglage', () => {
+    expect(patchFrom({ maintenanceMessage: 'Pause' }, HERITE).ok).toBe(true);
+  });
+
+  it('retirer le seuil sous ACCEPT_FIRST reste refusé', () => {
+    const loaded = { ...HERITE, minVendorAppVersion: '1.4.0' };
+    expect(patchFrom({ minVendorAppVersion: '' }, loaded).ok).toBe(false);
+  });
+});
