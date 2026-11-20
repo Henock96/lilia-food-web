@@ -122,6 +122,15 @@ export function describeApproval(a: FinancialApproval): {
           : 'Aucune capacité (retrait de tous les droits)',
       };
     }
+    case 'NO_SHOW_VENDOR_SHARE_PAYOUT':
+      return {
+        title: `Part d’absence de ${(a.amountXaf ?? 0).toLocaleString('fr-FR')} FCFA à un restaurant`,
+        // Le numéro complet : c'est vers lui que part l'argent, et c'est lui
+        // qu'il faut reconnaître comme celui du restaurant.
+        detail: `Virement vers ${String(p.phoneNumber ?? '?')} (${String(
+          p.payoutProvider ?? '?',
+        )}) — client absent à une réservation payée ; détail dans Paiements › Absences.`,
+      };
     default:
       // Un type que cette interface ne connaît pas encore (serveur plus
       // récent) : on l'annonce plutôt que de casser la file.

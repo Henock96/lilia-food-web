@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, UserX } from 'lucide-react';
 
 /**
  * Bascule entre les deux moitiés de l'argent.
@@ -27,6 +27,13 @@ export function PaymentsTabs() {
       label: 'Reversements',
       hint: 'Lilia Food → Vendeur',
       icon: ArrowUpRight,
+    },
+    {
+      // D-6 — part du restaurant quand le client ne vient pas à sa réservation.
+      href: '/paiements/absences',
+      label: 'Absences',
+      hint: 'Part restaurant',
+      icon: UserX,
     },
   ];
 

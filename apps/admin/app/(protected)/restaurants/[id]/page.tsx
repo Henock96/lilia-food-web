@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Star } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Star } from 'lucide-react';
 import { useVendorPreview } from '@lilia/api-client';
 import type { VendorType } from '@lilia/types';
 import { PhotoGalleryEditor } from '@/components/photo-gallery-editor';
@@ -103,6 +103,16 @@ export default function RestaurantDetailPage({
             ? `${VENDOR_TYPE_LABELS[vendorType]}${statusLabel ? ` · ${statusLabel}` : ''} · ${vendor.adresse}`
             : 'Gestion de la galerie photos.'}
         </p>
+
+        {/* D-6 — réservations sur place de ce restaurant (support). */}
+        {isAdmin && (
+          <Link
+            href={`/reservations?restaurantId=${id}`}
+            className="mt-1 inline-flex items-center gap-1 text-sm text-primary-500 hover:underline"
+          >
+            <CalendarClock size={14} /> Voir ses réservations
+          </Link>
+        )}
 
         {preview.isError && (
           <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">

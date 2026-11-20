@@ -36,6 +36,7 @@ export * from './hooks/delivery-failure';
 export * from './hooks/incidents';
 export * from './hooks/photos';
 export * from './hooks/admin-payouts';
+export * from './hooks/admin-reservations';
 export * from './hooks/admin-audit';
 export * from './hooks/driver-settlements';
 export * from './hooks/admin-drivers';
