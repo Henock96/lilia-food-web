@@ -1966,7 +1966,9 @@ export type ApprovalKind =
   /** R-09 — réglage de plateforme qui fixe de l'argent. */
   | 'PLATFORM_SETTINGS_CHANGE'
   /** R-09 — commission propre à un vendeur. */
-  | 'VENDOR_COMMISSION_CHANGE';
+  | 'VENDOR_COMMISSION_CHANGE'
+  /** 4B-2 J6b — part restaurant d'une absence à une réservation payée. */
+  | 'NO_SHOW_VENDOR_SHARE_PAYOUT';
 
 export type ApprovalStatus =
   | 'PENDING'
@@ -3450,4 +3452,127 @@ export interface ReconciliationProviderRow {
   amountXaf: number;
   currency: string;
   feeXaf?: number | null;
+}
+
+// ─── Réservations sur place : vue du support (D-6) ──────────────────────────
+
+/** Miroir de `RESERVATION_STATUSES` (backend `reservation-booking-vocab.ts`). */
+export type ReservationStatus =
+  | 'PENDING'
+  | 'AWAITING_PAYMENT'
+  | 'CONFIRMED'
+  | 'DECLINED'
+  | 'EXPIRED'
+  | 'CANCELLED_BY_CLIENT'
+  | 'CANCELLED_BY_VENDOR'
+  | 'HONORED'
+  | 'NO_SHOW';
+
+/** Verdict serveur : gestes que le support peut faire (règle 2). */
+export type AdminReservationAction = 'cancel';
+
+/** Ligne de `GET /admin/reservations` : le numéro du client y est masqué. */
+export interface AdminReservationListItem {
+  id: string;
+  status: ReservationStatus;
+  restaurant: { id: string; nom: string };
+  customer: { id: string; nom: string | null; maskedPhone: string };
+  partySize: number;
+  arrivalAt: string;
+  spaceLabel: string;
+  /** Montant réel de la commande liée (XAF), `null` avant l'acceptation. */
+  total: number | null;
+  orderId: string | null;
+  createdAt: string;
+  allowedActions: AdminReservationAction[];
+}
+
+export interface AdminReservationList {
+  data: AdminReservationListItem[];
+  meta: { total: number; page: number; limit: number };
+}
+
+/** `GET /admin/reservations/:id` : contact complet du client (D6-4). */
+export interface AdminReservationDetail {
+  id: string;
+  status: ReservationStatus;
+  restaurant: { id: string; nom: string };
+  customer: { id: string; nom: string | null; phone: string };
+  partySize: number;
+  arrivalAt: string;
+  endsAt: string;
+  space: { id: string; kind: string; label: string };
+  note: string | null;
+  declineReason: string | null;
+  cancelReason: string | null;
+  lateCancellation: boolean;
+  items: {
+    productId: string | null;
+    menuId: string | null;
+    variantId: string | null;
+    quantite: number;
+    productName: string | null;
+    variantLabel: string | null;
+    menuName: string | null;
+    indicativeLineTotal: number | null;
+    options: { optionId: string; quantity: number; optionName: string; priceDelta: number }[];
+  }[];
+  payment: {
+    orderId: string;
+    orderStatus: OrderStatus;
+    subTotal: number;
+    serviceFee: number;
+    total: number;
+    indicativeSubTotal: number | null;
+    priceChanged: boolean;
+  } | null;
+  createdAt: string;
+  responseDeadlineAt: string;
+  paymentDeadlineAt: string | null;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  expiredAt: string | null;
+  cancelledAt: string | null;
+  confirmedAt: string | null;
+  honoredAt: string | null;
+  noShowAt: string | null;
+  allowedActions: AdminReservationAction[];
+}
+
+/** Réponse de `POST /admin/reservations/:id/cancel`. */
+export interface AdminCancelReservationResult {
+  id: string;
+  status: 'CANCELLED_BY_VENDOR';
+  /** Remboursement intégral dû (file admin), `null` si rien n'était payé. */
+  refundXaf: number | null;
+}
+
+/** État du versement de la part restaurant d'une absence (serveur). */
+export type NoShowPayoutState = 'NOTHING_DUE' | 'DUE' | 'IN_PROGRESS' | 'PAID';
+
+/** Ligne de `GET /admin/reservation-no-shows`. */
+export interface AdminNoShowSettlement {
+  settlementId: string;
+  reservationId: string;
+  orderId: string;
+  totalXaf: number;
+  vendorShareXaf: number;
+  platformShareXaf: number;
+  vendorShareBps: number;
+  createdAt: string;
+  restaurant: { id: string; nom: string };
+  payoutState: NoShowPayoutState;
+  payouts: {
+    id: string;
+    status: 'PENDING' | 'SUCCESS' | 'FAILED';
+    amountXaf: number;
+    maskedPhone: string;
+    payoutProvider: PayoutProvider;
+    failureCode: string | null;
+    failureMessage: string | null;
+    requestedBy: string;
+    approvedBy: string | null;
+    createdAt: string;
+    completedAt: string | null;
+  }[];
 }

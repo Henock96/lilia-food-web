@@ -40,7 +40,7 @@ import {
   Undo2,
   Route,
   Siren,
-  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale, Percent, Star } from 'lucide-react';
+  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale, Percent, Star, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -95,6 +95,8 @@ const NAV_ITEMS: {
   { href: '/offres-vendeurs', label: 'Offres vendeurs', icon: BadgePercent, badge: false, adminOnly: true },
   // Lot B — modération des avis (masquer, rétablir), routes ADMIN.
   { href: '/avis',        label: 'Avis',        icon: Star,            badge: false, adminOnly: true  },
+  // D-6 — réservations sur place, vues du support (annulation sur le détail).
+  { href: '/reservations', label: 'Réservations', icon: CalendarClock, badge: false, adminOnly: true  },
   { href: '/paiements',   label: 'Paiements',   icon: CreditCard,      badge: false, adminOnly: true  },
   { href: '/remboursements', label: 'Remboursements', icon: Undo2,      badge: 'refunds', adminOnly: true  },
   // Lot 2 (30/10/2026) — écarts Lilia ↔ prestataire ; un écart ouvert bloque des versements.
