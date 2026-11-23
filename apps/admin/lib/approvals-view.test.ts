@@ -128,6 +128,23 @@ describe('describeApproval — réglages d’argent (R-09)', () => {
     expect(d.detail).toBe('taux plateforme → 7.5 %');
   });
 
+  it('part d’absence (D-6) : montant et numéro complet de destination', () => {
+    const d = describeApproval(
+      base({
+        kind: 'NO_SHOW_VENDOR_SHARE_PAYOUT',
+        amountXaf: 5750,
+        payload: {
+          settlementId: 's1',
+          amountXaf: 5750,
+          phoneNumber: '+242061112233',
+          payoutProvider: 'MTN_MOMO',
+        },
+      }),
+    );
+    expect(d.title).toMatch(/Part d’absence de 5\s750 FCFA/);
+    expect(d.detail).toContain('+242061112233 (MTN_MOMO)');
+  });
+
   it('type inconnu (serveur plus récent) : jamais une page cassée', () => {
     const d = describeApproval(base({ kind: 'SOMETHING_NEW' as FinancialApproval['kind'] }));
     expect(d.title).toMatch(/SOMETHING_NEW/);
