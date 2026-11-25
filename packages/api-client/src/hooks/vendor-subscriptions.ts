@@ -3,17 +3,141 @@ import type { AuthCredential } from '../auth-session';
 
 import { useMutation, useQuery, useQueryClient } from '../session-query';
 import type {
+  AdminSubscriptionPayment,
+  SubscriptionOffer,
+  SubscriptionPayment,
   SubscriptionPaymentMethod,
+  SubscriptionPaymentStatus,
   VendorSubscription,
   VendorSubscriptionsOverview,
 } from '@lilia/types';
-import { apiClient } from '../client';
+import { apiClient, apiClientRaw } from '../client';
 
 export const vendorSubscriptionKeys = {
   all: ['admin', 'vendor-subscriptions'] as const,
   vendor: (vendorId: string) =>
     ['admin', 'vendor-subscriptions', vendorId] as const,
+  // Premium S1 — côté vendeur, et file admin des paiements.
+  offer: ['vendor', 'subscription-offer'] as const,
+  payment: (paymentId: string) =>
+    ['vendor', 'subscription-payment', paymentId] as const,
+  adminPayments: (filter: AdminSubscriptionPaymentsFilter) =>
+    ['admin', 'subscription-payments', filter] as const,
 };
+
+export interface AdminSubscriptionPaymentsFilter {
+  status?: SubscriptionPaymentStatus;
+  restaurantId?: string;
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Premium S1 — offre du vendeur connecté (statut, prix, durées et montants,
+ * paiement en cours). Tout est calculé par le serveur.
+ */
+export function useSubscriptionOffer(token: AuthCredential | null) {
+  return useQuery({
+    queryKey: vendorSubscriptionKeys.offer,
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<SubscriptionOffer>('/vendors/me/subscription/offer', {
+        signal,
+        token,
+      }),
+    enabled: Boolean(token),
+  });
+}
+
+/**
+ * Premium S1 — lance un dépôt pawaPay pour N mois. Ni montant ni prix : le
+ * serveur les lit et les fige. Les mois ne s'ouvrent qu'au `SUCCESS` du
+ * prestataire.
+ */
+export function useStartSubscriptionPayment(token: AuthCredential | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      months: number;
+      phoneNumber: string;
+      method: 'MTN_MOMO' | 'AIRTEL_MONEY';
+    }) =>
+      apiClient<SubscriptionPayment>('/vendors/me/subscription/payments', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(body),
+      }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: vendorSubscriptionKeys.offer });
+    },
+  });
+}
+
+/**
+ * Premium S1 — suit une tentative tant qu'elle est `PENDING` (le serveur
+ * interroge pawaPay lui-même au-delà de 15 s). Cadence de
+ * `subscriptionPaymentPollMs`.
+ */
+export function useSubscriptionPayment(
+  paymentId: string | null,
+  token: AuthCredential | null,
+) {
+  return useQuery({
+    queryKey: vendorSubscriptionKeys.payment(paymentId ?? ''),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) =>
+      apiClient<SubscriptionPayment>(
+        `/vendors/me/subscription/payments/${paymentId}`,
+        { signal, token },
+      ),
+    enabled: Boolean(paymentId && token),
+    refetchInterval: (query) =>
+      subscriptionPaymentPollMs(
+        query.state.data as SubscriptionPayment | undefined,
+      ),
+  });
+}
+
+/**
+ * Cadence de suivi : 3 s la première minute, 5 s jusqu'à 3 min, puis arrêt.
+ * Un arrêt n'est pas un échec : le webhook et la réconciliation trancheront
+ * (même règle que le paiement d'une commande).
+ */
+export function subscriptionPaymentPollMs(
+  payment: Pick<SubscriptionPayment, 'status' | 'createdAt'> | undefined,
+  now: number = Date.now(),
+): number | false {
+  if (!payment || payment.status !== 'PENDING') return false;
+  const created = Date.parse(payment.createdAt);
+  if (!Number.isFinite(created)) return false;
+  const age = now - created;
+  if (age < 60_000) return 3_000;
+  if (age < 180_000) return 5_000;
+  return false;
+}
+
+/** Premium S1 — paiements d'abonnement, lecture admin. */
+export function useAdminSubscriptionPayments(
+  filter: AdminSubscriptionPaymentsFilter,
+  token: AuthCredential | null,
+) {
+  return useQuery({
+    queryKey: vendorSubscriptionKeys.adminPayments(filter),
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
+      const params = new URLSearchParams();
+      if (filter.status) params.set('status', filter.status);
+      if (filter.restaurantId) params.set('restaurantId', filter.restaurantId);
+      params.set('page', String(filter.page ?? 1));
+      params.set('limit', String(filter.limit ?? 20));
+      return apiClientRaw<{
+        data: AdminSubscriptionPayment[];
+        meta: { total: number; page: number; limit: number; totalPages: number };
+      }>(`/admin/subscription-payments?${params.toString()}`, {
+        signal,
+        token,
+      });
+    },
+    enabled: Boolean(token),
+  });
+}
 
 /** Historique, statut Premium et prix courant d'un vendeur (ADMIN). */
 export function useVendorSubscriptions(vendorId: string, token: AuthCredential | null) {

@@ -1,5 +1,6 @@
 import type {
   SubscriptionPaymentMethod,
+  SubscriptionPeriodPaymentMethod,
   SubscriptionVerdict,
   VendorSubscription,
 } from '@lilia/types';
@@ -17,6 +18,19 @@ export const PAYMENT_METHOD_LABELS: Record<SubscriptionPaymentMethod, string> = 
   CASH: 'Espèces',
   BANK_TRANSFER: 'Virement bancaire',
   OTHER: 'Autre',
+};
+
+/**
+ * Libellé d'une période **affichée** : en plus des moyens saisissables,
+ * `PAWAPAY` (payé par le vendeur dans la plateforme, Premium S1). Jamais
+ * proposé dans le formulaire d'attribution.
+ */
+export const PERIOD_PAYMENT_METHOD_LABELS: Record<
+  SubscriptionPeriodPaymentMethod,
+  string
+> = {
+  ...PAYMENT_METHOD_LABELS,
+  PAWAPAY: 'Payé en ligne (pawaPay)',
 };
 
 const DATE = new Intl.DateTimeFormat('fr-FR', {

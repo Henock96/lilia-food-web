@@ -63,6 +63,10 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
   modifiersManagementEnabled: boolean;
   /** F3-10 — formats de plusieurs unités (carton de 6) ouverts aux vendeurs. */
   multiUnitVariantsEnabled: boolean;
+  /** Premium — prix d'un mois, en XAF entiers (réglage financier, 4 yeux). */
+  premiumMonthlyPriceXaf: string;
+  /** Lot 4 (4F) — réservations sur place ouvertes aux clients. */
+  reservationsEnabled: boolean;
   /** Exploitation (durcissement lots 3 à 5) — un interrupteur à la fois. */
   orderFlow: NonNullable<PlatformSettings['orderFlow']>;
   minVendorAppVersion: string;
@@ -81,6 +85,9 @@ export interface SettingsForm extends Record<NumberFieldKey, string> {
   /** Mot de confirmation d'un blocage — jamais envoyé. */
   blockConfirmation: string;
 }
+
+/** Borne serveur (`PLATFORM_SETTINGS_BOUNDS.MAX_PREMIUM_MONTHLY_PRICE_XAF`). */
+export const MAX_PREMIUM_MONTHLY_PRICE_XAF = 150_000;
 
 /** Points de base → % saisi (175 → « 1.75 ») ; absent ou `null` → vide. */
 function bpsToPercent(bps: number | null | undefined): string {
@@ -103,6 +110,9 @@ export function toSettingsForm(s: PlatformSettings): SettingsForm {
     modifiersEnabled: s.modifiersEnabled ?? false,
     modifiersManagementEnabled: s.modifiersManagementEnabled ?? false,
     multiUnitVariantsEnabled: s.multiUnitVariantsEnabled ?? false,
+    premiumMonthlyPriceXaf:
+      s.premiumMonthlyPriceXaf == null ? '' : String(s.premiumMonthlyPriceXaf),
+    reservationsEnabled: s.reservationsEnabled ?? false,
     orderFlow: s.orderFlow ?? 'PAY_FIRST',
     minVendorAppVersion: s.minVendorAppVersion ?? '',
     vendorCanAssignDriver: s.vendorCanAssignDriver ?? true,
@@ -258,6 +268,30 @@ export function buildSettingsPatch(form: SettingsForm, loaded: PlatformSettings)
     patch.multiUnitVariantsEnabled = form.multiUnitVariantsEnabled;
   }
 
+  // Premium — seulement si le serveur connaît le champ. Réglage financier :
+  // `splitFinancialChanges` le route vers la demande à deux administrateurs.
+  if (loaded.premiumMonthlyPriceXaf !== undefined) {
+    const price = parseNumberField(form.premiumMonthlyPriceXaf, {
+      label: 'Prix mensuel Premium',
+      integer: true,
+    });
+    if ('error' in price) {
+      errors.push(price.error);
+    } else if (price.value < 1 || price.value > MAX_PREMIUM_MONTHLY_PRICE_XAF) {
+      errors.push(
+        `Prix mensuel Premium : entre 1 et ${MAX_PREMIUM_MONTHLY_PRICE_XAF.toLocaleString('fr-FR')} FCFA.`,
+      );
+    } else if (price.value !== loaded.premiumMonthlyPriceXaf) {
+      patch.premiumMonthlyPriceXaf = price.value;
+    }
+  }
+  if (
+    loaded.reservationsEnabled !== undefined &&
+    form.reservationsEnabled !== loaded.reservationsEnabled
+  ) {
+    patch.reservationsEnabled = form.reservationsEnabled;
+  }
+
   errors.push(...addExploitationChanges(form, loaded, patch));
 
   if (form.maintenanceMode !== loaded.maintenanceMode) {
@@ -397,6 +431,23 @@ function addExploitationChanges(
  * Éteindre se confirme aussi : c'est un retour arrière, il doit être voulu.
  */
 export function exploitationConfirmation(patch: UpdatePlatformSettingsPayload): string | null {
+  if (patch.reservationsEnabled === true) {
+    return (
+      'Ouvrir les réservations sur place aux clients ?\n\n' +
+      'À vérifier avant :\n' +
+      '• app vendeurs 1.0.6 (agenda des réservations) publiée et installée ;\n' +
+      '• app client avec « Réserver une table » publiée ;\n' +
+      '• lecture 4F faite : aucune configuration activée par une ancienne app ;\n' +
+      '• essai complet réussi sur un restaurant pilote (réserver, payer, code d’arrivée).\n\n' +
+      'Seuls les restaurants Premium ayant activé leur configuration deviennent réservables.'
+    );
+  }
+  if (patch.reservationsEnabled === false) {
+    return (
+      'Fermer les réservations ? Plus aucune nouvelle demande ; les réservations existantes ' +
+      'restent gérables par les restaurants.'
+    );
+  }
   if (patch.vendorCanAssignDriver === false) {
     return (
       'Retirer aux vendeurs l’affectation des livreurs ?\n\n' +
@@ -448,6 +499,7 @@ export const FINANCIAL_SETTING_KEYS: readonly FinancialSettingKey[] = [
   'vendorPayoutAutoEnabled',
   'vendorPayoutDelayMinutes',
   'deliveryPricingMode',
+  'premiumMonthlyPriceXaf',
 ];
 
 /**

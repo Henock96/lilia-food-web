@@ -461,6 +461,46 @@ export default function ParametresPage() {
         </label>
       </div>
 
+      {/* Premium et réservations sur place. Absents d'un serveur antérieur. */}
+      {(loaded.premiumMonthlyPriceXaf !== undefined || loaded.reservationsEnabled !== undefined) && (
+        <div className={CARD}>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+            Premium et réservations
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+            Le prix s’applique aux paiements suivants (un mois déjà payé garde son prix). Le
+            modifier passe par une demande approuvée par un second administrateur. Les
+            réservations ne s’ouvrent qu’aux restaurants Premium qui ont activé leur configuration.
+          </p>
+          {loaded.premiumMonthlyPriceXaf !== undefined && (
+            <label className="block mb-3">
+              <span className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Prix mensuel Premium (FCFA)
+              </span>
+              <input
+                inputMode="numeric"
+                value={form.premiumMonthlyPriceXaf}
+                onChange={(e) => set('premiumMonthlyPriceXaf', e.target.value)}
+                className="w-full max-w-xs text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+              />
+            </label>
+          )}
+          {loaded.reservationsEnabled !== undefined && (
+            <label className="flex items-center justify-between gap-4 cursor-pointer">
+              <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                Réservations sur place ouvertes aux clients
+              </span>
+              <input
+                type="checkbox"
+                checked={form.reservationsEnabled}
+                onChange={(e) => set('reservationsEnabled', e.target.checked)}
+                className="w-4 h-4 accent-primary-500"
+              />
+            </label>
+          )}
+        </div>
+      )}
+
       {/* Lot 6 (6A) — exploitation. Absent d'un serveur antérieur. */}
       {loaded.dispatchEnabled !== undefined && (
         <ExploitationCard form={form} loaded={loaded} set={set} />
