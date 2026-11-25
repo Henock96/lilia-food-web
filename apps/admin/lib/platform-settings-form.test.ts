@@ -481,3 +481,56 @@ describe('ACCEPT_FIRST hérité sans seuil vendeurs (revue lot 6)', () => {
     expect(patchFrom({ minVendorAppVersion: '' }, loaded).ok).toBe(false);
   });
 });
+
+describe('Premium et réservations (25/11/2026)', () => {
+  const PREMIUM: PlatformSettings = {
+    ...PROD,
+    premiumMonthlyPriceXaf: 25000,
+    reservationsEnabled: false,
+  };
+
+  it('le prix Premium part en demande à deux administrateurs, jamais dans le PATCH', () => {
+    const result = patchFrom({ premiumMonthlyPriceXaf: '30000' }, PREMIUM);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const split = splitFinancialChanges(result.patch);
+    expect(split.financial).toMatchObject({ premiumMonthlyPriceXaf: 30000 });
+    expect(split.financialChanged).toBe(true);
+    expect(split.settingsPatch).not.toHaveProperty('premiumMonthlyPriceXaf');
+  });
+
+  it('prix Premium décimal, nul ou hors borne : refusé avant envoi', () => {
+    expect(patchFrom({ premiumMonthlyPriceXaf: '25000,5' }, PREMIUM).ok).toBe(false);
+    expect(patchFrom({ premiumMonthlyPriceXaf: '0' }, PREMIUM).ok).toBe(false);
+    expect(patchFrom({ premiumMonthlyPriceXaf: '150001' }, PREMIUM).ok).toBe(false);
+  });
+
+  it('prix inchangé : rien ne part', () => {
+    const result = patchFrom({}, PREMIUM);
+    expect(result.ok && result.changed).toBe(false);
+  });
+
+  it('ouvrir les réservations : PATCH ordinaire, confirmation avec les préalables', () => {
+    const result = patchFrom({ reservationsEnabled: true }, PREMIUM);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.patch.reservationsEnabled).toBe(true);
+    expect(splitFinancialChanges(result.patch).financialChanged).toBe(false);
+    const text = exploitationConfirmation(result.patch);
+    expect(text).toMatch(/4F/);
+    expect(text).toMatch(/1\.0\.6/);
+  });
+
+  it('fermer les réservations se confirme aussi', () => {
+    const result = patchFrom({ reservationsEnabled: false }, { ...PREMIUM, reservationsEnabled: true });
+    expect(result.ok && exploitationConfirmation(result.patch)).toMatch(/Fermer les réservations/);
+  });
+
+  it('serveur antérieur (champs absents) : aucun faux changement', () => {
+    const result = patchFrom({}, PROD);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.patch).not.toHaveProperty('premiumMonthlyPriceXaf');
+    expect(result.patch).not.toHaveProperty('reservationsEnabled');
+  });
+});

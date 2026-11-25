@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiMessage } from '@/lib/api-message';
 import {
   PAYMENT_METHOD_LABELS,
+  PERIOD_PAYMENT_METHOD_LABELS,
   canOfferRevoke,
   formatSubscriptionDate,
   periodState,
@@ -217,7 +218,7 @@ function PeriodRow({
             <span className="ml-2 text-xs font-normal text-zinc-500">({state})</span>
           </p>
           <p className="text-zinc-500">
-            {formatCurrency(period.priceXaf)} · {PAYMENT_METHOD_LABELS[period.paymentMethod]}
+            {formatCurrency(period.priceXaf)} · {PERIOD_PAYMENT_METHOD_LABELS[period.paymentMethod]}
             {period.paymentReference ? ` · ${period.paymentReference}` : ''}
           </p>
           {period.revokeReason && (

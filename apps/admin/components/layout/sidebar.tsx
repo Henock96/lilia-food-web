@@ -40,7 +40,7 @@ import {
   Undo2,
   Route,
   Siren,
-  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale, Percent, Star, CalendarClock } from 'lucide-react';
+  MessageSquareWarning, ShieldCheck, BadgePercent, BellRing, Scale, Percent, Star, CalendarClock, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -77,6 +77,8 @@ const NAV_ITEMS: {
   { href: '/menus',       label: 'Menus',       icon: UtensilsCrossed, badge: false,    adminOnly: false },
   { href: '/restaurants', label: 'Restaurants', restaurateurLabel: 'Ma vitrine', icon: Store, badge: false, adminOnly: false },
   { href: '/mon-restaurant', label: 'Mon Restaurant', icon: Settings,  badge: false,    adminOnly: false },
+  // Premium S1 — le restaurateur souscrit et paie (pawaPay) ; l'admin y suit les paiements.
+  { href: '/premium',     label: 'Abonnements Premium', restaurateurLabel: 'Premium', icon: Crown, badge: false, adminOnly: false },
   // Marketplace multi-vendeurs (LIL-116) : créer / valider / suspendre les
   // HOME_COOK, BAKERY, BEVERAGE_SHOP. Admin only.
   { href: '/vendeurs',    label: 'Vendeurs',    icon: Building2,       badge: 'vendors', adminOnly: true  },

@@ -29,6 +29,7 @@ const FINANCIAL_SETTING_LABELS: Record<FinancialSettingKey, string> = {
   vendorPayoutAutoEnabled: 'Versements automatiques',
   vendorPayoutDelayMinutes: 'Délai avant versement',
   deliveryPricingMode: 'Tarification de la livraison',
+  premiumMonthlyPriceXaf: 'Prix mensuel Premium',
 };
 
 function formatFinancialValue(key: FinancialSettingKey, value: unknown): string {
@@ -39,6 +40,7 @@ function formatFinancialValue(key: FinancialSettingKey, value: unknown): string 
     case 'groceryServiceFeeBps':
       return value === null || value === undefined ? 'taux général' : `${Number(value) / 100} %`;
     case 'loyaltyPointValueXaf':
+    case 'premiumMonthlyPriceXaf':
       return `${String(value)} XAF`;
     case 'loyaltyPointsPerOrder':
     case 'loyaltyMinRedemption':

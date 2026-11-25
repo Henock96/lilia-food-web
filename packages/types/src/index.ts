@@ -2014,7 +2014,8 @@ export type FinancialSettingKey =
   | 'referrerBonusPoints'
   | 'vendorPayoutAutoEnabled'
   | 'vendorPayoutDelayMinutes'
-  | 'deliveryPricingMode';
+  | 'deliveryPricingMode'
+  | 'premiumMonthlyPriceXaf';
 
 /** Corps de `POST /admin/platform-settings/financial-change`. */
 export type FinancialSettingsChangePayload = Partial<
@@ -2503,6 +2504,16 @@ export interface PlatformSettings {
   /** Lot 5 — frais pawaPay du contrat, en points de base. Vue des marges seule. */
   estimatedCollectionFeeBps?: number | null;
   estimatedPayoutFeeBps?: number | null;
+
+  // ── Premium et réservations ────────────────────────────────────────────
+
+  /** Prix d'un mois Premium, en XAF entiers (réglage financier, 4 yeux). */
+  premiumMonthlyPriceXaf?: number;
+  /**
+   * Réservations sur place ouvertes aux clients. Éteint par défaut ; à
+   * allumer après publication des apps vendeurs (agenda) et client.
+   */
+  reservationsEnabled?: boolean;
 
   /** Horodatage de la dernière écriture — renvoyé en `expectedUpdatedAt`. */
   updatedAt: string;
@@ -3333,6 +3344,15 @@ export type SubscriptionPaymentMethod =
   | 'BANK_TRANSFER'
   | 'OTHER';
 
+/**
+ * Moyen d'une période : en plus des moyens saisis par un administrateur,
+ * `PAWAPAY` = payé par le vendeur dans la plateforme (Premium S1). Jamais
+ * proposé à la saisie.
+ */
+export type SubscriptionPeriodPaymentMethod =
+  | SubscriptionPaymentMethod
+  | 'PAWAPAY';
+
 export type SubscriptionStatus = 'ACTIVE' | 'REVOKED';
 
 /** Une période d'abonnement payée (un mois calendaire). */
@@ -3345,7 +3365,7 @@ export interface VendorSubscription {
   endsAt: string;
   /** Prix figé à l'attribution, en XAF entiers. */
   priceXaf: number;
-  paymentMethod: SubscriptionPaymentMethod;
+  paymentMethod: SubscriptionPeriodPaymentMethod;
   paymentReference: string | null;
   note: string | null;
   grantedById: string;
@@ -3370,6 +3390,50 @@ export interface VendorSubscriptionsOverview {
   /** Prix courant d'un mois, lu dans les réglages de la plateforme. */
   priceXaf: number;
   periods: VendorSubscription[];
+}
+
+// ─── Premium S1 — le vendeur paie son abonnement (pawaPay, 25/11/2026) ──────
+
+export type SubscriptionPaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
+
+/** Une tentative de paiement d'abonnement (dépôt pawaPay). */
+export interface SubscriptionPayment {
+  id: string;
+  months: number;
+  unitPriceXaf: number;
+  amountXaf: number;
+  currency: string;
+  method: 'MTN_MOMO' | 'AIRTEL_MONEY';
+  /** Complet pour le vendeur, masqué dans la liste admin. */
+  phoneNumber: string;
+  /** Référence affichée sur le relevé Mobile Money (`PRM…`). */
+  reference: string;
+  status: SubscriptionPaymentStatus;
+  failureCode: string | null;
+  failureMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  /** Instant où les mois ont été ouverts. */
+  grantedAt: string | null;
+}
+
+/** `GET /vendors/me/subscription/offer` — calculé par le serveur. */
+export interface SubscriptionOffer {
+  verdict: SubscriptionVerdict;
+  unitPriceXaf: number;
+  currency: string;
+  durations: { months: number; amountXaf: number }[];
+  canPay: boolean;
+  blockedReason: 'VENDOR_NOT_APPROVED' | 'ONLINE_PAYMENT_UNAVAILABLE' | null;
+  pendingPayment: SubscriptionPayment | null;
+  recentPayments: SubscriptionPayment[];
+}
+
+/** Ligne de `GET /admin/subscription-payments`. */
+export interface AdminSubscriptionPayment extends SubscriptionPayment {
+  restaurant: { id: string; nom: string };
+  provider: string;
+  collectionFeeXaf: number | null;
 }
 
 // ─── Rapprochement Lilia ↔ prestataire (lot 2, 30/10/2026) ──────────────────
