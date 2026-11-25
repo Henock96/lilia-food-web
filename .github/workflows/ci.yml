@@ -7,10 +7,10 @@ name: CI
 # admin) et le contrat partagé `@lilia/types` ; une régression de type entre
 # eux ne doit plus pouvoir atteindre Vercel.
 #
-# Volontairement sans build : `next build` exige les variables d'environnement
-# Vercel (Firebase, Sentry, API). Vercel construit à chaque déploiement, et la
-# règle « le build n'appelle jamais le backend » est gardée par le code
-# (`connection()` + `Suspense`), pas par ce fichier.
+# Les deux apps sont aussi construites, avec une configuration synthétique sans
+# secret et une API injoignable (`.invalid`) : la règle « le build n'appelle
+# jamais le backend » (`connection()` + `Suspense`) devient vérifiée ici, au
+# lieu d'être découverte par un déploiement Vercel en échec.
 
 on:
   push:
@@ -48,3 +48,18 @@ jobs:
 
       - name: Types, lint, tests
         run: pnpm turbo type-check lint test
+
+      - name: Builds web et admin sans backend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          API_URL: 'http://api.lilia.invalid'
+          NEXT_PUBLIC_API_URL: 'http://api.lilia.invalid'
+          NEXT_PUBLIC_FIREBASE_API_KEY: 'synthetic-ci-test'
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'ci-test.invalid'
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'ci-test'
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'ci-test.invalid'
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '1234567890'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:1234567890:web:synthetic'
+        run: |
+          pnpm --filter web build
+          pnpm --filter admin build
