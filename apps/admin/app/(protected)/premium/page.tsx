@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   useAdminSubscriptionPayments,
@@ -80,10 +80,17 @@ function VendorPremium() {
   }
   if (offerQuery.isError || !offer) {
     return (
-      <div className={cardCls}>
+      <div className={`${cardCls} space-y-3`}>
         <p className="text-sm text-red-600">
           {apiMessage(offerQuery.error, 'Impossible de charger votre offre Premium.')}
         </p>
+        <button
+          type="button"
+          onClick={() => void offerQuery.refetch()}
+          className="text-sm font-medium px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700"
+        >
+          Réessayer
+        </button>
       </div>
     );
   }
@@ -107,8 +114,13 @@ function VendorPremium() {
           setTrackedId(payment.id);
           toast.success('Demande envoyée : validez le paiement sur votre téléphone.');
         },
-        onError: (error) =>
-          toast.error(apiMessage(error, 'Le paiement n’a pas pu être lancé.')),
+        onError: (error) => {
+          toast.error(apiMessage(error, 'Le paiement n’a pas pu être lancé.'));
+          // Opérateur injoignable (502) : la tentative existe peut-être côté
+          // serveur, en attente. L'offre relue la rend (`pendingPayment`) et
+          // l'écran la suit au lieu de laisser repayer à l'aveugle.
+          void offerQuery.refetch();
+        },
       },
     );
   };
@@ -153,7 +165,10 @@ function VendorPremium() {
           onSettled={() => {
             void offerQuery.refetch();
           }}
-          onRetry={() => setTrackedId(null)}
+          onRetry={() => {
+            setTrackedId(null);
+            void offerQuery.refetch();
+          }}
         />
       ) : (
         <section className={`${cardCls} space-y-4`}>
@@ -285,16 +300,35 @@ function PaymentTracker({
   const payment = query.data;
   const status = payment?.status;
 
+  // `onSettled` relit l'offre : une fois par changement d'issue suffit. Gardé
+  // dans une ref pour que l'effet ne dépende que de l'issue.
+  const onSettledRef = useRef(onSettled);
   useEffect(() => {
-    if (status === 'SUCCESS' || status === 'FAILED') onSettled();
-    // `onSettled` relit l'offre : une fois par changement d'issue suffit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    onSettledRef.current = onSettled;
+  });
+  useEffect(() => {
+    if (status === 'SUCCESS' || status === 'FAILED') onSettledRef.current();
   }, [status]);
 
   if (!payment) {
     return (
-      <section className={cardCls}>
-        <Skeleton className="h-16 w-full" />
+      <section className={`${cardCls} space-y-3`}>
+        {query.isError ? (
+          <>
+            <p className="text-sm text-red-600">
+              {apiMessage(query.error, 'Impossible de lire l’état du paiement.')}
+            </p>
+            <button
+              type="button"
+              onClick={() => void query.refetch()}
+              className="text-sm font-medium px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700"
+            >
+              Actualiser
+            </button>
+          </>
+        ) : (
+          <Skeleton className="h-16 w-full" />
+        )}
       </section>
     );
   }
@@ -310,6 +344,14 @@ function PaymentTracker({
         </h2>
       </div>
       <PaymentSummary payment={payment} />
+      {query.isError && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          État momentanément illisible (réseau) : affiché tel qu’au dernier relevé.{' '}
+          <button type="button" className="underline" onClick={() => void query.refetch()}>
+            Actualiser
+          </button>
+        </p>
+      )}
       {tone === 'pending' && (
         <p className="text-xs text-zinc-500">
           {isStalePending(payment)

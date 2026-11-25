@@ -97,9 +97,9 @@ export function useSubscriptionPayment(
 }
 
 /**
- * Cadence de suivi : 3 s la première minute, 5 s jusqu'à 3 min, puis arrêt.
- * Un arrêt n'est pas un échec : le webhook et la réconciliation trancheront
- * (même règle que le paiement d'une commande).
+ * Cadence de suivi : 3 s la première minute, 5 s jusqu'à 3 min, puis 30 s
+ * tant que le paiement reste `PENDING` — le serveur le tranche au plus tard à
+ * la réconciliation (15 min). Arrêt dès qu'il n'est plus en attente.
  */
 export function subscriptionPaymentPollMs(
   payment: Pick<SubscriptionPayment, 'status' | 'createdAt'> | undefined,
@@ -111,7 +111,7 @@ export function subscriptionPaymentPollMs(
   const age = now - created;
   if (age < 60_000) return 3_000;
   if (age < 180_000) return 5_000;
-  return false;
+  return 30_000;
 }
 
 /** Premium S1 — paiements d'abonnement, lecture admin. */

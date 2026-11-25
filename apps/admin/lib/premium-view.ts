@@ -74,8 +74,11 @@ export function failureLabel(code: string | null): string | null {
     case 'PAYER_LIMIT_REACHED':
       return 'Numéro refusé par l’opérateur. Vérifiez le numéro et l’opérateur.';
     case 'TRANSACTION_TIMEOUT':
-    case 'RECONCILIATION_TIMEOUT':
       return 'Paiement non validé à temps.';
+    case 'RECONCILIATION_TIMEOUT':
+      // L'opérateur n'a pas répondu : le paiement peut encore aboutir, et
+      // Premium s'ouvrirait alors seul. Ne pas inviter à payer deux fois.
+      return 'L’opérateur n’a pas confirmé ce paiement. Si votre compte a été débité, ne payez pas une seconde fois : Premium s’activera dès sa confirmation. Sinon, vous pouvez réessayer.';
     case 'REJECTED':
     case 'PAYMENT_NOT_APPROVED':
       return 'Paiement refusé ou annulé sur le téléphone.';
