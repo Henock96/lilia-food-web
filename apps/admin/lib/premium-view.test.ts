@@ -34,17 +34,20 @@ describe('premium-view', () => {
 
   it('motif d’échec lisible, code inconnu conservé', () => {
     expect(failureLabel('INSUFFICIENT_BALANCE')).toBe('Solde insuffisant.');
-    expect(failureLabel('RECONCILIATION_TIMEOUT')).toMatch(/à temps/);
+    expect(failureLabel('TRANSACTION_TIMEOUT')).toMatch(/à temps/);
+    // Clôture par délai : le paiement peut encore aboutir — pas d'invitation
+    // à repayer sans mise en garde.
+    expect(failureLabel('RECONCILIATION_TIMEOUT')).toMatch(/ne payez pas une seconde fois/);
     expect(failureLabel('XYZ')).toContain('XYZ');
     expect(failureLabel(null)).toBeNull();
   });
 
-  it('suivi : 3 s, puis 5 s, puis arrêt à 3 min — un arrêt n’est pas un échec', () => {
+  it('suivi : 3 s, puis 5 s, puis 30 s tant que le serveur n’a pas tranché', () => {
     const t0 = Date.parse('2026-11-25T10:00:00Z');
     const p = { status: 'PENDING' as const, createdAt: '2026-11-25T10:00:00Z' };
     expect(subscriptionPaymentPollMs(p, t0 + 10_000)).toBe(3_000);
     expect(subscriptionPaymentPollMs(p, t0 + 90_000)).toBe(5_000);
-    expect(subscriptionPaymentPollMs(p, t0 + 200_000)).toBe(false);
+    expect(subscriptionPaymentPollMs(p, t0 + 200_000)).toBe(30_000);
     expect(isStalePending(p, t0 + 200_000)).toBe(true);
     expect(subscriptionPaymentPollMs({ ...p, status: 'SUCCESS' }, t0)).toBe(false);
     expect(subscriptionPaymentPollMs({ ...p, createdAt: 'illisible' }, t0)).toBe(false);
