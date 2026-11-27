@@ -17,7 +17,7 @@ import { getVendorFacets } from '@/lib/vendors';
  */
 export function CategoryRail() {
   return (
-    <section aria-labelledby="univers-titre" className="py-12 lg:py-16">
+    <section aria-labelledby="univers-titre" className="bg-[#faf7f2] py-10 lg:pb-16 lg:pt-5">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2
           id="univers-titre"
@@ -36,7 +36,7 @@ export function CategoryRail() {
   );
 }
 
-const TILES_CLASSNAME = 'mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]';
+const TILES_CLASSNAME = 'mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]';
 
 async function Tiles() {
   const facets = await getVendorFacets();
@@ -54,18 +54,18 @@ async function Tiles() {
           <li key={c.type}>
             <Link
               href={`/restaurants?vendorType=${c.type}`}
-              className="group relative flex h-28 flex-col justify-end overflow-hidden rounded-xl p-3.5 focus-visible:outline-none! focus-visible:ring-2 focus-visible:ring-tomato-600 focus-visible:ring-offset-2 sm:h-32"
+              className="group relative flex h-40 flex-col justify-end overflow-hidden rounded-2xl p-5 focus-visible:outline-none! focus-visible:ring-2 focus-visible:ring-tomato-600 focus-visible:ring-offset-2 lg:h-52"
             >
               <Image
                 src={c.image}
                 alt=""
                 fill
-                sizes="(max-width: 768px) 50vw, 25vw"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="object-cover transition-[filter] duration-200 group-hover:brightness-110"
               />
               {/* Voile de lisibilité du texte blanc, pas une décoration. */}
               <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/35 to-transparent" />
-              <span className="relative font-display text-base font-bold text-white">
+              <span className="relative font-display text-xl font-bold text-white">
                 {c.label}
               </span>
               <span className="relative text-[13px] text-white/90">
@@ -84,7 +84,7 @@ function TilesFallback() {
   return (
     <div className={TILES_CLASSNAME} aria-hidden>
       {HOME_CATEGORIES.slice(0, 3).map((c) => (
-        <div key={c.type} className="skeleton h-28 rounded-xl sm:h-32" />
+        <div key={c.type} className="skeleton h-40 rounded-2xl lg:h-52" />
       ))}
     </div>
   );

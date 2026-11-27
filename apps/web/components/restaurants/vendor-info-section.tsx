@@ -35,7 +35,8 @@ export function VendorInfoSection({ restaurant }: VendorInfoSectionProps) {
   if (!story && hours.length === 0 && !since && !showBadge && !offer) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-cream-300 p-5 mb-6">
+    <div className="rounded-2xl border border-ink-100 bg-white p-5">
+      <h2 className="mb-3 font-display text-xl font-extrabold text-ink-900">Infos du vendeur</h2>
       {/* F3-11 — offre boutique, appliquée d'elle-même au panier */}
       {offer && (
         <div className="mb-3 flex flex-wrap items-center gap-2">

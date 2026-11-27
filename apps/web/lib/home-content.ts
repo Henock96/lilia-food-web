@@ -21,8 +21,8 @@ export interface HomeCategory {
 }
 
 export const HOME_CATEGORIES: HomeCategory[] = [
-  { type: 'RESTAURANT', label: VENDOR_TYPE_PLURAL.RESTAURANT, tagline: 'Les saveurs du quartier', image: '/categories/cat1.jpeg' },
-  { type: 'HOME_COOK', label: VENDOR_TYPE_PLURAL.HOME_COOK, tagline: 'Le fait-main, comme à la maison', image: '/categories/cat2.jpeg' },
+  { type: 'RESTAURANT', label: VENDOR_TYPE_PLURAL.RESTAURANT, tagline: 'Les saveurs du quartier', image: '/categories/restaurants-banani.jpg' },
+  { type: 'HOME_COOK', label: VENDOR_TYPE_PLURAL.HOME_COOK, tagline: 'Le fait-main, comme à la maison', image: '/categories/cuisines-maison-banani.jpg' },
   { type: 'BAKERY', label: VENDOR_TYPE_PLURAL.BAKERY, tagline: 'Pains et viennoiseries', image: '/categories/cat3.jpeg' },
-  { type: 'BEVERAGE_SHOP', label: VENDOR_TYPE_PLURAL.BEVERAGE_SHOP, tagline: 'Jus, sodas et eaux', image: '/categories/cat4.jpeg' },
+  { type: 'BEVERAGE_SHOP', label: VENDOR_TYPE_PLURAL.BEVERAGE_SHOP, tagline: 'Jus, sodas et eaux', image: '/categories/boissons-banani.jpg' },
 ];

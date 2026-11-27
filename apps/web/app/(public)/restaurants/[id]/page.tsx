@@ -3,12 +3,13 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getVendorMenu } from '@/lib/vendor-menu';
 import { PageLoadError } from '@/components/ui/page-load-error';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { VendorCartSummary } from '@/components/restaurants/vendor-cart-summary';
 import { RestaurantHero } from '@/components/restaurants/restaurant-hero';
 import { RestaurantMenu } from '@/components/restaurants/restaurant-menu';
 import { DailyMenus } from '@/components/restaurants/daily-menus';
 import { VendorInfoSection } from '@/components/restaurants/vendor-info-section';
 import { RestaurantReviews } from '@/components/restaurants/restaurant-reviews';
-import { ProductCardSkeleton } from '@/components/ui/skeleton';
 import { BreadcrumbJsonLd, VendorJsonLd } from '@/components/seo/json-ld';
 import { TrackRestaurantView } from '@/components/analytics/track-restaurant-view';
 import { SITE_URL } from '@/lib/site';
@@ -72,13 +73,10 @@ export default async function RestaurantPage({ params }: PageProps) {
   const restaurant = result.value;
 
   return (
-    <div className="min-h-screen bg-cream-100">
+    <div className="min-h-screen bg-[#faf7f2]">
       {/* Seul émetteur de `restaurant_view` du site : la fiche est ouverte,
           donc consultée. Les cartes de liste n'émettent rien. */}
-      <TrackRestaurantView
-        restaurantId={restaurant.id}
-        restaurantName={restaurant.nom}
-      />
+      <TrackRestaurantView restaurantId={restaurant.id} restaurantName={restaurant.nom} />
       <VendorJsonLd
         id={restaurant.id}
         nom={restaurant.nom}
@@ -93,39 +91,32 @@ export default async function RestaurantPage({ params }: PageProps) {
           { name: restaurant.nom, path: `/restaurants/${restaurant.id}` },
         ]}
       />
-      {/* Hero statique */}
-      <RestaurantHero restaurant={restaurant} />
+      <div className="mx-auto max-w-7xl px-4 pt-5 pb-16 sm:px-6 lg:px-8">
+        <Breadcrumbs
+          links={[
+            { label: 'Accueil', href: '/' },
+            { label: 'Nos vendeurs', href: '/restaurants' },
+          ]}
+          current={restaurant.nom}
+        />
+        <RestaurantHero restaurant={restaurant} />
 
-      {/* Menu dynamique */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <VendorInfoSection restaurant={restaurant} />
-            {/* Les menus du jour passent AVANT la carte : ce sont des offres
-                datées, elles n'ont d'intérêt que si on les voit tout de suite.
-                Le site n'en affichait aucun — sa route ne les servait pas. */}
-            <DailyMenus
-              menus={restaurant.menuDuJour ?? []}
-              restaurantOpen={restaurant.isOpen}
-            />
-            <Suspense
-              fallback={
-                <div className="flex flex-col gap-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <ProductCardSkeleton key={i} />
-                  ))}
-                </div>
-              }
-            >
-              <RestaurantMenu restaurant={restaurant} />
-            </Suspense>
-          </div>
-
-          <div className="lg:col-span-1">
-            <Suspense fallback={<div className="skeleton h-64 rounded-2xl" />}>
+        <div className="grid items-start gap-7 pt-7 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.46fr)] lg:gap-9">
+          <div className="min-w-0 space-y-8">
+            <DailyMenus menus={restaurant.menuDuJour ?? []} restaurantOpen={restaurant.isOpen} />
+            <RestaurantMenu restaurant={restaurant} />
+            <Suspense fallback={<div className="skeleton h-40 rounded-2xl" aria-hidden />}>
               <RestaurantReviews restaurantId={restaurant.id} />
             </Suspense>
           </div>
+
+          <aside
+            aria-label="Panier et informations du vendeur"
+            className="space-y-5 lg:sticky lg:top-24"
+          >
+            <VendorCartSummary />
+            <VendorInfoSection restaurant={restaurant} />
+          </aside>
         </div>
       </div>
     </div>

@@ -55,8 +55,8 @@ type SearchParams = Record<string, string | string[] | undefined>;
  */
 export default function RestaurantsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
-      <h1 className="font-display text-3xl font-extrabold text-ink-900">Tous les vendeurs</h1>
+    <div className="mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8 lg:pt-14">
+      <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink-900 sm:text-5xl">Tous les vendeurs à Brazzaville</h1>
       <Suspense fallback={<CatalogueFallback />}>
         <Catalogue searchParams={searchParams} />
       </Suspense>

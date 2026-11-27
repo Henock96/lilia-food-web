@@ -3,17 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Loader2, Lock, Plus, ShoppingBag } from 'lucide-react';
+import { Check, Loader2, Lock, ShoppingBag } from 'lucide-react';
 import type { Product, ProductVendorRef } from '@lilia/types';
 import { useAddToCart, useClearCart } from '@lilia/api-client';
 import {
   cn,
   formatCurrency,
-  galleryImages,
   hasModifiers,
   hasPreorderConflict,
   isPreorderCart,
   modifierBlockingReason,
+  priceLabel,
   selectedOptionsCount,
   selectedOptionsValue,
   toSelectedOptions,
@@ -26,24 +26,10 @@ import { buildGuestLine, guestLineOptions } from '@/lib/guest-cart';
 import { computePurchaseState } from '@/lib/product-purchase-state';
 import { useCartView } from '@/lib/use-cart-view';
 import { useGuestCartStore } from '@/store/guest-cart';
-import { ImageCarousel } from '@/components/ui';
 import { QuantityStepper } from '@/components/ui/quantity-stepper';
 import { CartModeConflictDialog } from '@/components/cart/cart-mode-conflict-dialog';
 import { ModifierGroupPicker } from '@/components/products/modifier-group-picker';
 
-/**
- * Bloc d'achat de la fiche produit : galerie, variante, quantité, ajout.
- *
- * **Le seul composant client de la page.** La description, les caractéristiques
- * et le référencement sont rendus sur le serveur ; seul ce qui réagit au doigt
- * du client arrive dans le bundle.
- *
- * Il redit sciemment les mêmes règles que `restaurant-menu.tsx` — conflit de
- * mode de panier, panier d'un autre vendeur, produit épuisé — parce que ce sont
- * les règles du serveur, pas celles d'un écran. La différence tient à la
- * quantité : la liste ajoute toujours une unité, la fiche ajoute celle que le
- * client a choisie.
- */
 export function ProductPurchase({
   product,
   vendor,
@@ -95,7 +81,6 @@ export function ProductPurchase({
   const variantPrice = selectedVariant?.prix ?? product.prixOriginal;
   const unitPrice = variantPrice + optionsValue;
   const total = unitPrice * quantity;
-  const images = galleryImages(product, product.nom);
 
   // Le stock peut baisser entre deux visites : une quantité choisie plus tôt
   // n'a pas à rester au-dessus du plafond courant.
@@ -257,19 +242,7 @@ export function ProductPurchase({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <ImageCarousel
-        images={images}
-        className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-cream-200"
-        priority
-        sizes="(min-width: 1024px) 50vw, 100vw"
-        fallback={
-          <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-cream-200">
-            <ShoppingBag className="h-12 w-12 text-ink-300" aria-hidden />
-          </div>
-        }
-      />
-
+    <div className="flex flex-col gap-4 rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
       {/* Variantes — n'apparaissent qu'à partir de deux : proposer un choix
           unique donne l'illusion d'une décision à prendre. */}
       {product.variants.length > 1 && (
@@ -305,16 +278,16 @@ export function ProductPurchase({
 
       {/* Quantité — masquée quand le produit n'est pas commandable : choisir
           une quantité qu'on ne pourra pas valider est une impasse. */}
-      {state.canAdd && (
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-sm font-medium text-ink-700">Quantité</span>
-          <QuantityStepper
-            value={quantity}
-            onChange={setQuantity}
-            max={state.maxQuantity}
-          />
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-display text-2xl font-extrabold text-tomato-700" aria-live="polite">
+          {selectedVariant ? formatCurrency(total) : priceLabel(product)}
+        </p>
+        {state.canAdd && (
+          <div className="flex items-center gap-2" role="group" aria-label="Quantité">
+            <QuantityStepper value={quantity} onChange={setQuantity} max={state.maxQuantity} />
+          </div>
+        )}
+      </div>
 
       {state.canAdd && state.lowQuantity !== null && (
         <p className="text-xs text-warning">
@@ -368,8 +341,8 @@ export function ProductPurchase({
             </motion.span>
           ) : (
             <motion.span key="add" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" aria-hidden />
-              Ajouter au panier · {formatCurrency(total)}
+              <ShoppingBag className="h-4 w-4" aria-hidden />
+              Ajouter au panier
             </motion.span>
           )}
         </AnimatePresence>

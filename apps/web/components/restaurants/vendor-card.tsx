@@ -3,16 +3,14 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Star, Clock, Bike, Heart } from 'lucide-react';
-import { toast } from 'sonner';
+import { Star, Clock, Bike } from 'lucide-react';
 import type { Restaurant } from '@lilia/types';
 import { formatDeliveryTime, cn, coverImage } from '@lilia/utils';
 import { cloudinaryLoader } from '@/lib/cloudinary-image';
-import { useFavorites, useToggleFavorite } from '@lilia/api-client';
-import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import { coverFit, type CoverFit } from '@/lib/cover-fit';
 import { openingLabel } from '@/lib/opening-label';
 import { VENDOR_TYPE_LABELS } from './vendor-type-badge';
+import { FavoriteButton } from './favorite-button';
 import { OfferBadge } from './offer-badge';
 import { DeliveryFeeText } from './delivery-fee-text';
 import { ServiceModeTags } from './service-mode-tags';
@@ -76,7 +74,7 @@ export function VendorCard({ restaurant, priority = false }: VendorCardProps) {
   return (
     <article
       className={cn(
-        'relative flex h-full gap-3.5 rounded-xl border border-cream-300 bg-white p-3 transition-shadow duration-200',
+        'relative flex h-full gap-3.5 rounded-2xl border border-ink-100 bg-white p-3 transition-shadow duration-200',
         'hover:shadow-md has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-tomato-600 has-[a:focus-visible]:ring-offset-2',
         'sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0',
       )}
@@ -84,7 +82,7 @@ export function VendorCard({ restaurant, priority = false }: VendorCardProps) {
       <div
         className={cn(
           'relative aspect-square w-24 shrink-0 overflow-hidden rounded-lg',
-          'sm:aspect-[16/10] sm:w-full sm:rounded-none sm:border-b sm:border-cream-300',
+          'sm:aspect-[16/10] sm:w-full sm:rounded-none sm:border-b sm:border-ink-100',
           fit === 'contain' && !imgError ? 'bg-white' : 'bg-cream-200',
         )}
       >
@@ -192,59 +190,5 @@ export function VendorCard({ restaurant, priority = false }: VendorCardProps) {
 
       <FavoriteButton restaurant={restaurant} />
     </article>
-  );
-}
-
-/**
- * Bouton favori : zone tactile de 44 × 44 px, pastille visuelle de 36 px.
- * Frère du lien de la carte et au-dessus de lui (`z-10`) — le clic ne navigue
- * pas, sans `preventDefault`.
- */
-function FavoriteButton({ restaurant }: { restaurant: Restaurant }) {
-  const { token } = useAuthSession();
-  const isCurrentSession = useSessionGuard();
-  const { data: favorites } = useFavorites(token);
-  const toggleFavorite = useToggleFavorite(token);
-  const isFavorite = favorites?.some((f) => f.id === restaurant.id) ?? false;
-
-  function handleClick() {
-    if (!isCurrentSession()) return;
-    if (!token) {
-      toast.error('Connecte-toi pour garder tes vendeurs favoris.');
-      return;
-    }
-    toggleFavorite.mutate(
-      { restaurantId: restaurant.id, isFavorite, restaurant },
-      {
-        onSuccess: () => {
-          if (!isCurrentSession()) return;
-          toast.success(isFavorite ? 'Retiré de tes favoris' : 'Ajouté à tes favoris');
-        },
-        onError: () => {
-          if (!isCurrentSession()) return;
-          toast.error('Impossible de modifier tes favoris. Réessaie.');
-        },
-      },
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-pressed={isFavorite}
-      aria-label={`${restaurant.nom} dans mes favoris`}
-      className="group/fav absolute right-0.5 top-0.5 z-10 flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none! sm:right-1.5 sm:top-1.5"
-    >
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-cream-300 transition-colors group-hover/fav:ring-tomato-600 group-focus-visible/fav:ring-2 group-focus-visible/fav:ring-tomato-600">
-        <Heart
-          aria-hidden
-          className={cn(
-            'h-4 w-4 transition-colors',
-            isFavorite ? 'fill-tomato-600 text-tomato-600' : 'text-ink-500',
-          )}
-        />
-      </span>
-    </button>
   );
 }

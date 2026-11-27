@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Check, Utensils } from 'lucide-react';
 import type { Restaurant, Product } from '@lilia/types';
 import {
   formatCurrency,
@@ -37,9 +37,13 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
   // décidé de tout ce qui relève du commerce.
   const { sections, uncategorized, isEmpty } = buildMenuModel(restaurant);
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(
-    sections[0]?.id ?? null,
-  );
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const menuSections = [
+    ...sections,
+    ...(uncategorized.length > 0
+      ? [{ id: 'other', nom: UNCATEGORIZED_LABEL, products: uncategorized }]
+      : []),
+  ];
 
   if (isEmpty) {
     return (
@@ -50,62 +54,43 @@ export function RestaurantMenu({ restaurant }: RestaurantMenuProps) {
   }
 
   return (
-    <div>
-      {/* Sticky category bar */}
-      {sections.length > 0 && (
-        <div className="sticky top-16 z-10 -mx-4 px-4 py-3 bg-cream-100/95 backdrop-blur-sm border-b border-cream-300 mb-6">
-          <div className="flex gap-2 overflow-x-auto scrollbar-none">
-            {sections.map((cat) => (
-              <button
-                key={cat.id}
-                // Le bouton ne faisait que se colorer : l'ancre `#cat-<id>`
-                // existait déjà en bas, personne ne l'atteignait. Sur une carte
-                // à six sections, c'est toute l'utilité de la barre.
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  document
-                    .getElementById(`cat-${cat.id}`)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
+    <div id="carte" className="min-w-0 scroll-mt-24">
+      {menuSections.length > 1 && (
+        <nav aria-label="Catégories de la carte" className="sticky top-[4.5rem] z-20 mb-5 border-b border-ink-100 bg-[#faf7f2]/95 py-2 backdrop-blur-sm">
+          <div className="scrollbar-none flex gap-2 overflow-x-auto px-1 py-1">
+            {[{ id: null, nom: 'Tout' }, ...menuSections].map((category) => (
+              <a
+                key={category.id ?? 'all'}
+                href={category.id ? `#cat-${category.id}` : '#carte'}
+                onClick={() => setActiveCategory(category.id)}
+                aria-current={activeCategory === category.id ? 'location' : undefined}
                 className={cn(
-                  'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all',
-                  activeCategory === cat.id
-                    ? 'bg-tomato-600 text-white shadow-sm'
-                    : 'bg-white text-ink-700 border border-cream-300 hover:border-tomato-600',
+                  'inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-semibold transition-colors',
+                  activeCategory === category.id
+                    ? 'border-tomato-600 bg-tomato-600 text-white'
+                    : 'border-ink-100 bg-white text-ink-700 hover:border-tomato-600',
                 )}
               >
-                {cat.nom}
-              </button>
+                {category.nom}
+              </a>
             ))}
           </div>
-        </div>
+        </nav>
       )}
 
-      {/* Products by category */}
       <div className="flex flex-col gap-8">
-        {sections.map((section) => (
-          <section key={section.id} id={`cat-${section.id}`}>
-            <h2 className="font-display text-lg font-bold text-ink-900 mb-4">{section.nom}</h2>
-            <div className="flex flex-col gap-3">
+        {menuSections.map((section) => (
+          <section key={section.id} id={`cat-${section.id}`} className="scroll-mt-40">
+            <h2 className="mb-3 font-display text-xl font-extrabold text-ink-900">
+              {section.nom} <span className="text-sm font-medium text-ink-500">({section.products.length})</span>
+            </h2>
+            <div className="flex flex-col gap-2">
               {section.products.map((product) => (
                 <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
               ))}
             </div>
           </section>
         ))}
-        {uncategorized.length > 0 && (
-          <section>
-            {/* « Autres », et non « Autres plats » : sur une boulangerie ou une
-                boutique de boissons, « plats » est simplement faux. L'application
-                disait déjà « Autres ». */}
-            <h2 className="font-display text-lg font-bold text-ink-900 mb-4">{UNCATEGORIZED_LABEL}</h2>
-            <div className="flex flex-col gap-3">
-              {uncategorized.map((product) => (
-                <ProductItem key={product.id} product={product} restaurantOpen={restaurant.isOpen} />
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );
@@ -294,24 +279,28 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
   return (
     <motion.div
       layout
-      className="bg-white rounded-xl border border-cream-300 p-4 flex gap-4 transition-all hover:shadow-sm"
+      className="flex gap-3 rounded-2xl border border-ink-100 bg-white p-3 transition-shadow hover:shadow-sm sm:gap-4"
     >
       {/* Image — seule l'image est atténuée pour un produit épuisé : mettre
           l'opacité sur toute la carte assombrirait aussi le badge « Rupture »
           (fond ink-500 + texte blanc) et ferait chuter son contraste
           bien sous 4,5:1 (calculé ≈2,6:1 avec le voisinage crème) — voir
           rapport de tâche. */}
-      {cover && (
+      {cover ? (
         <Link
           href={`/produits/${product.id}`}
           aria-label={`Voir ${product.nom}`}
           className={cn(
-            'relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-cream-200',
+            'relative size-16 shrink-0 overflow-hidden rounded-xl bg-cream-200 sm:size-20',
             badge && 'opacity-60',
           )}
         >
-          <Image src={cover} alt={product.nom} fill sizes="96px" className="object-cover" />
+          <Image src={cover} alt={product.nom} fill sizes="(min-width: 640px) 80px, 64px" className="object-cover" />
         </Link>
+      ) : (
+        <span className="grid size-16 shrink-0 place-items-center rounded-xl bg-cream-100 sm:size-20">
+          <Utensils className="size-5 text-ink-500" aria-hidden />
+        </span>
       )}
 
       {/* Info */}
@@ -324,11 +313,11 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
               fiche existe pour montrer en entier. */}
           <div className="min-w-0">
             <Link href={`/produits/${product.id}`} className="group">
-              <h3 className="font-display font-bold text-ink-900 text-sm leading-snug group-hover:text-tomato-700 transition-colors">
+              <h3 className="font-display font-bold text-ink-900 text-base leading-snug group-hover:text-tomato-700 transition-colors">
                 {product.nom}
               </h3>
               {product.description && (
-                <p className="text-ink-500 text-xs mt-1 line-clamp-2">{product.description}</p>
+                <p className="text-ink-500 text-sm mt-1 line-clamp-2">{product.description}</p>
               )}
             </Link>
           </div>
@@ -422,7 +411,7 @@ function ProductItem({ product, restaurantOpen }: { product: Product; restaurant
               canAdd
                 ? added
                   ? 'bg-success text-white'
-                  : 'bg-tomato-600 hover:bg-tomato-700 text-white shadow-sm'
+                  : 'bg-tomato-50 hover:bg-tomato-700 text-tomato-700 hover:text-white'
                 : 'bg-cream-200 text-ink-300 cursor-not-allowed',
             )}
           >

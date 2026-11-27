@@ -12,29 +12,16 @@ import Link from 'next/link';
 const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app';
 
-/**
- * Section « Télécharger l'app » — inspirée du bandeau Glovo.
- * Fond `tomato-600`, mockup phone à droite, titre + bouton store à gauche.
- *
- * `tomato-600` (#C8421A, `orange600` de l'app) atteint 4,94:1 avec du blanc plein — passe le
- * seuil AA pour le paragraphe en 13 px. Pas d'`opacity-*` sur le texte.
- *
- * Le bouton App Store a été retiré : l'application n'est pas publiée sur iOS,
- * et le lien portait un identifiant de gabarit (`id000000000`) qui renvoyait
- * une erreur. Un bouton store cassé coûte plus cher que son absence — il fait
- * repartir un visiteur déjà convaincu. À réintroduire le jour de la
- * publication iOS, avec l'identifiant numérique d'App Store Connect.
- */
 export function DownloadApp() {
   return (
-    <section className="overflow-hidden bg-tomato-600 py-12 lg:py-20">
+    <section className="overflow-hidden border-y border-ink-100 bg-white py-12 lg:py-20">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-10 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         {/* Texte + boutons */}
         <div className="max-w-md text-center lg:text-left">
-          <h2 className="font-display text-3xl font-extrabold leading-tight text-white sm:text-4xl">
+          <h2 className="font-display text-3xl font-extrabold leading-tight text-ink-900 sm:text-4xl">
             Mieux avec notre app
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-white sm:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ink-500 sm:text-base">
             Commande en un clic, suis ta livraison en temps réel et paye par
             Mobile Money — tout est plus simple sur l&apos;appli Lilia Food.
           </p>
@@ -63,20 +50,19 @@ export function DownloadApp() {
             <Link
               href="/restaurants"
               data-analytics-id="order_cta_click"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/40 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-xl border border-ink-100 px-5 py-3 text-sm font-bold text-ink-900 transition-colors hover:bg-tomato-50"
             >
               Ou commander sur le site
             </Link>
           </div>
 
-          <p className="mt-4 text-xs text-white">
+          <p className="mt-4 text-sm text-ink-500">
             Application Android disponible. Version iOS en préparation.
           </p>
         </div>
 
         {/* Mockup phone */}
         <div className="relative h-[20rem] w-[16rem] shrink-0 sm:h-[24rem] sm:w-[19rem]">
-          <div className="absolute inset-0 rounded-[2.5rem] bg-ink-900/20" />
           {/* Pas de `priority` : cette image est en bas de page. Le préchargement
               la mettait en concurrence avec la bannière du hero, qui est la
               véritable LCP. */}

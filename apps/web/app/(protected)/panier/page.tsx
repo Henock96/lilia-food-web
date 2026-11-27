@@ -6,10 +6,11 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShoppingCart, Trash2, Plus, Minus, ArrowRight, Tag,
+  ShoppingBag, Trash2, Plus, Minus, Tag, Wallet,
   MapPin, Phone, Check, Store, Bike, Plus as PlusIcon,
   Calendar as CalendarIcon, AlertTriangle,
 } from 'lucide-react';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
 import {
   useCart,
@@ -228,10 +229,10 @@ export default function PanierPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="skeleton h-8 w-32 mb-8" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col gap-3">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.52fr)] lg:gap-9">
+          <div className="flex flex-col gap-3">
             {[1, 2, 3].map((i) => <div key={i} className="skeleton h-24 rounded-2xl" />)}
           </div>
           <div className="skeleton h-64 rounded-2xl" />
@@ -241,7 +242,7 @@ export default function PanierPage() {
   }
 
   if (collectionReadState(cart, isLoading, cartError || cartPaused) === 'error') {
-    return <div role="alert" className="max-w-4xl mx-auto px-4 py-10">
+    return <div role="alert" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <p>Impossible de charger votre panier. Son contenu ne peut pas être confirmé.</p>
       <button type="button" disabled={cartFetching} onClick={() => void refetchCart()}
         className="mt-3 text-tomato-700 underline disabled:opacity-50">Réessayer</button>
@@ -279,11 +280,14 @@ export default function PanierPage() {
     quoteReady,
   });
   const checkoutButtonContent = checkoutLoading ? (
-    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <>
+      <span className="size-5 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden />
+      Commande en cours…
+    </>
   ) : (
     <>
+      <ShoppingBag className="size-4 shrink-0" aria-hidden />
       Commander
-      <ArrowRight className="w-4 h-4" />
     </>
   );
 
@@ -476,11 +480,14 @@ export default function PanierPage() {
       variants={pageVariants}
       initial="initial"
       animate="animate"
-      className="max-w-4xl mx-auto px-4 sm:px-6 py-10 min-h-screen"
+      className="mx-auto min-h-screen max-w-7xl px-4 pb-10 pt-5 sm:px-6 lg:px-8"
     >
-      <h1 className="text-2xl font-bold text-ink-900 mb-8" style={{ fontFamily: 'var(--font-display)' }}>
-        Mon panier
-      </h1>
+      <Breadcrumbs links={[{ label: 'Accueil', href: '/' }, { label: 'Nos vendeurs', href: '/restaurants' }]} current="Mon panier" />
+      <header className="mb-7">
+        <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-5xl">
+          {isEmpty ? 'Mon panier' : 'Finaliser ma commande'}
+        </h1>
+      </header>
 
       {guestCartPending && (
         <div role="status" className="mb-6 rounded-2xl border border-cream-300 bg-white p-4 text-sm text-ink-700">
@@ -518,10 +525,10 @@ export default function PanierPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center py-24 flex flex-col items-center gap-4"
+          className="flex flex-col items-center gap-4 rounded-2xl border border-ink-100 bg-white px-5 py-16 text-center sm:py-24"
         >
-          <div className="w-20 h-20 bg-cream-200 rounded-3xl flex items-center justify-center">
-            <ShoppingCart className="w-10 h-10 text-ink-500" />
+          <div className="grid size-16 place-items-center rounded-2xl bg-tomato-50">
+            <ShoppingBag className="size-8 text-tomato-700" aria-hidden />
           </div>
           <div>
             <p className="font-semibold text-ink-900 text-lg">Votre panier est vide</p>
@@ -529,17 +536,21 @@ export default function PanierPage() {
           </div>
           <Link
             href="/restaurants"
-            className="mt-2 px-6 py-3 bg-tomato-600 text-white font-medium rounded-2xl hover:bg-tomato-700 transition-colors"
+            className="mt-2 inline-flex min-h-11 items-center rounded-full bg-tomato-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-tomato-700"
           >
             Voir les restaurants
           </Link>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.52fr)] lg:gap-9">
           {/* Left — items + delivery details */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-5">
             {/* Items */}
-            <motion.div variants={containerVariants} initial="initial" animate="animate" className="flex flex-col gap-3">
+            <motion.div variants={containerVariants} initial="initial" animate="animate" className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
+              <h2 className="mb-2 flex items-center gap-2 font-display text-xl font-extrabold text-ink-900">
+                <ShoppingBag className="size-5 text-tomato-700" aria-hidden />
+                Votre panier
+              </h2>
               <AnimatePresence>
                 {items.map((item) => (
                   <motion.div
@@ -547,7 +558,7 @@ export default function PanierPage() {
                     variants={cardVariants}
                     exit={{ opacity: 0, x: -20, height: 0 }}
                     layout
-                    className="bg-white rounded-2xl border border-cream-200 p-4 flex items-center gap-4"
+                    className="flex items-center gap-2 border-t border-ink-100 py-3 first-of-type:border-t-0 sm:gap-4"
                   >
                     {item.product?.imageUrl && (
                       <Image
@@ -555,7 +566,7 @@ export default function PanierPage() {
                         alt={item.product.nom}
                         width={64}
                         height={64}
-                        className="w-16 h-16 rounded-xl object-cover shrink-0"
+                        className="size-11 shrink-0 rounded-xl object-cover sm:size-16"
                       />
                     )}
                     <div className="flex-1 min-w-0">
@@ -579,7 +590,7 @@ export default function PanierPage() {
                         onClick={() => {
                           changeQuantity(item.id, item.quantite - 1);
                         }}
-                        className="w-7 h-7 bg-cream-200 hover:bg-cream-300 rounded-full flex items-center justify-center transition-colors"
+                        className="size-10 bg-cream-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors"
                       >
                         {item.quantite === 1 ? (
                           <Trash2 className="w-3.5 h-3.5 text-rose-500" />
@@ -587,7 +598,7 @@ export default function PanierPage() {
                           <Minus className="w-3.5 h-3.5 text-ink-700" />
                         )}
                       </button>
-                      <span className="w-6 text-center font-semibold text-sm text-ink-900">{item.quantite}</span>
+                      <span className="min-w-4 text-center text-sm font-semibold tabular-nums text-ink-900">{item.quantite}</span>
                       {/* Le « + » était sans plafond : on pouvait porter à 50 la
                           quantité d'un produit dont il restait une unité, et
                           l'apprendre au checkout — après l'adresse et le moyen
@@ -624,7 +635,7 @@ export default function PanierPage() {
                                 ? 'Plus assez de stock pour en ajouter un de ce format'
                                 : undefined
                             }
-                            className="w-7 h-7 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-tomato-100"
+                            className="size-10 bg-tomato-50 hover:bg-tomato-100 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-tomato-100"
                           >
                             <Plus className="w-3.5 h-3.5 text-tomato-700" />
                           </button>
@@ -637,8 +648,10 @@ export default function PanierPage() {
             </motion.div>
 
             {/* Delivery mode */}
-            <div className="bg-white rounded-2xl border border-cream-200 p-4">
-              <p className="text-sm font-medium text-ink-700 mb-3">Mode de réception</p>
+            <div className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
+              <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-extrabold text-ink-900">
+                <Bike className="size-5 text-tomato-700" aria-hidden /> Mode de réception
+              </h2>
               {vendorServesNobody ? (
                 <p className="text-sm text-ink-500">
                   Ce vendeur ne prend pas de commande pour le moment.
@@ -702,10 +715,10 @@ export default function PanierPage() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white rounded-2xl border border-cream-200 p-4 overflow-hidden"
+                  className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5 overflow-hidden"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-ink-700">Adresse de livraison</p>
+                    <h2 className="font-display text-xl font-extrabold text-ink-900">Adresse de livraison</h2>
                     <button
                       onClick={() => setShowAddressForm((v) => !v)}
                       className="flex items-center gap-1 text-xs text-tomato-700 font-medium hover:text-ink-900"
@@ -830,7 +843,7 @@ export default function PanierPage() {
             </AnimatePresence>
 
             {/* Contact phone — obligatoire pour le paiement manuel MTN/Airtel */}
-            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+            <div className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
               <label htmlFor={`${fieldId}-phone`} className="block text-sm font-medium text-ink-700 mb-2">
                 <span className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
@@ -866,7 +879,7 @@ export default function PanierPage() {
             </div>
 
             {/* Notes */}
-            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+            <div className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
               <label htmlFor={`${fieldId}-notes`} className="block text-sm font-medium text-ink-700 mb-2">Note pour le restaurant</label>
               <textarea
                 id={`${fieldId}-notes`}
@@ -882,7 +895,7 @@ export default function PanierPage() {
           {/* Right — promo, payment, total */}
           <div className="flex flex-col gap-4">
             {/* Promo code */}
-            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+            <div className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
               <label htmlFor={`${fieldId}-promo`} className="block text-sm font-medium text-ink-700 mb-2">Code promo</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -918,8 +931,10 @@ export default function PanierPage() {
             </div>
 
             {/* Paiement */}
-            <div className="bg-white rounded-2xl border border-cream-200 p-4">
-              <p className="text-sm font-medium text-ink-700 mb-3">Mode de paiement</p>
+            <div className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
+              <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-extrabold text-ink-900">
+                <Wallet className="size-5 text-tomato-700" aria-hidden /> Mode de paiement
+              </h2>
               <div className="flex flex-col gap-2">
                 {paymentOperators.map(({ code, label, available }) => (
                   <button
@@ -1028,8 +1043,10 @@ export default function PanierPage() {
               </motion.div>
             )}
 
-            {/* Total */}
-            <div className="bg-white rounded-2xl border border-cream-200 p-4">
+            <section aria-labelledby={`${fieldId}-summary`} className="rounded-2xl border border-ink-100 bg-white p-4 sm:p-5">
+              <h2 id={`${fieldId}-summary`} className="mb-4 font-display text-xl font-extrabold text-ink-900">
+                Récapitulatif
+              </h2>
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between text-ink-700">
                   <span>Sous-total</span>
@@ -1069,7 +1086,7 @@ export default function PanierPage() {
                   </div>
                 )}
                 <div className="h-px bg-cream-200 my-1" />
-                <div className="flex justify-between font-bold text-ink-900 text-base">
+                <div className="flex justify-between gap-2 font-display text-lg font-extrabold text-ink-900">
                   <span>Total</span>
                   <span>{quote ? formatCurrency(quote.total) : '…'}</span>
                 </div>
@@ -1111,11 +1128,11 @@ export default function PanierPage() {
               <button
                 onClick={handleCheckout}
                 disabled={checkoutLoading || blocker !== null}
-                className="mt-4 w-full hidden lg:flex items-center justify-center gap-2 py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-5 hidden min-h-12 w-full items-center justify-center gap-2 rounded-full bg-tomato-600 px-4 text-sm font-bold text-white transition-colors hover:bg-tomato-700 lg:flex disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutButtonContent}
               </button>
-            </div>
+            </section>
           </div>
         </div>
       )}
@@ -1125,10 +1142,10 @@ export default function PanierPage() {
           barre s'arrête avant le pied de page, et la page animée par une
           transformation ne fausse pas son positionnement. */}
       {!isEmpty && (
-        <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-6 mt-4 border-t border-cream-200 bg-white pb-safe lg:hidden">
+        <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-6 mt-5 border-t border-ink-100 bg-white shadow-lg pb-safe lg:hidden">
           <div className="px-4 sm:px-6 py-3">
             {blocker && <p className="mb-2 text-xs text-warning">{blocker}</p>}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div className="min-w-0">
                 <p className="text-xs text-ink-500">Total</p>
                 <p className="font-bold text-ink-900">{quote ? formatCurrency(quote.total) : '…'}</p>
@@ -1136,7 +1153,7 @@ export default function PanierPage() {
               <button
                 onClick={handleCheckout}
                 disabled={checkoutLoading || blocker !== null}
-                className="flex min-h-11 shrink-0 items-center justify-center gap-2 px-6 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-tomato-600 px-5 text-sm font-bold text-white transition-colors hover:bg-tomato-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {checkoutButtonContent}
               </button>
