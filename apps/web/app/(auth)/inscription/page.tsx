@@ -2,7 +2,9 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AuthFormLayout } from '@/components/auth-form-layout';
+import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   createUserWithEmailAndPassword,
@@ -10,13 +12,12 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Camera, X, Gift } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, Camera, X, Gift } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { EMAIL_ALREADY_REGISTERED, googleAuthFailureMessage } from '@/lib/auth-errors';
 import { getBrowserSession, useAuthenticationGuard } from '@/lib/auth-session';
 import { destinationAfterAuth } from '@/lib/post-auth-destination';
 import { readGuestCart } from '@/lib/guest-cart';
-import { pageVariants } from '@lilia/motion';
 import { apiClient, type AuthCredential } from '@lilia/api-client';
 import { uploadToCloudinary } from '@/components/auth-provider';
 import { toast } from 'sonner';
@@ -55,6 +56,7 @@ const STEP_LABELS: Record<Step, string | null> = {
 export default function InscriptionPage() {
   const authenticationCurrent = useAuthenticationGuard();
   const router = useRouter();
+  const redirect = useSearchParams().get('redirect');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [prenom, setPrenom] = useState('');
@@ -114,7 +116,8 @@ export default function InscriptionPage() {
       // Le contrôleur est l'unique synchroniseur et writer du cookie.
       setStep('sync');
       await getBrowserSession().completeAuthentication(ticket, user, {
-        telephone, ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
+        telephone,
+        ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
       });
       if (!authenticationCurrent(ticket, user)) return;
       const token = getBrowserSession().getCredential();
@@ -186,7 +189,11 @@ export default function InscriptionPage() {
       // appel sur une connexion est donc sans effet, et c'est voulu : le
       // parrain ne se change pas après coup.
       const code = referralCode.trim().toUpperCase();
-      await getBrowserSession().completeAuthentication(ticket, cred.user, code ? { referralCode: code } : undefined);
+      await getBrowserSession().completeAuthentication(
+        ticket,
+        cred.user,
+        code ? { referralCode: code } : undefined,
+      );
       if (!authenticationCurrent(ticket, cred.user)) return;
 
       toast.success('Bienvenue sur Lilia Food 🎉');
@@ -205,56 +212,53 @@ export default function InscriptionPage() {
   const isDisabled = loading || googleLoading || !prenom || !nom || !email || !password;
 
   return (
-    <motion.div
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      className="w-full max-w-sm"
-    >
-      <div className="bg-white rounded-3xl shadow-xl border border-cream-200 p-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-ink-900 mb-1">
-            Créer un compte 🍽️
+    <AuthFormLayout>
+      <div className="border-ink-100 rounded-2xl border bg-white p-5 shadow-sm sm:p-8">
+        <header className="mb-6">
+          <h1 className="font-display text-ink-900 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Créer un compte
           </h1>
-          <p className="text-ink-500 text-sm">
-            Rejoignez Lilia Food et commandez dès maintenant
+          <p className="text-ink-500 mt-2 text-sm">
+            {redirect && sanitizeRedirect(redirect) === '/panier'
+              ? 'Créez un compte pour retrouver votre panier et finaliser votre commande.'
+              : 'Rejoignez Lilia Food pour commander vos repas.'}
           </p>
-        </div>
+        </header>
 
         {/* Google */}
         <button
+          type="button"
           onClick={handleGoogle}
           disabled={googleLoading || loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-cream-300 rounded-2xl text-sm font-medium text-ink-700 hover:bg-cream-100 hover:border-ink-300 transition-all mb-5 disabled:opacity-60"
+          className="border-ink-100 text-ink-900 hover:border-tomato-200 hover:bg-tomato-50 mb-5 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border px-4 text-sm font-semibold transition-colors disabled:opacity-60"
         >
           <GoogleIcon />
           {googleLoading ? 'Connexion…' : 'Continuer avec Google'}
         </button>
 
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex-1 h-px bg-cream-300" />
-          <span className="text-xs text-ink-500">ou</span>
-          <div className="flex-1 h-px bg-cream-300" />
+        <div className="mb-5 flex items-center gap-3">
+          <div className="bg-ink-100 h-px flex-1" />
+          <span className="text-ink-500 text-xs">ou</span>
+          <div className="bg-ink-100 h-px flex-1" />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
           {/* ── Avatar picker ── */}
-          <div className="flex justify-center mb-1">
+          <div className="mb-1 flex justify-center">
             <div className="relative">
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 aria-label="Choisir une photo de profil"
-                className="w-20 h-20 rounded-full border-2 border-dashed border-ink-300 bg-cream-100 flex items-center justify-center overflow-hidden hover:border-tomato-500 transition-colors group"
+                className="border-ink-300 bg-cream-100 hover:border-tomato-500 group flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed transition-colors"
               >
                 {avatarPreview ? (
                   // Aperçu local (blob: via createObjectURL) — non optimisable par next/image.
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarPreview} alt="Aperçu" className="w-full h-full object-cover" />
+                  <img src={avatarPreview} alt="Aperçu" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1 text-ink-500 group-hover:text-tomato-700 transition-colors">
-                    <Camera className="w-6 h-6" />
+                  <div className="text-ink-500 group-hover:text-tomato-700 flex flex-col items-center gap-1 transition-colors">
+                    <Camera className="h-6 w-6" />
                     <span className="text-[10px] font-medium">Photo</span>
                   </div>
                 )}
@@ -264,9 +268,9 @@ export default function InscriptionPage() {
                   type="button"
                   onClick={removeAvatar}
                   aria-label="Retirer la photo"
-                  className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-ink-900 text-white rounded-full flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
+                  className="bg-ink-900 absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors hover:bg-rose-600 hover:text-white"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="h-3 w-3" />
                 </button>
               )}
             </div>
@@ -282,24 +286,31 @@ export default function InscriptionPage() {
           {/* ── Prénom + Nom ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-ink-700 mb-1.5">
+              <label
+                htmlFor="signup-prenom"
+                className="text-ink-900 mb-1.5 block text-sm font-semibold"
+              >
                 Prénom
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
+                <User className="text-ink-500 pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <input
                   type="text"
                   value={prenom}
                   onChange={(e) => setPrenom(e.target.value)}
                   placeholder="Jean"
                   required
+                  id="signup-prenom"
                   autoComplete="given-name"
-                  className="w-full pl-9 pr-3 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                  className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-3 pl-9 text-base transition-all focus:ring-2 focus:outline-none"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-700 mb-1.5">
+              <label
+                htmlFor="signup-nom"
+                className="text-ink-900 mb-1.5 block text-sm font-semibold"
+              >
                 Nom
               </label>
               <input
@@ -308,57 +319,68 @@ export default function InscriptionPage() {
                 onChange={(e) => setNom(e.target.value)}
                 placeholder="Dupont"
                 required
+                id="signup-nom"
                 autoComplete="family-name"
-                className="w-full px-3 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white px-3 py-3 text-base transition-all focus:ring-2 focus:outline-none"
               />
             </div>
           </div>
 
           {/* ── Téléphone ── */}
           <div>
-            <label className="block text-sm font-medium text-ink-700 mb-1.5">
-              Téléphone{' '}
-              <span className="text-ink-500 font-normal">(optionnel)</span>
+            <label
+              htmlFor="signup-telephone"
+              className="text-ink-900 mb-1.5 block text-sm font-semibold"
+            >
+              Téléphone <span className="text-ink-500 font-normal">(optionnel)</span>
             </label>
             <div className="relative">
-              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
+              <Phone className="text-ink-500 pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
               <input
                 type="tel"
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
                 placeholder="+242 06 000 0000"
+                id="signup-telephone"
                 autoComplete="tel"
-                className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-4 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
               />
             </div>
           </div>
 
           {/* ── Email ── */}
           <div>
-            <label className="block text-sm font-medium text-ink-700 mb-1.5">
+            <label
+              htmlFor="signup-email"
+              className="text-ink-900 mb-1.5 block text-sm font-semibold"
+            >
               Email
             </label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
+              <Mail className="text-ink-500 pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre@email.com"
                 required
+                id="signup-email"
                 autoComplete="email"
-                className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-4 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
               />
             </div>
           </div>
 
           {/* ── Mot de passe ── */}
           <div>
-            <label className="block text-sm font-medium text-ink-700 mb-1.5">
+            <label
+              htmlFor="signup-password"
+              className="text-ink-900 mb-1.5 block text-sm font-semibold"
+            >
               Mot de passe
             </label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
+              <Lock className="text-ink-500 pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -366,41 +388,45 @@ export default function InscriptionPage() {
                 placeholder="Min. 6 caractères"
                 required
                 minLength={6}
+                id="signup-password"
                 autoComplete="new-password"
-                className="w-full pl-10 pr-10 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-12 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700 transition-colors"
                 aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                className="text-ink-500 hover:text-ink-900 absolute top-1/2 right-1 grid size-11 -translate-y-1/2 place-items-center rounded-full transition-colors"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
           {/* ── Code de parrainage ── */}
           <div>
-            <label className="block text-sm font-medium text-ink-700 mb-1.5">
-              Code de parrainage{' '}
-              <span className="text-ink-500 font-normal">(optionnel)</span>
+            <label
+              htmlFor="signup-referral"
+              className="text-ink-900 mb-1.5 block text-sm font-semibold"
+            >
+              Code de parrainage <span className="text-ink-500 font-normal">(optionnel)</span>
             </label>
             <div className="relative">
-              <Gift className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500 pointer-events-none" />
+              <Gift className="text-ink-500 pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
               <input
                 type="text"
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                 placeholder="Ex: ABC12345"
                 maxLength={12}
+                id="signup-referral"
                 autoComplete="off"
-                className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-4 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
               />
             </div>
             {referralCode && (
-              <p className="text-xs text-success mt-1 flex items-center gap-1">
-                <Gift className="w-3 h-3" /> +200 points offerts à l&apos;activation
+              <p className="text-success mt-1 flex items-center gap-1 text-xs">
+                <Gift className="h-3 w-3" /> +200 points offerts à l&apos;activation
               </p>
             )}
           </div>
@@ -409,7 +435,7 @@ export default function InscriptionPage() {
           <button
             type="submit"
             disabled={isDisabled}
-            className="flex items-center justify-center gap-2 w-full py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+            className="bg-tomato-600 hover:bg-tomato-700 mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
             <AnimatePresence mode="wait">
               {loading ? (
@@ -420,7 +446,7 @@ export default function InscriptionPage() {
                   exit={{ opacity: 0 }}
                   className="flex items-center gap-2 text-sm"
                 >
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   {stepLabel ?? 'Création en cours…'}
                 </motion.span>
               ) : (
@@ -432,31 +458,49 @@ export default function InscriptionPage() {
                   className="flex items-center gap-2"
                 >
                   Créer mon compte
-                  <ArrowRight className="w-4 h-4" />
                 </motion.span>
               )}
             </AnimatePresence>
           </button>
         </form>
 
-        <p className="text-center text-sm text-ink-500 mt-6">
+        <p className="border-ink-100 text-ink-500 mt-6 border-t pt-5 text-center text-sm">
           Déjà un compte ?{' '}
-          <Link href="/connexion" className="text-tomato-700 font-medium hover:underline">
+          <Link
+            href={
+              redirect
+                ? `/connexion?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}`
+                : '/connexion'
+            }
+            className="text-tomato-700 font-medium hover:underline"
+          >
             Se connecter
           </Link>
         </p>
       </div>
-    </motion.div>
+    </AuthFormLayout>
   );
 }
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
     </svg>
   );
 }

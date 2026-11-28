@@ -1,18 +1,23 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import { AuthFormLayout } from '@/components/auth-form-layout';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, X } from 'lucide-react';
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
+import { Eye, EyeOff, Mail, Lock, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { googleAuthFailureMessage } from '@/lib/auth-errors';
 import { getBrowserSession, useAuthenticationGuard, useSessionGuard } from '@/lib/auth-session';
 import { sanitizeRedirect } from '@/lib/sanitize-redirect';
 import { destinationAfterAuth } from '@/lib/post-auth-destination';
 import { readGuestCart } from '@/lib/guest-cart';
-import { pageVariants } from '@lilia/motion';
+import { useDialogFocus } from '@/lib/dialog-focus';
 import { toast } from 'sonner';
 
 function ConnexionForm() {
@@ -30,6 +35,7 @@ function ConnexionForm() {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const resetDialogRef = useDialogFocus<HTMLDivElement>(showReset, () => setShowReset(false));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,7 +108,7 @@ function ConnexionForm() {
       if (code === 'auth/user-not-found') {
         toast.error('Aucun compte associé à cet email');
       } else {
-        toast.error('Erreur lors de l\'envoi. Réessayez.');
+        toast.error("Erreur lors de l'envoi. Réessayez.");
       }
     } finally {
       if (sessionCurrent()) setResetLoading(false);
@@ -110,70 +116,91 @@ function ConnexionForm() {
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-cream-200 p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-ink-900 mb-1">Bon retour 👋</h1>
-        <p className="text-ink-500 text-sm">Connectez-vous à votre compte Lilia Food</p>
-      </div>
+    <div className="border-ink-100 rounded-2xl border bg-white p-5 shadow-sm sm:p-8">
+      <header className="mb-6">
+        <h1 className="font-display text-ink-900 text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Connexion
+        </h1>
+        <p className="text-ink-500 mt-2 text-sm">
+          {redirect && sanitizeRedirect(redirect) === '/panier'
+            ? 'Connectez-vous pour retrouver votre panier et finaliser votre commande.'
+            : 'Connectez-vous à votre compte Lilia Food.'}
+        </p>
+      </header>
 
       <button
+        type="button"
         onClick={handleGoogle}
         disabled={googleLoading || loading}
-        className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-cream-300 rounded-2xl text-sm font-medium text-ink-700 hover:bg-cream-100 hover:border-ink-300 transition-all mb-5 disabled:opacity-60"
+        className="border-ink-100 text-ink-900 hover:border-tomato-200 hover:bg-tomato-50 mb-5 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border px-4 text-sm font-semibold transition-colors disabled:opacity-60"
       >
         <GoogleIcon />
         {googleLoading ? 'Connexion...' : 'Continuer avec Google'}
       </button>
 
-      <div className="flex items-center gap-3 mb-5">
-        <div className="flex-1 h-px bg-cream-300" />
-        <span className="text-xs text-ink-500">ou</span>
-        <div className="flex-1 h-px bg-cream-300" />
+      <div className="mb-5 flex items-center gap-3">
+        <div className="bg-ink-100 h-px flex-1" />
+        <span className="text-ink-500 text-xs">ou</span>
+        <div className="bg-ink-100 h-px flex-1" />
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="block text-sm font-medium text-ink-700 mb-1.5">Email</label>
+          <label htmlFor="login-email" className="text-ink-900 mb-1.5 block text-sm font-semibold">
+            Adresse e-mail
+          </label>
           <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+            <Mail className="text-ink-500 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
             <input
+              id="login-email"
+              name="email"
+              autoComplete="username"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="votre@email.com"
               required
-              className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+              className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-4 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
             />
           </div>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-sm font-medium text-ink-700">Mot de passe</label>
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3">
+            <label htmlFor="login-password" className="text-ink-900 text-sm font-semibold">
+              Mot de passe
+            </label>
             <button
               type="button"
-              onClick={() => { setResetEmail(email); setShowReset(true); }}
-              className="text-xs text-tomato-700 hover:underline"
+              onClick={() => {
+                setResetEmail(email);
+                setShowReset(true);
+              }}
+              className="text-tomato-700 text-sm font-medium hover:underline"
             >
               Mot de passe oublié ?
             </button>
           </div>
           <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+            <Lock className="text-ink-500 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
             <input
+              id="login-password"
+              name="password"
+              autoComplete="current-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full pl-10 pr-10 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+              className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-12 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700 transition-colors"
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="text-ink-500 hover:text-ink-900 absolute top-1/2 right-1 grid size-11 -translate-y-1/2 place-items-center rounded-full transition-colors"
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -181,25 +208,22 @@ function ConnexionForm() {
         <button
           type="submit"
           disabled={loading || googleLoading || !email || !password}
-          className="flex items-center justify-center gap-2 w-full py-3.5 bg-tomato-600 hover:bg-tomato-700 text-white font-semibold rounded-2xl transition-all shadow-sm shadow-tomato-100 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+          className="bg-tomato-600 hover:bg-tomato-700 mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? (
-            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              Se connecter
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
+          {loading ? 'Connexion en cours…' : 'Se connecter'}
         </button>
       </form>
 
-      <p className="text-center text-sm text-ink-500 mt-6">
+      <p className="border-ink-100 text-ink-500 mt-6 border-t pt-5 text-center text-sm">
         Pas encore de compte ?{' '}
         {/* Seule une destination explicite suit : le repli `/restaurants`
             transmis ici masquerait le retour au panier après l'inscription. */}
         <Link
-          href={redirect ? `/inscription?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}` : '/inscription'}
+          href={
+            redirect
+              ? `/inscription?redirect=${encodeURIComponent(sanitizeRedirect(redirect))}`
+              : '/inscription'
+          }
           className="text-tomato-700 font-medium hover:underline"
         >
           S&apos;inscrire
@@ -208,42 +232,64 @@ function ConnexionForm() {
 
       {showReset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowReset(false)} />
-          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-ink-900">Réinitialiser le mot de passe</h2>
-              <button type="button" onClick={() => setShowReset(false)} className="text-ink-500 hover:text-ink-700">
-                <X className="w-4 h-4" />
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowReset(false)}
+          />
+          <div
+            ref={resetDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-heading"
+            className="border-ink-100 relative w-full max-w-sm rounded-2xl border bg-white p-5 shadow-lg sm:p-6"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="reset-heading" className="font-display text-ink-900 text-xl font-extrabold">
+                Réinitialiser le mot de passe
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowReset(false)}
+                aria-label="Fermer"
+                className="text-ink-500 hover:text-ink-900 grid size-11 shrink-0 place-items-center rounded-full"
+              >
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-xs text-ink-500 mb-4">
-              Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+            <p className="text-ink-500 mb-4 text-sm">
+              Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de
+              passe.
             </p>
             <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
+              <label htmlFor="reset-email" className="text-ink-900 text-sm font-semibold">
+                Adresse e-mail
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-500" />
+                <Mail className="text-ink-500 absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
                 <input
+                  id="reset-email"
+                  autoComplete="email"
                   type="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="votre@email.com"
                   required
-                  autoFocus
-                  className="w-full pl-10 pr-4 py-3 border border-cream-300 bg-white text-ink-900 placeholder:text-ink-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500/20 focus:border-tomato-500 transition-all"
+                  data-autofocus
+                  className="border-cream-300 text-ink-900 placeholder:text-ink-500 focus:ring-tomato-500/20 focus:border-tomato-500 w-full rounded-xl border bg-white py-3 pr-4 pl-10 text-base transition-all focus:ring-2 focus:outline-none"
                 />
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowReset(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-cream-300 text-ink-700 hover:bg-cream-100 transition-colors"
+                  className="border-cream-300 text-ink-700 hover:bg-cream-100 min-h-11 flex-1 rounded-full border px-3 text-sm font-medium transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={resetLoading || !resetEmail}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-tomato-600 hover:bg-tomato-700 text-white transition-colors disabled:opacity-60"
+                  className="bg-tomato-600 hover:bg-tomato-700 min-h-11 flex-1 rounded-full px-3 text-sm font-medium text-white transition-colors disabled:opacity-60"
                 >
                   {resetLoading ? 'Envoi…' : 'Envoyer'}
                 </button>
@@ -258,31 +304,30 @@ function ConnexionForm() {
 
 export default function ConnexionPage() {
   return (
-    <motion.div
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      className="w-full max-w-sm"
-    >
+    <AuthFormLayout>
       <Suspense
         fallback={
-          <div className="bg-white rounded-3xl shadow-xl border border-cream-200 p-8">
-            <div className="skeleton h-8 w-48 mb-4" />
-            <div className="skeleton h-12 w-full rounded-2xl mb-4" />
-            <div className="skeleton h-12 w-full rounded-2xl mb-4" />
-            <div className="skeleton h-12 w-full rounded-2xl" />
+          <div
+            className="border-ink-100 rounded-2xl border bg-white p-5 shadow-sm sm:p-8"
+            role="status"
+          >
+            <span className="sr-only">Chargement du formulaire…</span>
+            <div className="skeleton mb-5 h-9 w-40" />
+            <div className="skeleton mb-4 h-12 w-full rounded-full" />
+            <div className="skeleton mb-4 h-12 w-full rounded-xl" />
+            <div className="skeleton h-12 w-full rounded-xl" />
           </div>
         }
       >
         <ConnexionForm />
       </Suspense>
-    </motion.div>
+    </AuthFormLayout>
   );
 }
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"

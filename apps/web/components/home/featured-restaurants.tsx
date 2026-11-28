@@ -1,12 +1,15 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { RestaurantCardSkeleton } from '@/components/ui';
 import { VendorGrid, VENDOR_GRID_CLASSNAME } from '@/components/restaurants/vendor-grid';
 import { VendorsLoadError } from '@/components/restaurants/vendors-load-error';
-import { getVendorPage } from '@/lib/vendors';
+import { getVendorFacets, getVendorPage } from '@/lib/vendors';
 import {
   SHOWCASE_BATCH,
+  VENDOR_TYPE_PLURAL,
+  availableTypeFilters,
+  parseCatalogueParams,
   parseShowcaseCount,
   showcaseView,
   vendorCountLabel,
@@ -35,11 +38,15 @@ type SearchParams = Record<string, string | string[] | undefined>;
  */
 export function FeaturedRestaurants({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <section id="vendeurs" aria-labelledby="vendeurs-titre" className="scroll-mt-20 py-14 lg:py-20">
+    <section
+      id="vendeurs"
+      aria-labelledby="vendeurs-titre"
+      className="scroll-mt-20 bg-[#faf7f2] py-12 lg:py-16"
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2
           id="vendeurs-titre"
-          className="font-display text-2xl font-extrabold text-ink-900 sm:text-3xl"
+          className="font-display text-ink-900 text-2xl font-extrabold sm:text-3xl"
         >
           Commande chez eux aujourd&apos;hui
         </h2>
@@ -52,13 +59,22 @@ export function FeaturedRestaurants({ searchParams }: { searchParams: Promise<Se
 }
 
 async function Showcase({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const requested = parseShowcaseCount((await searchParams).vendeurs);
-  const result = await getVendorPage({ page: 1, limit: requested });
+  const params = await searchParams;
+  const requested = parseShowcaseCount(params.vendeurs);
+  const { vendorType } = parseCatalogueParams(params);
+  const [result, facets] = await Promise.all([
+    getVendorPage({ page: 1, limit: requested, vendorType }),
+    getVendorFacets(),
+  ]);
+  const filters = facets.status === 'ok' ? availableTypeFilters(facets.value) : [];
+  if (vendorType && !filters.some((filter) => filter.type === vendorType)) {
+    filters.push({ type: vendorType, label: VENDOR_TYPE_PLURAL[vendorType], count: 0 });
+  }
 
   if (result.status === 'error') {
     return (
       <>
-        <p className="mt-2 text-sm text-ink-500">Choisis une boutique et découvre sa carte.</p>
+        <p className="text-ink-500 mt-2 text-sm">Choisis une boutique et découvre sa carte.</p>
         <VendorsLoadError className="mt-8" />
       </>
     );
@@ -68,53 +84,73 @@ async function Showcase({ searchParams }: { searchParams: Promise<SearchParams> 
   const open = vendors.filter((v) => v.isOpen).length;
   const view = showcaseView(vendors.length, meta.total, requested);
 
-  if (meta.total === 0) {
-    return (
-      <div className="mt-8 rounded-xl border border-cream-300 bg-white p-6">
-        <p className="font-semibold text-ink-900">Aucun vendeur disponible pour le moment.</p>
-        <p className="mt-1 text-sm text-ink-500">
-          Les premières boutiques arrivent bientôt.{' '}
-          <Link href="/devenir-vendeur" className="font-semibold text-tomato-700 underline-offset-2 hover:underline">
-            Tu cuisines ? Rejoins Lilia Food.
-          </Link>
-        </p>
-      </div>
-    );
-  }
+  const catalogue = vendorType ? `/restaurants?vendorType=${vendorType}` : '/restaurants';
 
   return (
     <>
-      {/* Le serveur classe les ouverts en tête : quand tout le catalogue tient
-          dans le lot, compter les ouverts du lot compte ceux du catalogue. */}
-      <p className="mt-2 text-sm text-ink-500" aria-live="polite">
-        {vendors.length >= meta.total
-          ? vendorCountLabel(meta.total, open)
-          : `${meta.total} vendeurs à Brazzaville · les ouverts en premier`}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <p className="text-ink-500 text-sm" aria-live="polite">
+          {vendors.length >= meta.total
+            ? vendorCountLabel(meta.total, open)
+            : `${meta.total} vendeurs à Brazzaville · les ouverts en premier`}
+        </p>
+        {filters.length > 0 && (
+          <nav aria-label="Univers des vendeurs" className="flex flex-wrap gap-2">
+            {[{ type: null, label: 'Tous' }, ...filters].map(({ type, label }) => (
+              <Link
+                key={type ?? 'all'}
+                href={type ? `/?vendorType=${type}#vendeurs` : '/#vendeurs'}
+                aria-current={type === vendorType ? 'true' : undefined}
+                className={
+                  type === vendorType
+                    ? 'rounded-pill bg-tomato-600 inline-flex min-h-11 items-center px-4 text-sm font-semibold text-white'
+                    : 'rounded-pill border-ink-100 text-ink-700 hover:border-tomato-600 hover:text-tomato-700 inline-flex min-h-11 items-center border bg-white px-4 text-sm font-semibold'
+                }
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        )}
+      </div>
 
-      <VendorGrid vendors={vendors} className="mt-6" />
+      {meta.total === 0 ? (
+        <div className="border-ink-100 mt-6 rounded-xl border bg-white p-6">
+          <p className="text-ink-900 font-semibold">
+            {vendorType
+              ? 'Aucun vendeur dans cet univers.'
+              : 'Aucun vendeur disponible pour le moment.'}
+          </p>
+          {!vendorType && (
+            <Link
+              href="/devenir-vendeur"
+              className="text-tomato-700 mt-2 inline-flex min-h-11 items-center font-semibold hover:underline"
+            >
+              Tu cuisines ? Rejoins Lilia Food.
+            </Link>
+          )}
+        </div>
+      ) : (
+        <VendorGrid vendors={vendors} className="mt-6" />
+      )}
 
-      <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+      <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
         {view.canShowMore && (
           <Link
-            href={`/?vendeurs=${view.nextCount}`}
+            href={`/?vendeurs=${view.nextCount}${vendorType ? `&vendorType=${vendorType}` : ''}#vendeurs`}
             scroll={false}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-pill bg-tomato-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-tomato-700"
+            className="rounded-pill bg-tomato-600 hover:bg-tomato-700 inline-flex min-h-11 items-center justify-center gap-2 px-6 text-sm font-semibold text-white transition-colors"
           >
             <Plus className="h-4 w-4" aria-hidden />
             Afficher plus
           </Link>
         )}
-        {view.showCatalogueLink && (
+        {(view.showCatalogueLink || meta.total > 0) && (
           <Link
-            href="/restaurants"
-            className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-pill border-[1.5px] border-cream-300 bg-white px-6 text-sm font-semibold text-ink-700 transition-colors hover:border-tomato-600 hover:text-tomato-700"
+            href={catalogue}
+            className="group rounded-pill border-cream-300 text-ink-700 hover:border-tomato-600 hover:text-tomato-700 inline-flex min-h-11 items-center justify-center gap-2 border-[1.5px] bg-white px-6 text-sm font-semibold transition-colors"
           >
             {meta.total > 1 ? `Voir les ${meta.total} vendeurs` : 'Voir le catalogue'}
-            <ArrowRight
-              className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-0.5"
-              aria-hidden
-            />
           </Link>
         )}
       </div>
@@ -126,7 +162,7 @@ async function Showcase({ searchParams }: { searchParams: Promise<SearchParams> 
 function ShowcaseFallback() {
   return (
     <>
-      <p className="mt-2 text-sm text-ink-500">Choisis une boutique et découvre sa carte.</p>
+      <p className="text-ink-500 mt-2 text-sm">Choisis une boutique et découvre sa carte.</p>
       <div className={`mt-6 ${VENDOR_GRID_CLASSNAME}`} aria-hidden>
         {Array.from({ length: Math.min(SHOWCASE_BATCH, 8) }).map((_, i) => (
           <RestaurantCardSkeleton key={i} />

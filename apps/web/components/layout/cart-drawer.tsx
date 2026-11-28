@@ -1,52 +1,23 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
-import { useAuthSession, useSessionGuard } from '@/lib/auth-session';
+import { useEditableCart } from '@/lib/use-editable-cart';
 import { useCartStore } from '@/store/cart';
-import { useCart, useUpdateCartItem, useRemoveCartItem } from '@lilia/api-client';
 import { formatCurrency } from '@lilia/utils';
-import { toast } from 'sonner';
-import { collectionReadState, runVisibleMutation, mutationErrorMessage } from '@/lib/account-feedback';
 import { analytics } from '@/lib/analytics';
 import { useDialogFocus } from '@/lib/dialog-focus';
-import { canIncreaseGuestLine } from '@/lib/guest-cart';
-import { useCartView } from '@/lib/use-cart-view';
-import { useGuestCartStore } from '@/store/guest-cart';
 import { CartLineDetails } from '@/components/cart/cart-line-details';
 import { cartLineUnitPrice, cartSubtotal } from '@lilia/utils';
 
 export function CartDrawer() {
   const router = useRouter();
-  const { token, isLoading: sessionLoading } = useAuthSession();
   const { isOpen, closeCart } = useCartStore();
   const dialogRef = useDialogFocus<HTMLDivElement>(isOpen, closeCart);
-  const isCurrentSession = useSessionGuard();
-  const { data: serverCart, isLoading, isError, isFetching, isPaused, refetch } = useCart(token);
-  const cart = useCartView(token);
-  const guestLines = useGuestCartStore((s) => s.lines);
-  const updateItem = useUpdateCartItem(token);
-  const removeItem = useRemoveCartItem(token);
-  const gate = useRef(false);
-  const busy = updateItem.isPending || removeItem.isPending || updateItem.isPaused || removeItem.isPaused || isFetching || isPaused;
-  // Le visiteur a son panier local : rien à charger, rien qui puisse échouer.
-  const guest = !sessionLoading && !token;
-  const readState = sessionLoading ? 'loading' : guest ? 'ready' : collectionReadState(serverCart, isLoading, isError || isPaused);
-  function changeQuantity(itemId: string, quantite: number) {
-    if (guest) {
-      useGuestCartStore.getState().setQuantity(itemId, quantite);
-      return;
-    }
-    if (busy) return;
-    void runVisibleMutation({ gate, isCurrent: isCurrentSession,
-      run: () => quantite === 0 ? removeItem.mutateAsync(itemId) : updateItem.mutateAsync({ itemId, quantite }),
-      onError: (error) => toast.error(mutationErrorMessage(error, 'Impossible de modifier le panier. Réessayez après vérification de votre connexion.')),
-    });
-  }
-
+  const { cart, readState, guest, busy, refetch, isFetching, changeQuantity, canIncrease } = useEditableCart();
   const items = cart?.items ?? [];
   // F3-09 — sous-total serveur : options comprises, menu compté une fois.
   const subTotal = cartSubtotal(cart);
@@ -187,7 +158,7 @@ export function CartDrawer() {
                           <span className="w-5 text-center text-sm font-bold text-ink-900">{item.quantite}</span>
                           <button
                             aria-label="Augmenter la quantité"
-                            disabled={guest ? !canIncreaseGuestLine(guestLines, item.id) : busy}
+                            disabled={!canIncrease(item.id)}
                             onClick={() => changeQuantity(item.id, item.quantite + 1)}
                             className="w-6 h-6 bg-tomato-100 hover:bg-cream-200 rounded-full flex items-center justify-center transition-colors active:scale-90"
                           >

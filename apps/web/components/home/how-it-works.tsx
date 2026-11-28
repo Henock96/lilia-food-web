@@ -1,40 +1,27 @@
 import { Store, Smartphone, PackageCheck, type LucideIcon } from 'lucide-react';
 
-/**
- * « Comment ça marche » — trois étapes, en texte.
- *
- * Avant : trois grandes photos en cartes avec zoom au survol (sur des
- * éléments non cliquables), dont un logo MTN plein cadre alors qu'Airtel
- * Money est aussi accepté, et deux promesses que la plateforme ne tient pas
- * partout : « livraison en 15 à 30 minutes » (les vendeurs annoncent de 10 à
- * 45 min) et un suivi « en temps réel » (le site affiche l'étape de la
- * commande, pas la position du livreur).
- *
- * Ici, un format éditorial numéroté, distinct des grilles de cartes qui
- * l'entourent, et des phrases qui décrivent le produit tel qu'il est.
- */
 const STEPS: { title: string; body: string; icon: LucideIcon }[] = [
   {
-    title: 'Choisis ton vendeur',
-    body: 'Parcours les vendeurs de Brazzaville par univers ou par nom. Leur carte, leurs horaires et les avis des clients sont affichés.',
+    title: 'Choisis tes plats',
+    body: 'Trouve un vendeur par nom ou par catégorie, consulte sa carte et ajoute tes plats au panier. Choisis les formats ou les suppléments proposés.',
     icon: Store,
   },
   {
-    title: 'Paie en Mobile Money',
-    body: 'MTN MoMo ou Airtel Money, depuis ton téléphone. Pas besoin de carte bancaire.',
+    title: 'Valide et paie ta commande',
+    body: 'Choisis la livraison ou le retrait selon les options du vendeur. Vérifie le total, puis suis les instructions de paiement MTN MoMo ou Airtel Money sur ton téléphone.',
     icon: Smartphone,
   },
   {
-    title: 'Reçois ou récupère',
-    body: 'Livraison chez toi ou retrait sur place, selon le vendeur, dans le délai qu’il annonce. Tu suis chaque étape depuis ton compte.',
+    title: 'Suis ta commande',
+    body: 'Consulte le statut dans « Mes commandes ». En livraison, le livreur t’apporte la commande à l’adresse indiquée. En retrait, récupère-la chez le vendeur quand elle est prête.',
     icon: PackageCheck,
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section aria-labelledby="comment-titre" className="border-y border-cream-300 bg-cream-200">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)] lg:gap-16 lg:px-8 lg:py-20">
+    <section aria-labelledby="comment-titre" className="border-y border-ink-100 bg-white">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,3.6fr)] lg:gap-10 lg:px-8 lg:py-14">
         <div>
           <h2
             id="comment-titre"
@@ -43,18 +30,18 @@ export function HowItWorks() {
             Comment ça marche
           </h2>
           <p className="mt-2 max-w-xs text-sm text-ink-500">
-            Trois étapes, du choix du vendeur à ta commande.
+            Du choix des plats à la livraison ou au retrait.
           </p>
         </div>
 
         <ol className="grid gap-8 sm:grid-cols-3 sm:gap-6">
           {STEPS.map((step, i) => (
-            <li key={step.title} className="border-t-2 border-tomato-600 pt-4">
+            <li key={step.title} className="border-t-2 border-tomato-200 pt-4">
               <div className="flex items-center justify-between">
                 <span className="font-display text-3xl font-extrabold text-tomato-700" aria-hidden>
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <step.icon className="h-6 w-6 text-ink-500" aria-hidden />
+                <step.icon className="h-5 w-5 text-tomato-700" aria-hidden />
               </div>
               <h3 className="mt-3 font-display text-lg font-bold text-ink-900">
                 <span className="sr-only">Étape {i + 1} : </span>

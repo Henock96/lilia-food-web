@@ -13,6 +13,7 @@ interface ImageCarouselProps {
   /** Priorité de chargement de la 1re image (LCP). */
   priority?: boolean;
   sizes?: string;
+  thumbnails?: boolean;
   /** Rendu si aucune image. */
   fallback?: ReactNode;
 }
@@ -27,6 +28,7 @@ export function ImageCarousel({
   className,
   priority,
   sizes = '100vw',
+  thumbnails = false,
   fallback,
 }: ImageCarouselProps) {
   const [index, setIndex] = useState(0);
@@ -55,77 +57,113 @@ export function ImageCarousel({
   }
 
   return (
-    <div
-      className={cn('relative overflow-hidden', className)}
-      onPointerDown={count > 1 ? onPointerDown : undefined}
-      onPointerUp={count > 1 ? onPointerUp : undefined}
-    >
-      {/* Track */}
+    <>
       <div
-        className="flex h-full w-full transition-transform duration-300 ease-out"
-        style={{ transform: `translateX(-${index * 100}%)` }}
+        className={cn('relative overflow-hidden', className)}
+        onPointerDown={count > 1 ? onPointerDown : undefined}
+        onPointerUp={count > 1 ? onPointerUp : undefined}
       >
-        {images.map((img, i) => (
-          <div key={i} className="relative h-full w-full flex-shrink-0">
-            <Image
-              src={img.url}
-              alt={img.alt}
-              fill
-              // Galerie vendeur = URLs externes arbitraires → chargeur dédié
-              // (allowlist next/image conservée pour les visuels curés).
-              loader={cloudinaryLoader}
-              className="object-cover"
-              // `preload` remplace `priority` (déprécié en Next 16), même effet.
-              // Gardé plutôt que `eager` + `fetchPriority` : mesuré le
-              // 08/11/2026 sur 3 fiches vendeur en 4G lente, le préchargement
-              // donne un LCP plus court à chaque fois (~3,3 s contre ~3,9 s).
-              preload={priority && i === 0}
-              sizes={sizes}
-              onError={() =>
-                setBroken((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))
-              }
-            />
-          </div>
-        ))}
-      </div>
-
-      {count > 1 && (
-        <>
-          {/* Flèches */}
-          <button
-            type="button"
-            aria-label="Image précédente"
-            onClick={() => go(index - 1)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Image suivante"
-            onClick={() => go(index + 1)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-
-          {/* Indicateurs */}
-          <div className="absolute bottom-3 left-0 right-0 z-10 flex justify-center gap-1.5">
-            {images.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Aller à l'image ${i + 1}`}
-                onClick={() => go(i)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  i === index ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/80',
-                )}
+        {/* Track */}
+        <div
+          className="flex h-full w-full transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${index * 100}%)` }}
+        >
+          {images.map((img, i) => (
+            <div key={i} className="relative h-full w-full flex-shrink-0">
+              <Image
+                src={img.url}
+                alt={img.alt}
+                fill
+                // Galerie vendeur = URLs externes arbitraires → chargeur dédié
+                // (allowlist next/image conservée pour les visuels curés).
+                loader={cloudinaryLoader}
+                className="object-cover"
+                // `preload` remplace `priority` (déprécié en Next 16), même effet.
+                // Gardé plutôt que `eager` + `fetchPriority` : mesuré le
+                // 08/11/2026 sur 3 fiches vendeur en 4G lente, le préchargement
+                // donne un LCP plus court à chaque fois (~3,3 s contre ~3,9 s).
+                preload={priority && i === 0}
+                sizes={sizes}
+                onError={() => setBroken((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))}
               />
-            ))}
-          </div>
-        </>
+            </div>
+          ))}
+        </div>
+
+        {count > 1 && (
+          <>
+            {/* Flèches */}
+            <button
+              type="button"
+              aria-label="Image précédente"
+              onClick={() => go(index - 1)}
+              className="absolute top-1/2 left-3 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Image suivante"
+              onClick={() => go(index + 1)}
+              className="absolute top-1/2 right-3 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
+            {!thumbnails && (
+              <div className="absolute right-0 bottom-3 left-0 z-10 flex justify-center gap-1.5">
+                {images.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Aller à l'image ${i + 1}`}
+                    onClick={() => go(i)}
+                    className={cn(
+                      'h-1.5 rounded-full transition-all',
+                      i === index ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/80',
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      {thumbnails && count > 1 && (
+        <div
+          className="mt-3 flex gap-3 overflow-x-auto px-1 py-1"
+          role="group"
+          aria-label="Photos du produit"
+        >
+          {images.map(
+            (img, i) =>
+              !broken.has(i) && (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => go(i)}
+                  aria-label={`Afficher la photo ${i + 1}`}
+                  aria-pressed={index === i}
+                  className={cn(
+                    'relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2',
+                    index === i
+                      ? 'border-tomato-600'
+                      : 'hover:border-tomato-200 border-transparent',
+                  )}
+                >
+                  <Image
+                    src={img.url}
+                    alt=""
+                    fill
+                    loader={cloudinaryLoader}
+                    sizes="96px"
+                    className="object-cover"
+                  />
+                </button>
+              ),
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }

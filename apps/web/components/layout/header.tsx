@@ -45,9 +45,9 @@ export function Header() {
     // navigation : une demi-seconde pendant laquelle le haut de la page est
     // vide, sur un élément qui doit au contraire être immédiatement stable.
     // C'est de la décoration payée en confort perçu — supprimée.
-    <header className="sticky top-0 z-50 border-b border-cream-300 bg-cream-100">
+    <header className="sticky top-0 z-50 border-b border-ink-100 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-[4.5rem] items-center justify-between">
           {/* Logo */}
           <Link href="/" className="group flex min-h-11 min-w-11 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">

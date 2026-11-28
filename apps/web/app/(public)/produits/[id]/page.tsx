@@ -1,12 +1,25 @@
-import { cache } from 'react';
+import { cache, Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { Bike, Clock, ShoppingBag, Wallet } from 'lucide-react';
 import { apiClient } from '@lilia/api-client';
 import type { Product } from '@lilia/types';
-import { coverImage, priceLabel, startingPrice } from '@lilia/utils';
+import {
+  coverImage,
+  formatDeliveryTime,
+  galleryImages,
+  priceLabel,
+  startingPrice,
+} from '@lilia/utils';
 import { ProductPurchase } from '@/components/products/product-purchase';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { ImageCarousel } from '@/components/ui/image-carousel';
+import { RestaurantReviews } from '@/components/restaurants/restaurant-reviews';
+import { getVendorMenu } from '@/lib/vendor-menu';
+import { serviceModesOf } from '@/lib/service-modes';
+import { DeliveryFeeText } from '@/components/restaurants/delivery-fee-text';
+import { ServiceModeTags } from '@/components/restaurants/service-mode-tags';
 import { ProductFacts } from '@/components/products/product-facts';
 import { TrackProductView } from '@/components/analytics/track-product-view';
 import { BreadcrumbJsonLd, ProductJsonLd } from '@/components/seo/json-ld';
@@ -14,6 +27,8 @@ import { PageLoadError } from '@/components/ui/page-load-error';
 import { readResultFromError, type ReadResult } from '@/lib/read-result';
 import { reportServerReadFailure, serverReadSignal } from '@/lib/server-read';
 import { SITE_URL } from '@/lib/site';
+
+const getProductVendor = cache(getVendorMenu);
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -43,7 +58,10 @@ interface PageProps {
  */
 const getProduct = cache(async (id: string): Promise<ReadResult<Product>> => {
   try {
-    return { kind: 'found', value: await apiClient<Product>(`/products/${id}`, { signal: serverReadSignal() }) };
+    return {
+      kind: 'found',
+      value: await apiClient<Product>(`/products/${id}`, { signal: serverReadSignal() }),
+    };
   } catch (error) {
     const result = readResultFromError(error);
     if (result.kind === 'unavailable') reportServerReadFailure(`produit ${id}`, error);
@@ -114,7 +132,7 @@ export default async function ProduitPage({ params }: PageProps) {
     (product.stockRestant === null || (product.stockRestant ?? 0) > 0);
 
   return (
-    <div className="min-h-screen bg-cream-100">
+    <div className="min-h-screen bg-[#faf7f2]">
       {/* Seul émetteur de `product_view` du site : la fiche est ouverte, donc
           le produit est consulté. Les lignes de menu n'émettent rien. */}
       <TrackProductView
@@ -143,69 +161,160 @@ export default async function ProduitPage({ params }: PageProps) {
         ]}
       />
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {/* Retour vers le vendeur, et non `history.back()` : on arrive aussi
-            ici depuis un partage ou un résultat de recherche, où il n'y a
-            rien derrière. */}
-        <Link
-          href={`/restaurants/${product.restaurantId}`}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition-colors hover:text-tomato-700"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          {vendorName ? `Retour à ${vendorName}` : 'Retour au vendeur'}
-        </Link>
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
-          {/* Achat — le seul bloc client de la page */}
+      <div className="mx-auto max-w-7xl px-4 pt-5 pb-16 sm:px-6 lg:px-8">
+        <Breadcrumbs
+          links={[
+            { label: 'Accueil', href: '/' },
+            {
+              label: vendorName ?? 'Nos vendeurs',
+              href: vendorName ? `/restaurants/${product.restaurantId}` : '/restaurants',
+            },
+          ]}
+          current={product.nom}
+        />
+        <div className="grid items-start gap-7 lg:grid-cols-2 lg:gap-10">
           <div>
-            <ProductPurchase product={product} vendor={vendor} />
+            <ImageCarousel
+              images={galleryImages(product, product.nom)}
+              className="bg-cream-200 aspect-[4/3] w-full rounded-2xl"
+              priority
+              thumbnails
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              fallback={
+                <div className="bg-cream-200 grid aspect-[4/3] place-items-center rounded-2xl">
+                  <ShoppingBag className="text-ink-300 size-12" aria-hidden />
+                </div>
+              }
+            />
           </div>
 
-          {/* Description et caractéristiques — rendus sur le serveur */}
-          <div className="flex flex-col gap-6">
-            <header className="flex flex-col gap-2">
-              {product.category?.nom && (
-                <span className="text-xs font-medium uppercase tracking-wide text-ink-500">
-                  {product.category.nom}
-                </span>
-              )}
-              <h1
-                className="text-2xl font-bold text-ink-900 sm:text-3xl"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
+          <div className="flex min-w-0 flex-col gap-5">
+            <header>
+              <div className="mb-3 flex flex-wrap gap-2 text-sm font-semibold">
+                {vendorName && (
+                  <Link
+                    href={`/restaurants/${product.restaurantId}`}
+                    className="bg-tomato-50 text-tomato-700 rounded-full px-3 py-1 hover:underline"
+                  >
+                    {vendorName}
+                  </Link>
+                )}
+                {product.category?.nom && (
+                  <span className="text-ink-700 rounded-full bg-white px-3 py-1">
+                    {product.category.nom}
+                  </span>
+                )}
+              </div>
+              <h1 className="font-display text-ink-900 text-3xl leading-tight font-extrabold tracking-tight sm:text-5xl">
                 {product.nom}
               </h1>
-              {/* Même règle que la carte et que l'application : une seule
-                  fonction, pas trois expressions qui finissent par diverger. */}
-              <p className="text-xl font-extrabold text-tomato-700">
-                {priceLabel(product)}
-              </p>
-              {vendorName && (
-                <Link
-                  href={`/restaurants/${product.restaurantId}`}
-                  className="group inline-flex w-fit items-center gap-1 text-sm text-ink-700 hover:text-tomato-700"
-                >
-                  Vendu par <span className="font-semibold">{vendorName}</span>
-                  <ChevronRight
-                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
-                    aria-hidden
-                  />
-                </Link>
+              {product.description?.trim() && (
+                <p className="text-ink-700 mt-4 text-base leading-relaxed whitespace-pre-line">
+                  {product.description.trim()}
+                </p>
               )}
             </header>
 
-            {product.description?.trim() && (
-              // La liste du menu tronque à deux lignes ; c'est ici qu'on lit
-              // la description entière — c'est la raison d'être de la fiche.
-              <p className="whitespace-pre-line text-sm leading-relaxed text-ink-700">
-                {product.description.trim()}
-              </p>
-            )}
-
+            <ProductPurchase product={product} vendor={vendor} />
+            <Suspense fallback={null}>
+              <ProductServiceInfo vendorId={product.restaurantId} />
+            </Suspense>
             <ProductFacts product={product} vendor={vendor} />
           </div>
         </div>
+        <div className="mt-12 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.52fr)] lg:gap-10">
+          <Suspense fallback={<div aria-hidden className="skeleton h-40" />}>
+            <RestaurantReviews restaurantId={product.restaurantId} title="Avis sur le vendeur" />
+          </Suspense>
+          <Suspense fallback={<div aria-hidden className="skeleton h-40" />}>
+            <RelatedProducts product={product} />
+          </Suspense>
+        </div>
       </div>
     </div>
+  );
+}
+
+async function ProductServiceInfo({ vendorId }: { vendorId: string }) {
+  const result = await getProductVendor(vendorId);
+  if (result.kind !== 'found') return null;
+  const vendor = result.value;
+  const modes = serviceModesOf(vendor);
+
+  return (
+    <div
+      className="text-ink-700 flex flex-wrap gap-x-4 gap-y-2 text-sm"
+      aria-label="Services du vendeur"
+      role="group"
+    >
+      {modes.delivery && (
+        <>
+          <span className="flex items-center gap-1.5">
+            <Clock className="text-tomato-700 size-4" aria-hidden />
+            {formatDeliveryTime(vendor.estimatedDeliveryTimeMin, vendor.estimatedDeliveryTimeMax)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Bike className="text-tomato-700 size-4" aria-hidden />
+            <DeliveryFeeText fixedDeliveryFee={vendor.fixedDeliveryFee} prefix="Livraison" />
+          </span>
+        </>
+      )}
+      <ServiceModeTags modes={modes} />
+      <span className="flex items-center gap-1.5">
+        <Wallet className="text-tomato-700 size-4" aria-hidden /> MTN MoMo / Airtel Money
+      </span>
+    </div>
+  );
+}
+
+async function RelatedProducts({ product }: { product: Product }) {
+  const result = await getProductVendor(product.restaurantId);
+  if (result.kind !== 'found') return null;
+
+  const vendor = result.value;
+  const related = (vendor.products ?? []).filter((item) => item.id !== product.id).slice(0, 4);
+
+  return (
+    <section
+      aria-labelledby="related-products"
+      className="border-ink-100 rounded-2xl border bg-white p-5"
+    >
+      <h2 id="related-products" className="font-display text-ink-900 text-xl font-extrabold">
+        Du même vendeur
+      </h2>
+      {related.length > 0 && (
+        <ul className="divide-ink-100 mt-3 divide-y">
+          {related.map((item) => (
+            <li key={item.id}>
+              <Link
+                href={`/produits/${item.id}`}
+                className="text-ink-900 hover:text-tomato-700 flex items-center gap-3 py-3"
+              >
+                <div className="bg-cream-200 size-14 shrink-0 overflow-hidden rounded-lg">
+                  <ImageCarousel
+                    images={galleryImages(item, '').slice(0, 1)}
+                    className="size-full"
+                    sizes="56px"
+                    fallback={<ShoppingBag className="text-ink-500 m-4 size-6" aria-hidden />}
+                  />
+                </div>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{item.nom}</span>
+                  <span className="text-tomato-700 block text-sm font-bold">
+                    {priceLabel(item)}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        href={`/restaurants/${vendor.id}`}
+        className="text-tomato-700 mt-4 inline-flex min-h-11 items-center text-sm font-semibold hover:underline"
+      >
+        Voir la carte de {vendor.nom}
+      </Link>
+    </section>
   );
 }

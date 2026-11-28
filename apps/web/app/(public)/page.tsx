@@ -7,6 +7,8 @@ import { HowItWorks } from '@/components/home/how-it-works';
 import { BecomePartner } from '@/components/home/become-partner';
 import { DownloadApp } from '@/components/home/download-app';
 import { SitecParticipation } from '@/components/home/sitec-participation';
+import { getVendorFacets } from '@/lib/vendors';
+import { vendorCountLabel } from '@/lib/vendor-catalog';
 import { fetchBanners } from '@/lib/hero-slides';
 import { OrganizationJsonLd, WebSiteJsonLd } from '@/components/seo/json-ld';
 
@@ -24,8 +26,12 @@ export const metadata: Metadata = {
  * coquille d'être prérendue statiquement (PPR).
  */
 async function HeroFromBanners() {
-  const bannerSlides = await fetchBanners();
-  return <HeroSlider slides={bannerSlides} />;
+  const [slides, facets] = await Promise.all([fetchBanners(), getVendorFacets()]);
+  const activity =
+    facets.status === 'ok' && facets.value.total > 0
+      ? vendorCountLabel(facets.value.total, facets.value.open)
+      : undefined;
+  return <HeroSlider slides={slides} activity={activity} />;
 }
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -35,16 +41,15 @@ export default function HomePage({ searchParams }: { searchParams: Promise<Searc
     <div>
       <OrganizationJsonLd />
       <WebSiteJsonLd />
-      {/* Repli : le hero sans bannière, mais avec la place de l'image réservée. */}
+      {/* Le repli réserve la place des bannières pendant leur chargement. */}
       <Suspense fallback={<HeroSlider slides={[]} pending />}>
         <HeroFromBanners />
       </Suspense>
-      {/* Les vendeurs d'abord : c'est ce que le visiteur vient chercher. */}
-      <FeaturedRestaurants searchParams={searchParams} />
       <CategoryRail />
       <HowItWorks />
-      <DownloadApp />
+      <FeaturedRestaurants searchParams={searchParams} />
       <BecomePartner />
+      <DownloadApp />
       <SitecParticipation />
     </div>
   );

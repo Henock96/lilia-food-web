@@ -5,25 +5,26 @@ import { LeaveReviewForm } from './leave-review-form';
 
 interface RestaurantReviewsProps {
   restaurantId: string;
+  title?: string;
 }
 
-export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps) {
+export async function RestaurantReviews({ restaurantId, title = 'Avis clients' }: RestaurantReviewsProps) {
   const { stats, reviews } = await getVendorReviews(restaurantId);
 
   if (!stats || reviews.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-cream-300 p-5">
+      <div className="bg-white rounded-2xl border border-ink-100 p-5">
         <LeaveReviewForm restaurantId={restaurantId} />
-        <h3 className="font-bold text-ink-900 mb-4">Avis clients</h3>
+        <h2 className="mb-4 font-display text-xl font-extrabold text-ink-900">{title}</h2>
         <p className="text-sm text-ink-500">Aucun avis pour le moment.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-cream-300 p-5">
+    <div className="bg-white rounded-2xl border border-ink-100 p-5">
       <LeaveReviewForm restaurantId={restaurantId} />
-      <h3 className="font-bold text-ink-900 mb-4">Avis clients</h3>
+      <h2 className="mb-4 font-display text-xl font-extrabold text-ink-900">{title}</h2>
 
       {/* Stats globales */}
       <div className="flex items-center gap-4 mb-5 pb-5 border-b border-cream-300">
@@ -66,9 +67,9 @@ export async function RestaurantReviews({ restaurantId }: RestaurantReviewsProps
       </div>
 
       {/* Liste des avis */}
-      <div className="flex flex-col gap-4 max-h-80 overflow-y-auto">
+      <div className="flex flex-col divide-y divide-ink-100">
         {reviews.slice(0, 5).map((review) => (
-          <div key={review.id} className="flex flex-col gap-1.5">
+          <div key={review.id} className="flex flex-col gap-1.5 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-tomato-100 flex items-center justify-center text-xs font-bold text-tomato-700">
